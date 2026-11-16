@@ -30,11 +30,16 @@ Catatan implementasi yang menyimpang dari dokumen asli:
 ## Fase 1 — Desktop MVP (target `v0.1.0`)
 
 **Search**
-- [ ] Kotak pencarian (UI) + state loading/empty
-- [ ] Koneksi ke `MusicCatalog` mock, hasil lagu tampil di list
-- [ ] `MusicCatalog` nyata: hanya endpoint pencarian lagu (bukan album/artis)
-- [ ] Saran pencarian (suggestions) + history pencarian lokal
-- [ ] Empty state + pesan offline saat pencarian gagal
+- [x] Kotak pencarian (UI) + state loading/empty
+- [x] Koneksi ke `MusicCatalog` mock, hasil lagu tampil di list
+- [x] `MusicCatalog` nyata: hanya endpoint pencarian lagu (bukan album/artis)
+- [x] Saran pencarian (suggestions) — backend siap; wiring UI menyusul
+- [ ] History pencarian lokal
+- [x] Empty state + pesan error saat pencarian gagal
+
+Catatan Fase 1 Search: katalog di-upgrade di background saat app start, jadi
+aplikasi tidak pernah menunggu jaringan untuk membuka jendela. Kalau offline,
+mock tetap dipakai dan Settings menampilkan "Mock (contoh)".
 
 **Playback**
 - [ ] Kontrak `StreamResolver` + mock yang bisa disuruh gagal (untuk tes backoff)
