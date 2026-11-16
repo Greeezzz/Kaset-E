@@ -76,3 +76,36 @@ npx tauri build --no-bundle
 ```
 
 Enam perintah itu adalah gerbang yang sama dengan CI. Kalau semua lulus lokal, CI tidak akan kejut.
+
+## 8. Kegagalan build yang menipu
+
+Dua yang sudah benar-benar terjadi dan menghabiskan waktu:
+
+**`Access is denied. (os error 5)` saat `tauri build`, padahal `cargo build --release` sukses.**
+
+Penyebabnya `kaset.exe` dari tes sebelumnya masih hidup dan mengunci file, atau antivirus memegang binary yang baru ditulis. `tauri build` gagal saat mengeksekusi `rustc`, bukan saat compile — pesan errornya menyebut "could not execute process rustc (never executed)". Solusi: matikan proses `kaset` dulu, tunggu beberapa detik, lalu ulangi.
+
+```bash
+powershell -NoProfile -Command "Get-Process kaset -ErrorAction SilentlyContinue | Stop-Process -Force"
+```
+
+Kalau masih gagal, cek `rustc --version` bisa dijalankan. Kalau bisa, itu transient (antivirus) dan retry berhasil. Jangan buang waktu mengubah kode untuk error ini — kodenya tidak salah.
+
+**`cargo add` gagal karena nama fitur berbeda, sehingga dependensi tidak pernah masuk.**
+
+Contoh nyata: `reqwest` 0.13 tidak punya fitur `rustls-tls` (namanya `rustls`). `cargo add reqwest --features rustls-tls` gagal, Cargo.toml tidak berubah, dan error berikutnya menyesatkan: `cannot find reqwest in the list of imported crates`. Kalau `cargo add` gagal, **baca daftar fitur yang dicetak** lalu tulis Cargo.toml langsung.
+
+## 9. Verifikasi pemutaran tanpa menebak
+
+Screenshot PowerShell bisa salah: kalau PowerShell-nya DPI-unaware, `CopyFromScreen` memotong jendela pada display berskala (mis. 1920x1080 fisik @125% → gambar 1536x864). Jangan simpulkan "UI rusak" dari screenshot seperti itu.
+
+Cara yang benar-benar bisa dipercaya — baca DOM dari dalam webview:
+
+```bash
+WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333" ./kaset.exe
+curl -s http://127.0.0.1:9333/json/list   # ambil webSocketDebuggerUrl
+```
+
+Lalu lewat CDP: `Runtime.enable` (wajib, kalau tidak evaluasi mengembalikan `undefined`), `Runtime.evaluate` untuk membaca layout/state, `Page.captureScreenshot` untuk gambar yang akurat, dan `Log.entryAdded` untuk melihat error CORS/CSP asli.
+
+Untuk memeriksa audio, `src/lib/audio.ts` memasang `window.__kasetAudio` (hanya bantu debug) dengan `debugState()` yang mengembalikan `paused`, `currentTime`, `duration`, `readyState`, `networkState`. Ini yang membedakan "tampak memutar" dari "benar-benar memutar".
