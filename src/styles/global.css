@@ -12,14 +12,21 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background-color: var(--bg);
+  /* Grid halus: dibuat CSS, bukan gambar besar — murah untuk repaint
+   * (DESIGN-ENDFIELD §9, penting untuk Android WebView). */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   /* Desktop: UI tidak untuk di-select seperti dokumen */
   user-select: none;
+  color-scheme: light dark;
 }
 
 button {
@@ -31,17 +38,19 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  /* Outline memakai --line-strong: kontras jelas di KEDUA tema, sedangkan
+   * kuning gagal di latar terang. */
+  outline: 2px solid var(--line-strong);
   outline-offset: 2px;
-  border-radius: var(--r-sm);
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   margin: 0;
 }
 
@@ -50,18 +59,87 @@ h3 {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: var(--r-full);
+  background: var(--line);
+  border-radius: 0;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
+/* ---------- Bahasa bentuk (DESIGN-ENDFIELD §5) ---------- */
+
+/* Panel dengan sudut dipotong. Catatan: clip-path juga memotong border di
+ * sudut, jadi garis tegas di sudut potong dibuat terpisah bila perlu. */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--cut-md) 0,
+    100% 0,
+    100% calc(100% - var(--cut-md)),
+    calc(100% - var(--cut-md)) 100%,
+    0 100%,
+    0 var(--cut-md)
+  );
+}
+
+/* Corner brackets — ornamen dekoratif, jadi aria-hidden di sisi JSX. */
+.bracketed {
+  position: relative;
+}
+.bracketed::before,
+.bracketed::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--line-strong);
+  pointer-events: none;
+}
+.bracketed::before {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.bracketed::after {
+  right: 0;
+  bottom: 0;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* Strip hazard: pakai hemat, hanya sebagai aksen kecil. */
+.hazard {
+  height: 6px;
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 8px, var(--ink) 8px 16px);
+}
+
+/* Label teknis mono: metadata saja, jangan untuk teks yang harus dibaca. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
 /* Utilitas umum */
 .muted {
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* Hormati preferensi pengguna (DESIGN-ENDFIELD §8). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

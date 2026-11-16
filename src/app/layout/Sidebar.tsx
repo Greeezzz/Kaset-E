@@ -41,8 +41,14 @@ export function Sidebar({ route, onNavigate }: { route: Route; onNavigate: (r: R
             padding: "var(--s-2) var(--s-3)",
             borderRadius: "var(--r-sm)",
             textAlign: "left",
-            background: route === it.id ? "var(--surface-2)" : "transparent",
-            color: route === it.id ? "var(--accent)" : "var(--text)",
+            // Item aktif = blok kuning dengan teks hitam. JANGAN teks kuning
+            // di atas latar terang — kontrasnya gagal (DESIGN-ENDFIELD §3).
+            background: route === it.id ? "var(--accent)" : "transparent",
+            color: route === it.id ? "var(--accent-ink)" : "var(--ink)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
           }}
         >
           {it.label}

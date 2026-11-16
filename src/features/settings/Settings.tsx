@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke, runningInTauri } from "../../lib/tauri";
+import { currentTheme, setTheme, type Theme } from "../../lib/theme";
 
 /**
  * Settings. Fase 1: menampilkan status katalog (nyata vs mock) supaya user tahu
@@ -8,6 +9,7 @@ import { invoke, runningInTauri } from "../../lib/tauri";
 export function Settings() {
   const [catalogLive, setCatalogLive] = useState<boolean | null>(null);
   const [trackCount, setTrackCount] = useState<number | null>(null);
+  const [theme, setThemeState] = useState<Theme>(() => currentTheme());
 
   useEffect(() => {
     if (!runningInTauri) {
@@ -79,7 +81,35 @@ export function Settings() {
         </dd>
 
         <dt className="muted">Tema</dt>
-        <dd style={{ margin: 0 }}>Gelap (mode terang nanti)</dd>
+        <dd style={{ margin: 0 }}>
+          <div role="radiogroup" aria-label="Tema" style={{ display: "flex", gap: "var(--s-2)" }}>
+            {(["light", "dark"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={theme === t}
+                onClick={() => {
+                  setTheme(t);
+                  setThemeState(t);
+                }}
+                style={{
+                  minHeight: 44,
+                  padding: "0 var(--s-3)",
+                  border: "1px solid var(--line)",
+                  background: theme === t ? "var(--accent)" : "transparent",
+                  color: theme === t ? "var(--accent-ink)" : "var(--ink)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t === "light" ? "Terminal Kertas" : "Terminal Malam"}
+              </button>
+            ))}
+          </div>
+        </dd>
 
         <dt className="muted">Data</dt>
         <dd style={{ margin: 0 }}>Lokal saja — tanpa server, tanpa telemetri.</dd>

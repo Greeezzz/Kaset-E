@@ -53,7 +53,13 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: Props) {
         type="button"
         onClick={onToggle}
         aria-label={playing ? "Jeda" : "Putar"}
-        style={{ width: 44, height: 44, fontSize: 18, color: "var(--accent)" }}
+        style={{
+          width: 44,
+          height: 44,
+          fontSize: 18,
+          border: "1px solid var(--line)",
+          color: "var(--ink)",
+        }}
       >
         {playing ? "❙❙" : "▶"}
       </button>

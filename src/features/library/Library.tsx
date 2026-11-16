@@ -29,8 +29,8 @@ export function Library({
               minHeight: 44,
               padding: "0 var(--s-3)",
               borderRadius: "var(--r-sm)",
-              background: tab === t ? "var(--surface-2)" : "transparent",
-              color: tab === t ? "var(--accent)" : "var(--text-muted)",
+              background: tab === t ? "var(--accent)" : "transparent",
+              color: tab === t ? "var(--accent-ink)" : "var(--ink-muted)",
             }}
           >
             {t}

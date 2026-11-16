@@ -26,7 +26,9 @@ export function BottomNav({ route, onNavigate }: { route: Route; onNavigate: (r:
           style={{
             flex: 1,
             minHeight: 44,
-            color: route === it.id ? "var(--accent)" : "var(--text-muted)",
+            // Lihat catatan di Sidebar: aktif = blok kuning + teks hitam.
+            background: route === it.id ? "var(--accent)" : "transparent",
+            color: route === it.id ? "var(--accent-ink)" : "var(--ink-muted)",
             fontSize: 13,
           }}
         >

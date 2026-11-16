@@ -37,13 +37,15 @@ Satu baris `listen_events` per sesi putar sebuah lagu.
 ### 1.3 Aturan Perhitungan (penting)
 
 - `listened_ms` dihitung dengan **mengakumulasi delta pemutaran** (dari event posisi/`timeupdate`), **bukan** `waktu_selesai - waktu_mulai`. Kalau tidak, pause dan seek merusak angkanya.
-- Delta tunggal yang loncat besar (mis. > 2 detik antar tick) dianggap seek dan **tidak** ditambahkan.
-- Sebuah lagu dihitung sebagai **"play"** jika `listened_ms ≥ min(30 detik, 50% durasi)`.
+- Seek tidak dihitung, tapi **jangan** memakai ambang tetap seperti "> 2 detik berarti seek". Saat jendela tidak aktif — atau nanti di Android ketika layar mati — `timeupdate` jarang dipanggil (bisa 3–5 detik sekali), dan delta normal akan salah dibuang sehingga `listened_ms` terlalu kecil.
+- Aturan yang benar: bandingkan kemajuan posisi audio dengan waktu nyata yang lewat. Delta dianggap seek hanya bila **posisi audio maju lebih jauh daripada selang waktu nyata** (mis. posisi lompat 30 detik padahal baru 2 detik berlalu). Kalau 5 detik nyata lewat dan posisi maju 5 detik, itu pemutaran normal dan **harus** dihitung.
+- Saat jeda (pause), posisi audio tidak maju sehingga delta-nya nol dan otomatis tidak menambah apa pun. Delta negatif (seek mundur) juga diabaikan.
+- Event ditulis saat lagu berganti atau app ditutup. Simpan juga secara berkala (mis. tiap 15 detik) ke buffer agar crash tidak menghilangkan data.
 - `outcome`:
   - `completed`: lagu selesai alami (≥ 90% durasi didengar).
   - `skipped`: pengguna pindah lagu sebelum ambang "play".
   - `interrupted`: app ditutup / error / pindah setelah ambang "play" tapi sebelum selesai.
-- Event ditulis saat lagu berganti atau app ditutup. Simpan juga secara berkala (mis. tiap 15 detik) ke buffer agar crash tidak menghilangkan data.
+- Sebuah lagu dihitung sebagai **"play"** jika `listened_ms ≥ min(30 detik, 50% durasi)`.
 
 ### 1.4 Skema (migrasi `0003_listen_events.sql`)
 

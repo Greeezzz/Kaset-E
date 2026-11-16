@@ -23,8 +23,11 @@ export function TrackRow({ track, active = false, onPlay, coverPath }: Props) {
         padding: "var(--s-2)",
         borderRadius: "var(--r-sm)",
         textAlign: "left",
-        background: active ? "var(--surface-2)" : "transparent",
-        color: active ? "var(--accent)" : "var(--text)",
+        background: active ? "var(--panel-2)" : "transparent",
+        color: "var(--ink)",
+        // Penanda aktif = garis kuning di tepi kiri (DESIGN-ENDFIELD §6),
+        // bukan teks kuning (kontras gagal di tema terang).
+        boxShadow: active ? "inset 3px 0 0 var(--accent)" : "none",
       }}
     >
       <CoverArt coverKey={track.coverKey} title={track.title} localPath={coverPath} size={40} />

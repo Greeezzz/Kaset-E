@@ -69,8 +69,10 @@ export function PlayerBar({ state, onToggle }: { state: PlayerState; onToggle: (
             minWidth: 44,
             minHeight: 44,
             fontSize: 16,
-            color: state.track ? "var(--accent)" : "var(--text-muted)",
-            opacity: state.track ? 1 : 0.4,
+            border: "1px solid var(--line)",
+            background: state.track ? "var(--accent)" : "transparent",
+            color: state.track ? "var(--accent-ink)" : "var(--ink-muted)",
+            opacity: state.track ? 1 : 0.5,
           }}
         >
           {loading ? "…" : playing ? "❙❙" : "▶"}
