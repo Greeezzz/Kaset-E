@@ -10,6 +10,7 @@ export function Settings() {
   const [catalogLive, setCatalogLive] = useState<boolean | null>(null);
   const [trackCount, setTrackCount] = useState<number | null>(null);
   const [theme, setThemeState] = useState<Theme>(() => currentTheme());
+  const [resolverLive, setResolverLive] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!runningInTauri) {
@@ -36,6 +37,27 @@ export function Settings() {
       .then(setTrackCount)
       .catch(() => setTrackCount(null));
 
+    // Resolver di-upgrade di background (termasuk mengunduh yt-dlp sekali),
+    // jadi statusnya dipantau sampai berubah.
+    const checkResolver = () =>
+      invoke<boolean>("resolver_status")
+        .then((live) => {
+          setResolverLive(live);
+          return live;
+        })
+        .catch(() => {
+          setResolverLive(false);
+          return false;
+        });
+    void checkResolver();
+    const resolverTimer = setInterval(async () => {
+      if (await checkResolver()) clearInterval(resolverTimer);
+    }, 2000);
+    const resolverGiveUp = setTimeout(() => {
+      clearInterval(resolverTimer);
+      setResolverLive((v) => v ?? false);
+    }, 60_000);
+
     const timer = setInterval(async () => {
       if (await check()) clearInterval(timer);
     }, 1500);
@@ -45,6 +67,8 @@ export function Settings() {
       cancelled = true;
       clearInterval(timer);
       clearTimeout(giveUp);
+      clearInterval(resolverTimer);
+      clearTimeout(resolverGiveUp);
     };
   }, []);
 
@@ -78,6 +102,21 @@ export function Settings() {
             Metadata lagu yang sudah dikenal database. Wajib ada sebelum lagu bisa difavoritkan,
             masuk playlist, atau disimpan di queue.
           </span>
+        </dd>
+
+        <dt className="muted">Pemutaran</dt>
+        <dd style={{ margin: 0 }}>
+          {resolverLive === null
+            ? "Memeriksa…"
+            : resolverLive
+              ? "Aktif (yt-dlp)"
+              : "Belum tersedia"}
+          {resolverLive === false && (
+            <span className="muted" style={{ display: "block", fontSize: 13 }}>
+              Kaset mengunduh yt-dlp otomatis sekali saat pertama jalan. Kalau ini tetap begini,
+              sambungkan internet lalu buka ulang aplikasi.
+            </span>
+          )}
         </dd>
 
         <dt className="muted">Tema</dt>

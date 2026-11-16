@@ -2255,6 +2255,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "parking_lot 0.13.0",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",

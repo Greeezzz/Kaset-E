@@ -15,7 +15,7 @@ pub struct AppState {
     /// lalu di-upgrade ke YouTube Music di background. Dengan begitu user tidak
     /// pernah menunggu jaringan saat membuka aplikasi.
     catalog: RwLock<Arc<dyn MusicCatalog>>,
-    pub resolver: Arc<dyn StreamResolver>,
+    resolver: RwLock<Arc<dyn StreamResolver>>,
     /// Direktori data aplikasi: database, cache cover, log.
     pub data_dir: std::path::PathBuf,
 }
@@ -28,27 +28,23 @@ impl AppState {
         // Mulai dari mock; `upgrade_catalog` menukarnya dengan katalog nyata.
         let mock = Arc::new(MockCatalog::default());
 
-        // Resolver: pakai yt-dlp kalau ada di PATH, dan SELALU dibungkus
-        // ResilientResolver supaya backoff + circuit breaker berlaku apa pun
-        // implementasinya (RESILIENCE.md). Kalau yt-dlp tidak ada, mock dipakai
-        // dan aplikasi tetap jalan — hanya belum bisa memutar audio nyata.
-        let resolver: Arc<dyn StreamResolver> = match YtDlpResolver::detect() {
-            Ok(ytdlp) => {
-                tracing::info!("resolver yt-dlp aktif");
-                Arc::new(ResilientResolver::new(Box::new(ytdlp)))
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "yt-dlp tidak ditemukan; memakai resolver mock");
-                mock.clone()
-            }
-        };
+        // Resolver: mulai dari mock supaya aplikasi langsung bisa dibuka, lalu
+        // `upgrade_resolver` menukarnya dengan yt-dlp asli di background.
+        // Yang asli SELALU dibungkus ResilientResolver supaya backoff + circuit
+        // breaker berlaku apa pun implementasinya (RESILIENCE.md).
+        let resolver: Arc<dyn StreamResolver> = mock.clone();
 
         Ok(Self {
             db,
             catalog: RwLock::new(mock),
-            resolver,
+            resolver: RwLock::new(resolver),
             data_dir,
         })
+    }
+
+    /// Resolver yang sedang aktif.
+    pub fn resolver(&self) -> Arc<dyn StreamResolver> {
+        self.resolver.read().clone()
     }
 
     /// Ambil katalog saat ini. Clone `Arc`-nya supaya lock tidak ditahan selama
@@ -78,6 +74,34 @@ impl AppState {
                 false
             }
         }
+    }
+
+    /// Mengupayakan yt-dlp tersedia, lalu TUKAR resolver mock dengan yang asli.
+    ///
+    /// Dipanggil di background saat startup. Kalau belum ada, binary diunduh ke
+    /// folder data aplikasi (supaya pengguna tidak perlu memasang apa pun).
+    /// Kalau gagal — mis. offline — aplikasi tetap jalan dengan resolver mock,
+    /// dan statusnya terlihat lewat command `resolver_status`.
+    pub async fn upgrade_resolver(&self) -> bool {
+        match crate::resolver::ytdlp::ensure_available().await {
+            Ok(path) => {
+                let real: Arc<dyn StreamResolver> = Arc::new(ResilientResolver::new(Box::new(
+                    YtDlpResolver::with_binary(path.clone()),
+                )));
+                *self.resolver.write() = real;
+                tracing::info!(path = %path.display(), "resolver yt-dlp aktif");
+                true
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "yt-dlp belum tersedia; pemutaran nonaktif");
+                false
+            }
+        }
+    }
+
+    /// True kalau resolver nyata (yt-dlp) sudah aktif.
+    pub fn resolver_is_live(&self) -> bool {
+        self.resolver.read().is_live()
     }
 
     /// Folder cache cover: <data_dir>/covers.

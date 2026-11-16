@@ -29,4 +29,10 @@ pub trait StreamResolver: Send + Sync {
         video_id: &str,
         quality: Quality,
     ) -> AppResult<crate::models::ResolvedStream>;
+
+    /// Apakah ini resolver nyata (bukan mock). Dipakai UI untuk memberi tahu
+    /// pengguna kalau pemutaran belum tersedia, dan test untuk fallback.
+    fn is_live(&self) -> bool {
+        true
+    }
 }

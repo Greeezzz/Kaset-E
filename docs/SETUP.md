@@ -109,3 +109,24 @@ curl -s http://127.0.0.1:9333/json/list   # ambil webSocketDebuggerUrl
 Lalu lewat CDP: `Runtime.enable` (wajib, kalau tidak evaluasi mengembalikan `undefined`), `Runtime.evaluate` untuk membaca layout/state, `Page.captureScreenshot` untuk gambar yang akurat, dan `Log.entryAdded` untuk melihat error CORS/CSP asli.
 
 Untuk memeriksa audio, `src/lib/audio.ts` memasang `window.__kasetAudio` (hanya bantu debug) dengan `debugState()` yang mengembalikan `paused`, `currentTime`, `duration`, `readyState`, `networkState`. Ini yang membedakan "tampak memutar" dari "benar-benar memutar".
+
+## 10. yt-dlp: diunduh saat runtime, bukan dibundel
+
+`AGENTS.md` melarang menyertakan binary ekstraktor pihak ketiga ke dalam repo. Tapi kalau pengguna harus memasang yt-dlp manual, aplikasi terasa rusak — dan itu **sudah pernah terjadi**: pengujian pertama hanya berhasil karena env var `KASET_YTDLP_PATH` di-set manual, sementara menjalankan aplikasi biasa langsung error dengan "yt-dlp tidak ditemukan".
+
+Solusinya: unduh saat runtime, sekali, ke folder data aplikasi. Alur pencarian (`resolver::ytdlp::which`) berurutan:
+
+1. `KASET_YTDLP_PATH` (untuk dev/pengujian)
+2. folder data aplikasi — tempat unduhan otomatis (`%APPDATA%\app.kaset.desktop\yt-dlp.exe`)
+3. `PATH` sistem
+
+Kalau belum ada, `ensure_available()` mengunduh dari rilis resmi yt-dlp. Di Linux tidak diunduh otomatis (banyak distro punya paketnya sendiri); pesan errornya menyuruh pakai package manager.
+
+Poin implementasi yang penting:
+
+- Unduh ke `<nama>.part` lalu `rename` setelah selesai. Tanpa ini, unduhan yang gagal di tengah meninggalkan file rusak yang terlihat valid, dan resolver akan gagal dengan pesan yang membingungkan.
+- Setelah selesai, `rename` (bukan `copy`) — atomik di filesystem yang sama.
+- Statusnya bisa dibaca UI lewat command `resolver_status`, dan Settings menampilkannya sebagai baris "Pemutaran: Aktif (yt-dlp) / Belum tersedia" plus polling singkat, karena upgrade-nya asinkron di background.
+- Kegagalan unduh **bukan** error fatal: katalog dan pencarian tetap jalan, hanya pemutaran yang nonaktif.
+
+Verifikasi yang benar untuk fitur ini: hapus `%APPDATA%\app.kaset.desktop\yt-dlp*`, hapus `.tools/`, jalankan aplikasi **tanpa** env var, lalu pastikan log memuat "mengunduh yt-dlp" dan `resolver_status` berubah dari `false` ke `true`.

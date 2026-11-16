@@ -54,6 +54,16 @@ pub async fn catalog_status(state: State<'_, AppState>) -> AppResult<bool> {
     Ok(state.catalog_is_live())
 }
 
+/// Status pemutaran: apakah resolver nyata (yt-dlp) sudah aktif.
+///
+/// Penting untuk UI: kalau false, pemutaran memang belum tersedia (mis. yt-dlp
+/// gagal diunduh saat offline). Menampilkan ini mencegah user mengira aplikasi
+/// rusak padahal hanya perlu koneksi untuk mengunduh sekali.
+#[tauri::command]
+pub async fn resolver_status(state: State<'_, AppState>) -> AppResult<bool> {
+    Ok(state.resolver_is_live())
+}
+
 #[tauri::command]
 pub async fn resolve_stream(
     state: State<'_, AppState>,
@@ -75,7 +85,7 @@ pub async fn resolve_stream(
     }
 
     state
-        .resolver
+        .resolver()
         .resolve(&video_id, quality.unwrap_or(Quality::High))
         .await
 }

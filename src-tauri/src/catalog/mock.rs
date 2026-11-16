@@ -78,6 +78,11 @@ impl MusicCatalog for MockCatalog {
 
 #[async_trait]
 impl StreamResolver for MockCatalog {
+    /// Mock melaporkan dirinya bukan resolver nyata.
+    fn is_live(&self) -> bool {
+        false
+    }
+
     async fn resolve(&self, _video_id: &str, quality: Quality) -> AppResult<ResolvedStream> {
         if self.fail_next.swap(false, Ordering::SeqCst) {
             return Err(AppError::stream("mock: resolver gagal (disengaja)", false));

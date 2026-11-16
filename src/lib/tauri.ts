@@ -109,6 +109,9 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       return false as T;
     case "tracks_count":
       return 0 as T;
+    case "resolver_status":
+      // Di browser tidak ada yt-dlp; pemutaran nyata memang tidak tersedia.
+      return false as T;
     case "resolve_stream": {
       // Mock tidak memutar audio nyata, tapi harus mengembalikan bentuk data
       // yang sama supaya jalur UI benar-benar teruji tanpa Rust.

@@ -77,6 +77,12 @@ impl ResilientResolver {
         Self::with_policy(inner, Policy::default())
     }
 
+    /// Pembungkus ini melaporkan status resolver di dalamnya — kalau dalamnya
+    /// mock, UI harus tahu bahwa pemutaran nyata belum tersedia.
+    pub fn is_live(&self) -> bool {
+        self.inner.is_live()
+    }
+
     pub fn with_policy(inner: Box<dyn StreamResolver>, policy: Policy) -> Self {
         Self {
             inner,

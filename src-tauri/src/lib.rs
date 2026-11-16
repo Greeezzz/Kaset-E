@@ -3,6 +3,7 @@ pub mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
+pub mod paths;
 pub mod resolver;
 pub mod state;
 
@@ -25,17 +26,21 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|e| format!("app_data_dir tidak tersedia: {e}"))?;
+            // Dipasang lebih dulu supaya resolver bisa menemukan folder ini saat
+            // mencari (dan mengunduh) yt-dlp.
+            paths::set_data_dir(data_dir.clone());
             let state = state::AppState::new(data_dir)
                 .map_err(|e| format!("gagal menyiapkan state: {e}"))?;
             tracing::info!(dir = %state.data_dir.display(), "Kaset mulai");
             let handle = app.handle().clone();
             app.manage(state);
 
-            // Upgrade ke katalog nyata di background: jendela tidak menunggu
-            // jaringan, dan kalau gagal aplikasi tetap jalan dengan mock.
+            // Upgrade katalog dan resolver di background: jendela tidak menunggu
+            // jaringan. Kalau gagal, aplikasi tetap jalan dengan mock.
             tauri::async_runtime::spawn(async move {
                 let state = handle.state::<state::AppState>();
                 state.upgrade_catalog().await;
+                state.upgrade_resolver().await;
             });
 
             Ok(())
@@ -45,6 +50,7 @@ pub fn run() {
             commands::search_suggestions,
             commands::track,
             commands::catalog_status,
+            commands::resolver_status,
             commands::tracks_count,
             commands::resolve_stream,
             commands::cover_get,

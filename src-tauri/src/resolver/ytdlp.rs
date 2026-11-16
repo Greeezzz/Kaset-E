@@ -85,6 +85,9 @@ impl YtDlpResolver {
 }
 
 /// Pencarian `executable` sederhana di PATH tanpa menambah dependensi.
+///
+/// Urutan pencarian (penting untuk UX): env var eksplisit → folder data
+/// aplikasi (tempat unduhan otomatis) → PATH sistem.
 fn which(name: &str) -> Option<PathBuf> {
     if let Ok(explicit) = std::env::var("KASET_YTDLP_PATH") {
         let p = PathBuf::from(explicit);
@@ -92,6 +95,16 @@ fn which(name: &str) -> Option<PathBuf> {
             return Some(p);
         }
     }
+
+    // Folder data aplikasi: tempat `ensure_available` mengunduh binary.
+    // Dicek sebelum PATH supaya versi yang dikelola Kaset dipakai konsisten.
+    if let Some(dir) = crate::paths::data_dir() {
+        let candidate = dir.join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
     let path = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path) {
         let candidate = dir.join(name);
@@ -100,6 +113,102 @@ fn which(name: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// URL rilis resmi yt-dlp. Dipakai untuk mengunduh binary di Windows/macOS
+/// supaya pengguna tidak perlu memasang apa pun secara manual.
+#[cfg(not(target_os = "linux"))]
+fn release_url() -> &'static str {
+    if cfg!(windows) {
+        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+    } else {
+        // macOS: tidak ada binary universal tunggal; pakai varian macos.
+        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+    }
+}
+
+/// Memastikan yt-dlp tersedia. Kalau belum ada, unduh ke folder data aplikasi.
+///
+/// Kenapa tidak dibundel saja ke repo? Karena `AGENTS.md` melarang menyertakan
+/// binary ekstraktor pihak ketiga ke dalam repo. Unduhan saat runtime tidak
+/// melanggar aturan itu, dan membuat aplikasi bisa dipakai orang lain tanpa
+/// langkah manual. Kalau unduhan gagal (offline), aplikasi tetap jalan —
+/// pemutaran saja yang nonaktif, dan pesannya jelas.
+pub async fn ensure_available() -> AppResult<PathBuf> {
+    if let Some(path) = which("yt-dlp.exe").or_else(|| which("yt-dlp")) {
+        return Ok(path);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Err(AppError::stream(
+            "yt-dlp tidak ditemukan. Pasang lewat package manager distro kamu \
+             (mis. `sudo apt install yt-dlp` atau `pipx install yt-dlp`), lalu buka ulang Kaset.",
+            true,
+        ))
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let dir = crate::paths::data_dir()
+            .ok_or_else(|| AppError::stream("tidak bisa menentukan folder data aplikasi", true))?;
+        std::fs::create_dir_all(&dir)?;
+
+        let file_name = if cfg!(windows) {
+            "yt-dlp.exe"
+        } else {
+            "yt-dlp"
+        };
+        let dest = dir.join(file_name);
+        let url = release_url();
+
+        tracing::info!(%url, dest = %dest.display(), "mengunduh yt-dlp");
+
+        let resp = reqwest::Client::builder()
+            // Unduhan binary bisa besar (~24 MB di Windows); beri waktu layak.
+            .timeout(Duration::from_secs(180))
+            .build()
+            .map_err(|e| AppError::stream(format!("gagal menyiapkan klien unduhan: {e}"), false))?
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| {
+                AppError::stream(
+                    format!("gagal mengunduh yt-dlp (periksa koneksi): {e}"),
+                    false,
+                )
+            })?;
+
+        if !resp.status().is_success() {
+            return Err(AppError::stream(
+                format!("unduhan yt-dlp gagal dengan status {}", resp.status()),
+                false,
+            ));
+        }
+
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| AppError::stream(format!("unduhan terputus: {e}"), false))?;
+
+        // Tulis ke file sementara lalu pindahkan: kalau unduhan/penulisan gagal
+        // di tengah, kita tidak meninggalkan file rusak yang terlihat valid.
+        let tmp = dest.with_extension("part");
+        tokio::fs::write(&tmp, &bytes).await?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = tokio::fs::metadata(&tmp).await?.permissions();
+            perms.set_mode(0o755);
+            tokio::fs::set_permissions(&tmp, perms).await?;
+        }
+
+        tokio::fs::rename(&tmp, &dest).await?;
+
+        tracing::info!(size = bytes.len(), "yt-dlp selesai diunduh");
+        Ok(dest)
+    }
 }
 
 /// Ambil `expire=<unix>` dari URL googlevideo. URL stream memang membawa masa

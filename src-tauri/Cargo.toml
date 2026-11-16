@@ -25,6 +25,11 @@ serde_json = "1"
 # dibuat sekali di AppState, bukan per request.
 ytmapi-rs = "0.3"
 
+# Dipakai untuk mengunduh binary yt-dlp saat pertama kali dijalankan, supaya
+# pengguna tidak perlu memasang apa pun manual. Fitur TLS-nya bernama "rustls"
+# di 0.13 (bukan "rustls-tls"), dan itu sudah diverifikasi lewat `cargo add`.
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
+
 # bundled: SQLite dikompilasi bersama aplikasi, jadi user tidak perlu install apa pun.
 # Catatan: butuh C compiler (MSVC di Windows) — sama seperti kebutuhan Rust itu sendiri.
 rusqlite = { version = "0.43", features = ["bundled"] }

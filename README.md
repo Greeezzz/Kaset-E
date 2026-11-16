@@ -18,7 +18,7 @@ Pemutar musik pribadi untuk desktop dan Android. Cari lagu, putar tanpa iklan, k
 
 Prasyarat: Node 20+, Rust stable, dan **C toolchain** (Windows: MSVC Build Tools; Linux: `build-essential` + `libwebkit2gtk-4.1-dev`; macOS: Xcode CLT).
 
-Untuk memutar lagu, aplikasi butuh **`yt-dlp`** di PATH (atau set `KASET_YTDLP_PATH`). Binary-nya sengaja tidak dibundel. Tanpa yt-dlp, pencarian tetap jalan tetapi pemutaran dinonaktifkan.
+Untuk memutar lagu, Kaset **mengunduh `yt-dlp` otomatis** saat pertama dijalankan (sekali, ke folder data aplikasi). Binary-nya sengaja tidak dibundel ke repo. Kalau unduhan gagal (mis. offline), pencarian tetap jalan dan Settings menampilkan status pemutaran sebagai "Belum tersedia". Untuk dev, kamu bisa menunjuk binary sendiri lewat `KASET_YTDLP_PATH`.
 
 ```bash
 npm install         # dependensi frontend
