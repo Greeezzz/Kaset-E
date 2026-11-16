@@ -7,6 +7,10 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 
+# Binary ekstraktor TIDAK boleh masuk repo (AGENTS.md). Ini tempat dev lokal
+# menaruh yt-dlp untuk pengujian manual.
+.tools/
+
 # editor & OS
 .vscode/*
 !.vscode/extensions.json

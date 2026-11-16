@@ -36,7 +36,16 @@ Cover art dibaca dari disk lewat `asset://`. **Jangan** menambahkan `core:asset:
 - `Cargo.toml` → feature `protocol-asset` pada crate `tauri`
 - CSP harus mengizinkan `img-src 'self' asset: http://asset.localhost`
 
-## 3. Tauri 2: ikon wajib ada semua
+## 3. Tauri 2: CORS dan CSP untuk audio
+
+Dua jebakan berbeda yang mudah tertukar, dan keduanya membuat audio **diam tanpa pesan jelas**:
+
+1. **Jangan set `crossOrigin = "anonymous"` pada elemen `<audio>`.** Server `*.googlevideo.com` tidak mengirim header `Access-Control-Allow-Origin`, jadi Chromium menolak audionya dengan `ERR_FAILED`. Gejalanya menipu: `paused=false` tapi `readyState=0`, `networkState=3`. Tanpa atribut itu audio memutar normal. Konsekuensinya WebAudio tidak bisa membaca sampel cross-origin — memang tidak dibutuhkan.
+2. **CSP harus punya `media-src`.** `default-src 'self'` memblokir `https://*.googlevideo.com`. Wajib ada `media-src 'self' blob: https://*.googlevideo.com` (dan `img-src` untuk thumbnail `*.ytimg.com` bila cover diambil langsung).
+
+Debug-nya: buka webview lewat `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333"`, sambungkan CDP, lalu baca `Log.entryAdded` + `Network.loadingFailed`. Pesan aslinya menyebut CORS/ERR_FAILED — tanpa itu, gejalanya cuma "audio tidak jalan".
+
+## 4. Tauri 2: ikon wajib ada semua
 
 `tauri-build` membaca `icons/icon.ico` (Windows) dan `icons/icon.icns` (macOS) **apa pun platform build-nya**. Kalau hilang:
 
@@ -46,17 +55,17 @@ Cover art dibaca dari disk lewat `asset://`. **Jangan** menambahkan `core:asset:
 
 Minimal yang harus ada: `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.ico`, `icon.icns`, plus `tray.png` kalau memakai tray.
 
-## 4. Migrasi SQLite
+## 5. Migrasi SQLite
 
 Jangan pernah menaruh `CREATE TABLE schema_migrations` di dalam file migrasi. Runner (`db::migrations::run`) sudah membuatnya lebih dulu; duplikasi membuat semua test gagal dengan `table schema_migrations already exists`.
 
 Satu transaksi per migrasi, dan migrasi yang sudah dirilis tidak boleh diedit — tambah entri baru di daftar `MIGRATIONS` dan file `000N_*.sql` baru.
 
-## 5. Frontend tanpa Rust
+## 6. Frontend tanpa Rust
 
 `npm run dev` sengaja bisa jalan murni di browser: `src/lib/tauri.ts` mendeteksi `__TAURI_INTERNALS__` dan jatuh ke mock. Ini memungkinkan kerja UI/desain tanpa menunggu kompilasi Rust (yang bisa 5–15 menit pada build pertama). Konsekuensinya: setiap command baru harus punya cabang di mock, kalau tidak UI diam saja saat dipreview.
 
-## 6. Perintah verifikasi lengkap
+## 7. Perintah verifikasi lengkap
 
 ```bash
 npm run lint && npm run typecheck && npm run format && npm run build

@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https://*.ytimg.com https://yt3.googleusercontent.com; media-src 'self' blob: https://*.googlevideo.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://*.googlevideo.com",
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPDATA/covers/**"]

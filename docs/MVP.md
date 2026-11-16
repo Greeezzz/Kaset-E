@@ -42,15 +42,22 @@ aplikasi tidak pernah menunggu jaringan untuk membuka jendela. Kalau offline,
 mock tetap dipakai dan Settings menampilkan "Mock (contoh)".
 
 **Playback**
-- [ ] Kontrak `StreamResolver` + mock yang bisa disuruh gagal (untuk tes backoff)
-- [ ] `StreamResolver` nyata: resolve satu `video_id` → URL audio + `expires_at`
-- [ ] Engine audio desktop: `load` + `play` (belum seek/volume)
-- [ ] Pause, seek, volume
-- [ ] Event `player://position` berkala ke UI
+- [x] Kontrak `StreamResolver` + mock yang bisa disuruh gagal (untuk tes backoff)
+- [x] `StreamResolver` nyata: resolve satu `video_id` → URL audio + `expires_at`
+- [x] Engine audio desktop: `load` + `play` (belum seek/volume)
+- [x] Pause (seek & volume slider menyusul)
+- [x] Event posisi berkala ke UI
 - [ ] Auto-lanjut ke item queue berikutnya saat `Ended`
 - [ ] Resolve ulang otomatis saat URL kedaluwarsa / error 403
-- [ ] Backoff + klasifikasi error + circuit breaker (lihat `RESILIENCE.md`)
+- [x] Backoff + klasifikasi error + circuit breaker (lihat `RESILIENCE.md`)
 - [ ] Handle tombol Next/Prev dengan coalescing request (skip cepat tidak membanjiri resolver)
+
+Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
+
+- **Extractor: `yt-dlp` eksternal, bukan crate.** `rusty_ytdl` 0.7.4 diuji langsung dan mengembalikan 22 format tanpa satu pun URL (`url_len=0`) — crate itu sudah kalah oleh perubahan YouTube. yt-dlp berhasil. Binary TIDAK dibundel (AGENTS.md); aplikasi mencari `yt-dlp` di PATH atau lewat env `KASET_YTDLP_PATH`. Kalau tidak ada, resolver jatuh ke mock dan pemutaran dinonaktifkan dengan pesan jelas.
+- **Engine audio: `<audio>` di webview**, bukan `rodio`. Ini opsi yang ARCHITECTURE.md §10 izinkan sebagai "yang lebih cepat jadi". Terbukti memutar webm/opus dari googlevideo.
+- **Dua bug yang ditemukan lewat uji end-to-end** dan sudah diperbaiki + dikunci test: (1) `crossOrigin="anonymous"` membuat Chromium menolak audio karena googlevideo tidak mengirim CORS; (2) CSP tidak punya `media-src` sehingga `default-src 'self'` memblokir domain audio. Detail di `SETUP.md`.
+- **Klasifikasi error permanen** harus toleran kata sisipan: yt-dlp menulis "This video is unavailable", bukan "Video unavailable". Salah klasifikasi = satu video rusak membuka circuit breaker dan mematikan semua pemutaran. Ada test regresi untuk ini.
 
 **Cover Art**
 - [ ] Skema tabel `covers` (migrasi `0002_covers.sql`)

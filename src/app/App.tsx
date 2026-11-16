@@ -13,6 +13,17 @@ import { Library } from "../features/library/Library";
 import { Settings } from "../features/settings/Settings";
 import { usePlayerStore } from "../stores/playerStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { audioEngine } from "../lib/audio";
+
+/** Ambil pesan ramah dari error Tauri (yang datang sebagai objek {message, permanent}). */
+function errMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err) {
+    const m = (err as { message?: unknown }).message;
+    if (typeof m === "string" && m.trim()) return m.replace(/^stream:\s*/, "");
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
 
 export function App() {
   const [route, setRoute] = useState<Route>("search");
@@ -20,9 +31,34 @@ export function App() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [query, setQuery] = useState("");
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
+  const [toast, setToast] = useState<string | null>(null);
 
   const { state, setTrack, setPlaying } = usePlayerStore();
   const isWide = useMediaQuery("(min-width: 900px)");
+
+  function notifyError(message: string) {
+    setToast(message);
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  // Sambungkan engine audio ke store. Engine hanya aktuator; UI tetap cerminan
+  // dari apa yang benar-benar terjadi pada audio.
+  useEffect(() => {
+    audioEngine.setEvents({
+      onTime: (positionMs, durationMs) =>
+        usePlayerStore.setState((s) => ({
+          state: { ...s.state, positionMs, durationMs: durationMs || s.state.durationMs },
+        })),
+      onPlaying: () => setPlaying(true),
+      onPaused: () => setPlaying(false),
+      onEnded: () => setPlaying(false),
+      onError: (msg) => {
+        setPlaying(false);
+        notifyError(msg);
+      },
+    });
+    audioEngine.setVolume(usePlayerStore.getState().state.volume);
+  }, [setPlaying]);
 
   // Sinkronkan state pemutar dari Rust. Rust yang memegang kebenaran, UI cerminan.
   useEffect(() => {
@@ -71,10 +107,26 @@ export function App() {
     setTrack(t);
     setPlaying(true);
     try {
-      await invoke("play_track", { videoId: t.videoId });
+      // Alur nyata (ARCHITECTURE.md §6): Rust me-resolve URL, webview memutar.
+      const stream = await invoke<{ url: string; expiresAtMs: number }>("resolve_stream", {
+        videoId: t.videoId,
+      });
+      await audioEngine.load(stream.url);
     } catch (err) {
-      console.error("play_track gagal:", err);
+      // Pesan ke user singkat; detail teknis ke konsol.
+      console.error("putar gagal:", err);
       setPlaying(false);
+      notifyError(errMessage(err, "Gagal memutar lagu"));
+    }
+  }
+
+  function togglePlay() {
+    if (state.status === "playing") {
+      audioEngine.pause();
+      setPlaying(false);
+    } else if (state.track) {
+      void audioEngine.play();
+      setPlaying(true);
     }
   }
 
@@ -105,16 +157,39 @@ export function App() {
       </div>
 
       {isWide ? (
-        <PlayerBar state={state} />
+        <PlayerBar state={state} onToggle={togglePlay} />
       ) : (
         <MiniPlayer
           track={state.track}
           playing={state.status === "playing"}
-          onToggle={() => setPlaying(state.status !== "playing")}
+          onToggle={togglePlay}
           onOpen={() => setRoute("queue")}
         />
       )}
       {!isWide && <BottomNav route={route} onNavigate={setRoute} />}
+
+      {/* Toast untuk error ringan (DESIGN.md §5): tidak memblokir UI. */}
+      {toast && (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 92,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--danger)",
+            color: "var(--text)",
+            padding: "var(--s-2) var(--s-4)",
+            borderRadius: "var(--r-sm)",
+            fontSize: 13,
+            maxWidth: "min(520px, 90vw)",
+            zIndex: 50,
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

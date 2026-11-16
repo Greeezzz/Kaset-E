@@ -6,6 +6,7 @@ use crate::catalog::mock::MockCatalog;
 use crate::catalog::youtube_music::YouTubeMusicCatalog;
 use crate::catalog::{MusicCatalog, StreamResolver};
 use crate::db::Db;
+use crate::resolver::{ResilientResolver, YtDlpResolver};
 
 /// State global aplikasi yang dibagikan ke setiap command.
 pub struct AppState {
@@ -27,10 +28,25 @@ impl AppState {
         // Mulai dari mock; `upgrade_catalog` menukarnya dengan katalog nyata.
         let mock = Arc::new(MockCatalog::default());
 
+        // Resolver: pakai yt-dlp kalau ada di PATH, dan SELALU dibungkus
+        // ResilientResolver supaya backoff + circuit breaker berlaku apa pun
+        // implementasinya (RESILIENCE.md). Kalau yt-dlp tidak ada, mock dipakai
+        // dan aplikasi tetap jalan — hanya belum bisa memutar audio nyata.
+        let resolver: Arc<dyn StreamResolver> = match YtDlpResolver::detect() {
+            Ok(ytdlp) => {
+                tracing::info!("resolver yt-dlp aktif");
+                Arc::new(ResilientResolver::new(Box::new(ytdlp)))
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "yt-dlp tidak ditemukan; memakai resolver mock");
+                mock.clone()
+            }
+        };
+
         Ok(Self {
             db,
-            catalog: RwLock::new(mock.clone()),
-            resolver: mock,
+            catalog: RwLock::new(mock),
+            resolver,
             data_dir,
         })
     }

@@ -2,8 +2,10 @@ import type { PlayerState } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
 import { formatDuration } from "../../lib/format";
 
-export function PlayerBar({ state }: { state: PlayerState }) {
+export function PlayerBar({ state, onToggle }: { state: PlayerState; onToggle: () => void }) {
   const progress = state.durationMs > 0 ? Math.min(1, state.positionMs / state.durationMs) : 0;
+  const playing = state.status === "playing";
+  const loading = state.status === "loading";
 
   return (
     <div
@@ -58,8 +60,23 @@ export function PlayerBar({ state }: { state: PlayerState }) {
         <div className="mono muted" style={{ fontSize: 13 }}>
           {formatDuration(state.positionMs)} / {formatDuration(state.durationMs)}
         </div>
-        <div className="muted" style={{ fontSize: 12 }}>
-          status: {state.status}
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={!state.track}
+          aria-label={playing ? "Jeda" : "Putar"}
+          style={{
+            minWidth: 44,
+            minHeight: 44,
+            fontSize: 16,
+            color: state.track ? "var(--accent)" : "var(--text-muted)",
+            opacity: state.track ? 1 : 0.4,
+          }}
+        >
+          {loading ? "…" : playing ? "❙❙" : "▶"}
+        </button>
+        <div className="muted" style={{ fontSize: 11 }}>
+          {state.status}
           {state.shuffle ? " · acak" : ""}
           {state.repeat !== "off" ? ` · repeat ${state.repeat}` : ""}
         </div>

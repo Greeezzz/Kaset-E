@@ -107,6 +107,18 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
   switch (cmd) {
     case "catalog_status":
       return false as T;
+    case "resolve_stream": {
+      // Mock tidak memutar audio nyata, tapi harus mengembalikan bentuk data
+      // yang sama supaya jalur UI benar-benar teruji tanpa Rust.
+      const track = MOCK_TRACKS.find((t) => t.videoId === args?.videoId) ?? MOCK_TRACKS[0];
+      return {
+        url: "",
+        mime: "audio/webm",
+        bitrateKbps: 128,
+        expiresAtMs: Date.now() + 3_600_000,
+        title: track.title,
+      } as T;
+    }
     case "search": {
       const results: SearchResults = {
         tracks: MOCK_TRACKS,
