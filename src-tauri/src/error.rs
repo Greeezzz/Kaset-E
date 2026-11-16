@@ -30,6 +30,18 @@ pub enum AppError {
 }
 
 impl AppError {
+    /// Menandai error katalog sebagai permanen (mis. video dihapus) supaya
+    /// lapisan atas tahu ini bukan kasus "coba lagi nanti".
+    pub fn with_permanent(self, permanent: bool) -> Self {
+        match self {
+            AppError::Catalog(msg) => AppError::Stream {
+                message: msg,
+                permanent,
+            },
+            other => other,
+        }
+    }
+
     pub fn catalog(msg: impl Into<String>) -> Self {
         Self::Catalog(msg.into())
     }

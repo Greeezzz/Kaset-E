@@ -105,6 +105,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
   }
 
   switch (cmd) {
+    case "catalog_status":
+      return false as T;
     case "search": {
       const results: SearchResults = {
         tracks: MOCK_TRACKS,

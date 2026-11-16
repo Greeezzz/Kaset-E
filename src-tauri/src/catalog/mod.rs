@@ -1,4 +1,5 @@
 pub mod mock;
+pub mod youtube_music;
 
 use async_trait::async_trait;
 
@@ -12,6 +13,12 @@ pub trait MusicCatalog: Send + Sync {
     async fn search(&self, query: &str) -> AppResult<SearchResults>;
     async fn suggestions(&self, query: &str) -> AppResult<Vec<String>>;
     async fn track(&self, video_id: &str) -> AppResult<Track>;
+
+    /// Apakah ini katalog nyata (bukan mock). Dipakai UI/Settings untuk
+    /// menampilkan status, dan test untuk memastikan fallback bekerja.
+    fn is_live(&self) -> bool {
+        true
+    }
 }
 
 #[async_trait]

@@ -35,7 +35,7 @@ export function Search({
   }
 
   return (
-    <section style={{ padding: "var(--s-4)", maxWidth: 900 }}>
+    <section style={{ padding: "var(--s-4) var(--s-4) var(--s-8)", maxWidth: 900 }}>
       <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>Search</h1>
 
       <form onSubmit={runSearch} style={{ display: "flex", gap: "var(--s-2)" }}>

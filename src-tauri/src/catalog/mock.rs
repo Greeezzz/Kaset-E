@@ -52,6 +52,11 @@ pub struct MockCatalog {
 
 #[async_trait]
 impl MusicCatalog for MockCatalog {
+    /// Mock selalu melaporkan dirinya bukan katalog nyata.
+    fn is_live(&self) -> bool {
+        false
+    }
+
     async fn search(&self, _query: &str) -> AppResult<SearchResults> {
         Ok(SearchResults {
             tracks: demo_tracks(),

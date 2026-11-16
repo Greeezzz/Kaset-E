@@ -16,7 +16,7 @@ pub async fn search(state: State<'_, AppState>, query: String) -> AppResult<Sear
     if q.chars().count() > MAX_QUERY_LEN {
         return Err(AppError::invalid("kata kunci terlalu panjang"));
     }
-    state.catalog.search(q).await
+    state.catalog().search(q).await
 }
 
 #[tauri::command]
@@ -24,12 +24,19 @@ pub async fn search_suggestions(
     state: State<'_, AppState>,
     query: String,
 ) -> AppResult<Vec<String>> {
-    state.catalog.suggestions(query.trim()).await
+    state.catalog().suggestions(query.trim()).await
 }
 
 #[tauri::command]
 pub async fn track(state: State<'_, AppState>, video_id: String) -> AppResult<Track> {
-    state.catalog.track(&video_id).await
+    state.catalog().track(&video_id).await
+}
+
+/// Status katalog: apakah sudah memakai YouTube Music atau masih mock.
+/// Dipakai UI supaya user tahu kalau pencarian belum nyata.
+#[tauri::command]
+pub async fn catalog_status(state: State<'_, AppState>) -> AppResult<bool> {
+    Ok(state.catalog_is_live())
 }
 
 #[tauri::command]

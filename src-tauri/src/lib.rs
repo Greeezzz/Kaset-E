@@ -27,13 +27,23 @@ pub fn run() {
             let state = state::AppState::new(data_dir)
                 .map_err(|e| format!("gagal menyiapkan state: {e}"))?;
             tracing::info!(dir = %state.data_dir.display(), "Kaset mulai");
+            let handle = app.handle().clone();
             app.manage(state);
+
+            // Upgrade ke katalog nyata di background: jendela tidak menunggu
+            // jaringan, dan kalau gagal aplikasi tetap jalan dengan mock.
+            tauri::async_runtime::spawn(async move {
+                let state = handle.state::<state::AppState>();
+                state.upgrade_catalog().await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::search,
             commands::search_suggestions,
             commands::track,
+            commands::catalog_status,
             commands::resolve_stream,
             commands::cover_get,
             commands::cover_stats,
