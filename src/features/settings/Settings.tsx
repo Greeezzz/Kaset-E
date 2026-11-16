@@ -7,6 +7,7 @@ import { invoke, runningInTauri } from "../../lib/tauri";
  */
 export function Settings() {
   const [catalogLive, setCatalogLive] = useState<boolean | null>(null);
+  const [trackCount, setTrackCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!runningInTauri) {
@@ -29,6 +30,10 @@ export function Settings() {
     };
 
     void check();
+    void invoke<number>("tracks_count")
+      .then(setTrackCount)
+      .catch(() => setTrackCount(null));
+
     const timer = setInterval(async () => {
       if (await check()) clearInterval(timer);
     }, 1500);
@@ -62,6 +67,15 @@ export function Settings() {
               Pencarian masih memakai data contoh. Biasanya karena belum ada koneksi.
             </span>
           )}
+        </dd>
+
+        <dt className="muted">Lagu tersimpan</dt>
+        <dd style={{ margin: 0 }}>
+          {trackCount === null ? "—" : `${trackCount} lagu`}
+          <span className="muted" style={{ display: "block", fontSize: 13 }}>
+            Metadata lagu yang sudah dikenal database. Wajib ada sebelum lagu bisa difavoritkan,
+            masuk playlist, atau disimpan di queue.
+          </span>
         </dd>
 
         <dt className="muted">Tema</dt>

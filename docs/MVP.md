@@ -106,6 +106,40 @@ Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 - [ ] README lengkap + disclaimer
 - [ ] Cek versi baru (updater desktop; Android via GitHub Releases API)
 
+## Fase 4 — Listen Stats + Smart Shuffle (target `v0.4.0`)
+
+> Detail di `FEATURES-V2.md` §1 dan §2. Mulai hanya setelah Fase 1 (queue, auto-next, re-resolve) selesai.
+
+**Prasyarat keras (blocker, sudah diuji):**
+
+- [x] **Upsert lagu ke tabel `tracks` saat diputar/disimpan.** Terverifikasi pada database nyata: setelah satu pencarian, `tracks` naik 0 → 20 lagu, dan `favorites`/`history`/`queue_items`/`playlist_tracks`/`listen_events` semua lolos FK. Implementasi di `db::tracks::ensure_track*`, dipanggil dari command `search` dan `resolve_stream`.
+- [ ] **Keputusan timezone.** `started_at` disimpan sebagai epoch ms (UTC). Heatmap 24 jam dan streak harian harus dihitung dalam waktu lokal pengguna, kalau tidak "hari" akan bergeser (WIB UTC+7: mendengar 06:00 masuk hari sebelumnya). Lihat `REVIEW-V2.md` §2.
+
+- [ ] Migrasi `0003_listen_events` + repository
+- [ ] Pencatat listen (akumulasi delta, bukan selesai-mulai) + tes
+- [ ] Layar Stats (total waktu, top lagu/artis, play count, streak, heatmap jam)
+- [ ] Pengaturan: hapus data statistik, matikan pencatatan
+- [ ] Smart shuffle lokal berbobot (modul murni + tes dengan seed)
+- [ ] Toggle Shuffle biasa / Shuffle pintar
+
+## Fase 5 — Import Playlist (target `v0.5.0`)
+
+> Detail di `FEATURES-V2.md` §3.
+
+- [ ] Parser CSV/JSON + tes
+- [ ] Normalisasi + skor kecocokan + tes
+- [ ] Import dari link playlist YouTube Music (publik)
+- [ ] Layar review + ringkasan + ekspor daftar "tidak ditemukan"
+- [ ] Batalkan/lanjutkan job, patuhi `RESILIENCE.md`
+
+## Fase 6 — Login + Sync (opsional, `v0.6.0`+)
+
+> Detail di `FEATURES-V2.md` §4. Boleh tidak pernah dikerjakan.
+
+- [ ] Keputusan arsitektur sync (file / Syncthing / backend kecil)
+- [ ] Ganti kunci AUTOINCREMENT dengan UUID pada tabel yang disinkronkan
+- [ ] Penyimpanan token di keychain OS (jika ada login)
+
 ## Backlog (di luar MVP)
 
 - Halaman artis/album penuh
@@ -114,10 +148,8 @@ Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 - Crossfade / gapless
 - Lirik
 - Download offline
-- Sync antar device (Turso / Supabase / Syncthing)
-- Rekomendasi / radio dari lagu
-- Tema kustom
-- Visualizer
+- Smart shuffle Tingkat B (sisipan rekomendasi)
+- Tema kustom lanjutan, visualizer
 
 ## Definition of Done (per fitur)
 

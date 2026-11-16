@@ -24,15 +24,18 @@ Distribusi: **GitHub Releases saja**. Tidak ke Play Store.
 4. Playlist dan history tersimpan lokal (offline-first).
 5. Satu codebase UI untuk desktop dan Android.
 6. Rilis otomatis ke GitHub Releases lewat CI.
+7. Memberi gambaran kebiasaan mendengar lewat statistik lokal.
+8. Memudahkan pindah dari aplikasi musik lain lewat import playlist.
 
 ## 4. Non-Tujuan (v1)
 
 - Tidak untuk Play Store / App Store.
-- Tidak ada akun, login, atau server milik sendiri.
+- **Akun tidak wajib.** Aplikasi selalu bisa dipakai penuh tanpa login. Login/sync adalah fitur opsional di Fase 6 (lihat `FEATURES-V2.md`).
 - Tidak ada sync cloud otomatis (v1 hanya export/import).
 - Tidak ada download offline lagu.
 - Tidak ada lirik sinkron.
 - Tidak ada fitur sosial.
+- Tidak ada telemetri yang dikirim ke luar perangkat. Statistik mendengar hanya disimpan lokal.
 
 ## 5. Target Pengguna
 
@@ -57,6 +60,15 @@ Distribusi: **GitHub Releases saja**. Tidak ke Play Store.
 | U12 | media key keyboard dan tray icon di desktop | Should |
 | U13 | mengatur sleep timer | Could |
 | U14 | memilih kualitas audio | Could |
+| U15 | melihat total waktu mendengar per rentang waktu | Should |
+| U16 | melihat lagu dan artis yang paling sering diputar | Should |
+| U17 | melihat berapa kali sebuah lagu diputar ulang | Should |
+| U18 | mengimpor playlist dari link YouTube Music | Should |
+| U19 | mengimpor playlist dari file CSV/JSON (ekspor aplikasi lain) | Should |
+| U20 | meninjau dan memperbaiki lagu yang pencocokannya meragukan saat impor | Should |
+| U21 | memakai shuffle pintar yang menghindari pengulangan dan artis berurutan | Could |
+| U22 | menghapus atau mematikan pencatatan statistik | Must (jika Stats dibangun) |
+| U23 | (opsional) sinkron data antar perangkat | Could |
 
 ## 7. Kebutuhan Fungsional
 
@@ -106,6 +118,10 @@ Distribusi: **GitHub Releases saja**. Tidak ke Play Store.
 | Background audio Android rumit di WebView | Musik berhenti saat layar mati | Plugin Kotlin dengan ExoPlayer/Media3 + foreground service sejak awal |
 | Scope melebar | Proyek tidak selesai | Patuhi `MVP.md`; fitur di luar MVP masuk backlog |
 | Kehilangan keystore Android | Update APK tidak bisa dipasang di atas versi lama | Backup keystore, simpan di GitHub Secrets dan penyimpanan offline |
+| API aplikasi musik lain dibatasi | Import langsung tidak praktis | Import berbasis file CSV/JSON, tanpa API pihak ketiga |
+| Pencocokan lagu salah (live/cover/remix) | Playlist hasil import tidak sesuai | Skor kecocokan + layar review |
+| Login ke akun Google lewat jalur unofficial | Akun pengguna bisa dibatasi | Login hanya opsional; peringatan jelas; bukan fitur inti |
+| Data statistik membengkak | Database besar | Pemangkasan/ringkasan event lama |
 
 ## 10. Metrik Keberhasilan (pribadi)
 
@@ -119,4 +135,9 @@ Distribusi: **GitHub Releases saja**. Tidak ke Play Store.
 - `ARCHITECTURE.md` — arsitektur, struktur folder, skema database
 - `DESIGN.md` — arah visual dan layar
 - `RELEASE.md` — CI/CD dan distribusi
+- `FEATURES-V2.md` — listen stats, smart shuffle, import playlist, login opsional
+- `DESIGN-ENDFIELD.md` — arah visual terkini (menggantikan bagian visual `DESIGN.md`)
+- `RESILIENCE.md` — backoff & circuit breaker resolver
+- `THUMBNAILS.md` — cache cover art
+- `SETUP.md` — prasyarat dev dan jebakan build
 - `AGENTS.md` — instruksi untuk agent AI

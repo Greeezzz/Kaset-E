@@ -107,6 +107,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
   switch (cmd) {
     case "catalog_status":
       return false as T;
+    case "tracks_count":
+      return 0 as T;
     case "resolve_stream": {
       // Mock tidak memutar audio nyata, tapi harus mengembalikan bentuk data
       // yang sama supaya jalur UI benar-benar teruji tanpa Rust.

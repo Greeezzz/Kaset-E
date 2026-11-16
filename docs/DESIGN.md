@@ -1,5 +1,7 @@
 # DESIGN — Kaset
 
+> **Arah visual terkini: lihat `DESIGN-ENDFIELD.md`.** Bagian "Arah Visual" dan "Design Tokens" di dokumen ini digantikan olehnya. Layout, daftar layar, komponen inti, shortcut, dan aksesibilitas di bawah tetap berlaku.
+
 > Dokumen ini adalah **arah awal**. Token warna, font, dan gaya visual boleh diganti total sesuai selera pemilik proyek. Yang paling penting dijaga adalah struktur layar dan perilaku komponen.
 
 ## 1. Arah Visual (usulan)
@@ -79,6 +81,8 @@ Tap mini player membuka **Full Player** (layar penuh, slide-up).
 4. **Library** — tab: Playlist, Favorit, History.
 5. **Playlist Detail** — header (nama, jumlah lagu), tombol Putar dan Acak, daftar lagu.
 6. **Settings** — tema, kualitas audio, export/import library, tentang + disclaimer.
+7. **Stats** — telemetri mendengar; statistik lokal saja (lihat `DESIGN-ENDFIELD.md` §7.1, `FEATURES-V2.md` §1).
+8. **Import** — alur impor playlist dari link atau file (lihat `DESIGN-ENDFIELD.md` §7.2, `FEATURES-V2.md` §3).
 
 ## 5. Komponen Inti
 

@@ -45,6 +45,7 @@ pub fn run() {
             commands::search_suggestions,
             commands::track,
             commands::catalog_status,
+            commands::tracks_count,
             commands::resolve_stream,
             commands::cover_get,
             commands::cover_stats,

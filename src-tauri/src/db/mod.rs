@@ -1,10 +1,13 @@
 pub(crate) mod migrations;
+pub mod tracks;
 
 use parking_lot::Mutex;
 use rusqlite::Connection;
 use std::path::Path;
 
 use crate::error::{AppError, AppResult};
+
+pub use tracks::{ensure_track, ensure_tracks, track_count, track_exists};
 
 /// Pembungkus koneksi SQLite. Satu koneksi di belakang Mutex cukup untuk beban
 /// aplikasi desktop; operasi DB tidak pernah menahan lock saat menunggu jaringan.
