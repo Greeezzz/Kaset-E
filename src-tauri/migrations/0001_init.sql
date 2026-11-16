@@ -50,8 +50,5 @@ CREATE TABLE settings (
   value TEXT NOT NULL
 );
 
--- Riwayat migrasi dikelola aplikasi (bukan sqlite_master), supaya bisa diverifikasi.
-CREATE TABLE schema_migrations (
-  version    TEXT PRIMARY KEY,
-  applied_at INTEGER NOT NULL
-);
+-- Catatan: tabel `schema_migrations` TIDAK dibuat di sini. Ia dikelola oleh
+-- db::migrations::run() sebelum migrasi mana pun dijalankan.

@@ -52,8 +52,11 @@ pub enum Quality {
 
 /// URL audio hasil resolve. Hanya di memori — jangan pernah ditulis ke disk,
 /// karena berisi token sesi dan cepat kedaluwarsa.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedStream {
+    /// Catatan: field ini sengaja ikut di-serialize karena UI butuh URL-nya untuk
+    /// memutar audio. Yang dilarang adalah MENYIMPANNYA ke disk/log.
     pub url: String,
     pub mime: String,
     pub bitrate_kbps: Option<u32>,

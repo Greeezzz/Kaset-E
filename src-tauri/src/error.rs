@@ -19,7 +19,7 @@ pub enum AppError {
 
     /// Kegagalan resolver stream. `permanent` membedakan "coba lagi nanti" dari
     /// "lagu ini memang tidak bisa diputar" (lihat docs/RESILIENCE.md).
-    #[error("stream: {0}")]
+    #[error("stream: {message}")]
     Stream { message: String, permanent: bool },
 
     #[error("tidak ditemukan: {0}")]

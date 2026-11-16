@@ -9,14 +9,23 @@ Tujuan MVP: **bisa cari lagu, putar tanpa iklan, kelola queue, di desktop dulu.*
 3. Kalau ragu, potong fitur.
 4. Setiap fase harus menghasilkan sesuatu yang bisa dijalankan.
 
-## Fase 0 — Fondasi
+## Fase 0 — Fondasi — SELESAI
 
-- [ ] Inisialisasi project Tauri 2 + React + TypeScript + Vite
-- [ ] Setup linting/format: `clippy`, `rustfmt`, ESLint, Prettier
-- [ ] Setup SQLite + migrasi awal
-- [ ] Definisikan trait `StreamResolver` dan `MusicCatalog` (belum ada implementasi nyata, cukup mock)
-- [ ] CI sederhana: build + lint di setiap push
-- [ ] Skema tabel `settings` + helper akses
+- [x] Inisialisasi project Tauri 2 + React + TypeScript + Vite
+- [x] Setup linting/format: `clippy`, `rustfmt`, ESLint, Prettier
+- [x] Setup SQLite + migrasi awal
+- [x] Definisikan trait `StreamResolver` dan `MusicCatalog` (belum ada implementasi nyata, cukup mock)
+- [x] CI sederhana: build + lint di setiap push
+- [x] Skema tabel `settings` + helper akses
+
+Verifikasi Fase 0 (semua lulus lokal): `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (5 tes), `npm run lint`, `npm run typecheck`, `npm run format`, `npm run build`, `npx tauri build --no-bundle`.
+
+Catatan implementasi yang menyimpang dari dokumen asli:
+
+- Migrasi ada dua (`0001_init`, `0002_covers`) karena cover art ditambahkan sebagai kebutuhan offline-first, bukan backlog — lihat `THUMBNAILS.md`.
+- `src/lib/tauri.ts` punya fallback mock supaya `npm run dev` jalan di browser tanpa Rust. Ini keputusan sengaja: mempercepat kerja UI tanpa menunggu kompilasi.
+- Pelajaran build Windows dan jebakan Tauri 2 ada di `SETUP.md`.
+
 
 ## Fase 1 — Desktop MVP (target `v0.1.0`)
 
