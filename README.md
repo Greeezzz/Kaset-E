@@ -43,10 +43,17 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
 Baca berurutan: [PRD](docs/PRD.md) → [MVP](docs/MVP.md) → [ARCHITECTURE](docs/ARCHITECTURE.md) → [DESIGN](docs/DESIGN.md) → [RELEASE](docs/RELEASE.md) → [AGENTS](docs/AGENTS.md).
 
-Dua dokumen tambahan menutup celah yang tidak dibahas dokumen asli:
+Mau lihat status tanpa membaca semuanya? → [PROGRESS](docs/PROGRESS.md).
 
+Dokumen tambahan yang menutup celah dokumen asli:
+
+- [PROGRESS](docs/PROGRESS.md) — ringkasan status per fase dan langkah berikutnya.
+- [DESIGN-ENDFIELD](docs/DESIGN-ENDFIELD.md) — arah visual terkini (menggantikan bagian visual `DESIGN.md`).
+- [FEATURES-V2](docs/FEATURES-V2.md) — listen stats, smart shuffle, import playlist, login opsional.
+- [REVIEW-V2](docs/REVIEW-V2.md) — keputusan dan koreksi sebelum fitur V2 dikerjakan.
 - [THUMBNAILS](docs/THUMBNAILS.md) — cache cover art: tangga kualitas, tabel `covers`, placeholder generatif, eviction LRU.
 - [RESILIENCE](docs/RESILIENCE.md) — backoff, klasifikasi error, dan circuit breaker untuk resolver stream.
+- [SETUP](docs/SETUP.md) — prasyarat dev dan jebakan build.
 
 ## Struktur
 

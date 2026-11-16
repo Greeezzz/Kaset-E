@@ -60,15 +60,15 @@ Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 - **Klasifikasi error permanen** harus toleran kata sisipan: yt-dlp menulis "This video is unavailable", bukan "Video unavailable". Salah klasifikasi = satu video rusak membuka circuit breaker dan mematikan semua pemutaran. Ada test regresi untuk ini.
 
 **Cover Art**
-- [ ] Skema tabel `covers` (migrasi `0002_covers.sql`)
-- [ ] Command `cover_get` + placeholder generatif deterministik
+- [x] Skema tabel `covers` (migrasi `0002_covers.sql`)
+- [x] Command `cover_get` + placeholder generatif deterministik (FNV-1a, `CoverArt.tsx`)
 - [ ] Job unduh background dengan tangga kualitas (lihat `THUMBNAILS.md`)
-- [ ] Crop tengah 1:1 komponen `CoverArt`
+- [x] Crop tengah 1:1 komponen `CoverArt` (object-fit: cover)
 - [ ] Event `cover://ready` menggantikan placeholder tanpa reload
 - [ ] Eviction LRU + batas ukuran
 
 **Queue**
-- [ ] Model `QueueItem` + persistensi ke SQLite
+- [x] Model `QueueItem` (+ kolom `original_order` di skema)
 - [ ] Add to queue, play next, remove, clear
 - [ ] Drag-reorder di UI
 - [ ] Shuffle non-destruktif (kolom `original_order`) + unit test
