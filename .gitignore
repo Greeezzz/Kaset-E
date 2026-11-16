@@ -1,0 +1,21 @@
+# JS
+node_modules/
+dist/
+*.local
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# editor & OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# secrets — jangan pernah commit
+*.jks
+*.keystore
+.env
+.env.*

@@ -1,0 +1,9 @@
+# Normalisasi akhir baris: LF di repo, apapun OS-nya.
+# Ini mencegah CI Linux dan dev Windows saling mengubah file.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.jks binary
