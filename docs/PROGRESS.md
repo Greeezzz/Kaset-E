@@ -28,16 +28,16 @@ Ukuran kode: 2.133 baris Rust + 1.552 baris TypeScript/TSX. 29 unit test hijau.
 - **yt-dlp diunduh otomatis** saat pertama dijalankan (23,6 MB, ke folder data aplikasi), jadi pengguna tidak perlu memasang apa pun. Diverifikasi dengan menghapus yt-dlp lebih dulu: log memuat "mengunduh yt-dlp", `resolver_status` berubah `false` → `true`, lalu lagu benar-benar diputar tanpa env var apa pun.
 - **Metadata lagu tersimpan ke database** — 0 → 20 baris setelah satu pencarian, sehingga `favorites`/`history`/`queue_items`/`playlist_tracks`/`listen_events` semuanya bisa menulis (FK lolos).
 - **Antrean persisten + auto-lanjut** — `QueueManager` di Rust memegang urutan asli dan permutasi shuffle; setiap mutasi disimpan ke SQLite lewat satu pintu (`with_queue`), jadi antrean pulih setelah aplikasi ditutup. Diverifikasi di aplikasi nyata: 3 lagu + cursor + `repeat` bertahan setelah restart, auto-lanjut 1→2, repeat all membungkus 2→0, repeat one mengulang di tempat.
+- **Library hidup** — favorit, riwayat, playlist semuanya tersambung dan tersimpan. Diverifikasi di aplikasi nyata: favorit bertahan setelah restart, playlist 3 lagu diputar (audio 11,4 s/299 s), hapus lagu di tengah merapatkan posisi tanpa bentrok, dialog playlist tidak menggandakan lagu, riwayat tercatat. Dua bug ketemu lewat uji ini dan sudah diperbaiki: tombol ▶ playlist menampilkan hitungan basi, dan tab History menampilkan 0 padahal database terisi.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
 ## Yang berikutnya (urutan kerja Fase 1 yang tersisa)
 
 1. **Re-resolve saat URL kedaluwarsa** — URL googlevideo berumur ~6 jam dan bisa 403 sebelum itu. Sekarang pemutaran gagal dengan toast; yang belum ada: deteksi 403 saat memutar → resolve ulang otomatis → lanjut dari posisi terakhir.
 2. **`tracks` untuk lagu yang dipulihkan** — antrean tersimpan merujuk `video_id`; kalau barisnya hilang dari `tracks`, pemulihan gagal diam-diam dan antrean mulai kosong (sudah ditangani sebagai warning, tapi belum diuji).
-3. **Library** — playlist CRUD, favorit, history. FK-nya sudah siap, tinggal command + UI.
-4. **Cover art bagian unduh** — job background + tangga kualitas + `cover://ready` + eviction LRU (skema dan placeholder sudah ada).
-5. **Polish desktop** — media key, tray, export/import JSON.
-6. **Desain lanjutan** — set ikon garis 1.5px (sekarang UI masih pakai glyph teks `▶ ❙❙ ✕`), PlayerBar "control deck" dengan progress bersegmen.
+3. **Cover art bagian unduh** — job background + tangga kualitas + `cover://ready` + eviction LRU (skema dan placeholder sudah ada).
+4. **Polish desktop** — media key, tray, export/import JSON.
+5. **Desain lanjutan** — set ikon garis 1.5px (sekarang UI masih pakai glyph teks `▶ ❙❙ ✕`), PlayerBar "control deck" dengan progress bersegmen.
 
 ## Yang sudah diputuskan (jangan ditanyakan lagi)
 
