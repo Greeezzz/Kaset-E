@@ -10,6 +10,29 @@ use crate::catalog::StreamResolver;
 use crate::error::{AppError, AppResult};
 use crate::models::{Quality, ResolvedStream};
 
+/// Jangan tampilkan jendela konsol saat menjalankan proses anak di Windows.
+///
+/// Tanpa ini, setiap klik putar memunculkan jendela cmd hitam sekejap — proses
+/// anak dibuat sebagai proses konsol baru, dan Windows selalu menampilkan
+/// jendelanya. `CREATE_NO_WINDOW` menyembunyikannya tanpa mengubah apa pun
+/// soal stdio: stdout/stderr tetap bisa ditangkap lewat pipe.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Siapkan `Command` supaya tidak ada jendela konsol yang muncul.
+///
+/// Di platform lain fungsi ini tidak melakukan apa pun; hanya Windows yang
+/// punya masalah jendela konsol untuk proses anak.
+fn tanpa_jendela(cmd: &mut Command) -> &mut Command {
+    // `tokio::process::Command` punya `creation_flags` sendiri di Windows,
+    // jadi tidak perlu mengimpor `std::os::windows::process::CommandExt`.
+    #[cfg(windows)]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 /// Batas waktu satu pemanggilan yt-dlp. Ekstraksi normal 2–5 detik; kalau lebih
 /// dari ini jaringan atau YouTube sedang bermasalah, lebih baik gagal cepat.
 const TIMEOUT: Duration = Duration::from_secs(25);
@@ -320,21 +343,24 @@ impl StreamResolver for YtDlpResolver {
 
         let url = format!("https://www.youtube.com/watch?v={video_id}");
 
-        let fut = Command::new(&self.binary)
-            .args([
-                "-j", // dump metadata JSON, jangan unduh
-                "--no-warnings",
-                "--no-playlist",
-                "--no-progress",
-                "-f",
-                // batasi ke audio saja; format terbaik dipilih ulang setelah parsing
-                "bestaudio/best",
-                &url,
-            ])
-            .stdin(Stdio::null())
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .output();
+        let mut cmd = Command::new(&self.binary);
+        cmd.args([
+            "-j", // dump metadata JSON, jangan unduh
+            "--no-warnings",
+            "--no-playlist",
+            "--no-progress",
+            "-f",
+            // batasi ke audio saja; format terbaik dipilih ulang setelah parsing
+            "bestaudio/best",
+            &url,
+        ])
+        .stdin(Stdio::null())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::piped());
+
+        // Tanpa ini, setiap resolve memunculkan jendela cmd hitam sekejap.
+        tanpa_jendela(&mut cmd);
+        let fut = cmd.output();
 
         let output = match tokio::time::timeout(TIMEOUT, fut).await {
             Err(_) => {
