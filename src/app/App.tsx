@@ -15,6 +15,7 @@ import { usePlayerStore } from "../stores/playerStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { audioEngine } from "../lib/audio";
 import { useQueue, type QueueView } from "../hooks/useQueue";
+import { streamCache, bisaDipulihkan } from "../lib/streamCache";
 import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
 
@@ -44,6 +45,13 @@ export function App() {
   // Handler "lagu habis" disimpan di ref supaya effect audio tidak perlu
   // dipasang ulang setiap render (dan tidak menangkap state basi).
   const onEndedRef = useRef<() => void>(() => {});
+  // Lagu yang sedang dipulihkan, supaya tidak ada dua resolve bersamaan untuk
+  // lagu yang sama. Null = tidak sedang memulihkan.
+  const recoveringRef = useRef<string | null>(null);
+
+  // Handler pemulihan, sama seperti onEnded: disimpan di ref supaya effect
+  // audio tidak dipasang ulang setiap render.
+  const onAudioErrorRef = useRef<(msg: string, code: number | null) => void>(() => {});
   const isWide = useMediaQuery("(min-width: 900px)");
 
   function notifyError(message: string) {
@@ -66,9 +74,8 @@ export function App() {
         // habis (repeat off), pemutaran berhenti — bukan error.
         onEndedRef.current();
       },
-      onError: (msg) => {
-        setPlaying(false);
-        notifyError(msg);
+      onError: (msg, code) => {
+        onAudioErrorRef.current(msg, code);
       },
     });
     audioEngine.setVolume(usePlayerStore.getState().state.volume);
@@ -133,16 +140,39 @@ export function App() {
     // diputar — bukan saat diklik dan resolve-nya gagal.
     void lib.recordPlay(t);
     try {
-      // Alur nyata (ARCHITECTURE.md §6): Rust me-resolve URL, webview memutar.
-      const stream = await invoke<{ url: string; expiresAtMs: number }>("resolve_stream", {
-        videoId: t.videoId,
-      });
+      // URL diambil dari cache kalau masih layak. Resolve memanggil yt-dlp dan
+      // memakan beberapa detik — memutarnya ulang untuk lagu yang sama persis
+      // adalah pemborosan yang terasa oleh user.
+      const stream = await streamCache.get(t.videoId);
       await audioEngine.load(stream.url);
     } catch (err) {
-      // Pesan ke user singkat; detail teknis ke konsol.
       console.error("putar gagal:", err);
       setPlaying(false);
       notifyError(errMessage(err, "Gagal memutar lagu"));
+    }
+  }
+
+  /** Pulihkan satu lagu dengan URL baru, lanjut dari posisi terakhir.
+   *
+   *  Dipanggil hanya saat audio gagal dengan kode yang bisa disembuhkan
+   *  (jaringan / sumber ditolak). Sengaja tidak rekursif: satu kali percobaan
+   *  per lagu, supaya URL yang terus ditolak tidak menjadi loop resolve tanpa
+   *  akhir yang menghabiskan kuota dan mengunci circuit breaker. */
+  async function recoverStream(t: Track, resumeAtMs: number) {
+    if (recoveringRef.current === t.videoId) return;
+    recoveringRef.current = t.videoId;
+    try {
+      streamCache.invalidate(t.videoId);
+      const stream = await streamCache.get(t.videoId, true);
+      await audioEngine.load(stream.url, resumeAtMs);
+      setPlaying(true);
+    } catch (err) {
+      // Percobaan kedua juga gagal: berhenti dengan jujur, jangan berpura-pura.
+      console.error("pemulihan stream gagal:", err);
+      setPlaying(false);
+      notifyError(errMessage(err, "Stream tidak bisa dipulihkan"));
+    } finally {
+      recoveringRef.current = null;
     }
   }
 
@@ -204,6 +234,21 @@ export function App() {
 
   // Selalu menunjuk versi terbaru handleEnded, tanpa memasang ulang effect.
   onEndedRef.current = () => void handleEnded();
+
+  /** Audio gagal diputar. Kalau penyebabnya bisa disembuhkan, coba sekali
+   *  dengan URL baru dan lanjut dari posisi terakhir. */
+  onAudioErrorRef.current = (msg, code) => {
+    const track = usePlayerStore.getState().state.track;
+    // Posisi dari engine, yang hanya mencatat posisi saat audionya benar-benar
+    // sehat. `positionMs()` pada titik ini sudah kembali 0.
+    const posisi = audioEngine.lastGoodPositionMs();
+    if (track && bisaDipulihkan(code)) {
+      void recoverStream(track, posisi);
+      return;
+    }
+    setPlaying(false);
+    notifyError(msg);
+  };
 
   /** Putar seluruh isi playlist sebagai antrean baru, mulai dari lagu pertama. */
   async function playWholePlaylist(id: number) {
