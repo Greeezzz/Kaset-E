@@ -83,6 +83,20 @@ const listeners = new Map<string, Set<(payload: unknown) => void>>();
 
 /** Antrean tiruan untuk mode browser (tanpa Rust). Perilakunya sengaja
  *  mengikuti command Rust supaya UI bisa dikerjakan tanpa kompilasi. */
+const mockLib = {
+  favorites: [] as Track[],
+  history: [] as Track[],
+  playlists: [] as {
+    id: number;
+    name: string;
+    trackCount: number;
+    createdAt: number;
+    updatedAt: number;
+  }[],
+  items: new Map<number, Track[]>(),
+  seq: 0,
+};
+
 const mockQueue = {
   items: [] as QueueItem[],
   cursor: 0,
@@ -130,6 +144,87 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     case "resolver_status":
       // Di browser tidak ada yt-dlp; pemutaran nyata memang tidak tersedia.
       return false as T;
+    case "list_favorites":
+      return mockLib.favorites as T;
+    case "is_favorite":
+      return mockLib.favorites.some((f) => f.videoId === args?.videoId) as T;
+    case "toggle_favorite": {
+      const t = args?.track as Track;
+      const i = mockLib.favorites.findIndex((f) => f.videoId === t.videoId);
+      if (i >= 0) mockLib.favorites.splice(i, 1);
+      else mockLib.favorites.unshift(t);
+      return (i < 0) as T;
+    }
+    case "record_play": {
+      const t = args?.track as Track;
+      mockLib.history = [t, ...mockLib.history.filter((h) => h.videoId !== t.videoId)];
+      return undefined as T;
+    }
+    case "list_history":
+      return mockLib.history.slice(0, Number(args?.limit ?? 100)) as T;
+    case "clear_history":
+      mockLib.history = [];
+      return 0 as T;
+    case "history_count":
+      return mockLib.history.length as T;
+    case "list_playlists":
+      return mockLib.playlists as T;
+    case "create_playlist": {
+      const p = {
+        id: ++mockLib.seq,
+        name: String(args?.name),
+        trackCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockLib.playlists.unshift(p);
+      mockLib.items.set(p.id, []);
+      return p as T;
+    }
+    case "rename_playlist": {
+      const p = mockLib.playlists.find((x) => x.id === Number(args?.id));
+      if (p) {
+        p.name = String(args?.name);
+        p.updatedAt = Date.now();
+      }
+      return p as T;
+    }
+    case "delete_playlist": {
+      const id = Number(args?.id);
+      mockLib.playlists = mockLib.playlists.filter((x) => x.id !== id);
+      mockLib.items.delete(id);
+      return undefined as T;
+    }
+    case "playlist_tracks":
+      return (mockLib.items.get(Number(args?.id)) ?? []) as T;
+    case "add_to_playlist": {
+      const id = Number(args?.id);
+      const t = args?.track as Track;
+      const list = mockLib.items.get(id) ?? [];
+      if (!list.some((x) => x.videoId === t.videoId)) list.push(t);
+      mockLib.items.set(id, list);
+      const p = mockLib.playlists.find((x) => x.id === id);
+      if (p) p.trackCount = list.length;
+      return undefined as T;
+    }
+    case "remove_from_playlist": {
+      const id = Number(args?.id);
+      const list = (mockLib.items.get(id) ?? []).filter((x) => x.videoId !== args?.videoId);
+      mockLib.items.set(id, list);
+      const p = mockLib.playlists.find((x) => x.id === id);
+      if (p) p.trackCount = list.length;
+      return true as T;
+    }
+    case "play_playlist": {
+      const id = Number(args?.id);
+      mockQueue.items = (mockLib.items.get(id) ?? []).map((t, i) => ({
+        position: i,
+        track: t,
+        originalOrder: i,
+      }));
+      mockQueue.cursor = 0;
+      return mockQueue.view() as T;
+    }
     case "queue_get":
       return mockQueue.view() as T;
     case "queue_add": {

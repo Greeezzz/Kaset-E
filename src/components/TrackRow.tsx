@@ -14,6 +14,12 @@ interface Props {
   coverPath?: string | null;
   /** Indeks urut untuk label teknis mono (opsional). */
   index?: number;
+  /** Toggle favorit. Ada = tombol ♥ ditampilkan. */
+  onFavorite?: (track: Track) => void;
+  /** Apakah lagu ini sudah difavoritkan. */
+  favorite?: boolean;
+  /** Buka dialog "tambahkan ke playlist". */
+  onAddToPlaylist?: (track: Track) => void;
 }
 
 export function TrackRow({
@@ -24,6 +30,9 @@ export function TrackRow({
   onPlayNext,
   coverPath,
   index,
+  onFavorite,
+  favorite = false,
+  onAddToPlaylist,
 }: Props) {
   return (
     <div
@@ -86,7 +95,7 @@ export function TrackRow({
         </span>
       </button>
 
-      {(onPlayNext ?? onQueue) && (
+      {(onFavorite ?? onAddToPlaylist ?? onPlayNext ?? onQueue) && (
         <span style={{ display: "flex", flex: "0 0 auto" }}>
           {onPlayNext && (
             <button
@@ -108,6 +117,38 @@ export function TrackRow({
               style={{ width: 36, height: 36, color: "var(--ink-muted)", fontSize: 15 }}
             >
               +
+            </button>
+          )}
+          {onAddToPlaylist && (
+            <button
+              type="button"
+              onClick={() => onAddToPlaylist(track)}
+              aria-label={`Tambahkan ${track.title} ke playlist`}
+              title="Tambahkan ke playlist"
+              style={{ width: 36, height: 36, color: "var(--ink-muted)", fontSize: 13 }}
+            >
+              ≣
+            </button>
+          )}
+          {onFavorite && (
+            <button
+              type="button"
+              onClick={() => onFavorite(track)}
+              aria-label={
+                favorite ? `Hapus ${track.title} dari favorit` : `Favoritkan ${track.title}`
+              }
+              aria-pressed={favorite}
+              title={favorite ? "Hapus dari favorit" : "Favoritkan"}
+              style={{
+                width: 36,
+                height: 36,
+                // Hati terisi = kuning penuh (DESIGN-ENDFIELD: kuning hanya
+                // untuk keadaan aktif, bukan hiasan).
+                color: favorite ? "var(--accent)" : "var(--ink-muted)",
+                fontSize: 14,
+              }}
+            >
+              {favorite ? "♥" : "♡"}
             </button>
           )}
         </span>

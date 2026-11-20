@@ -15,6 +15,8 @@ import { usePlayerStore } from "../stores/playerStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { audioEngine } from "../lib/audio";
 import { useQueue, type QueueView } from "../hooks/useQueue";
+import { useLibrary } from "../hooks/useLibrary";
+import { PlaylistPicker } from "../features/library/PlaylistPicker";
 
 /** Ambil pesan ramah dari error Tauri (yang datang sebagai objek {message, permanent}). */
 function errMessage(err: unknown, fallback: string): string {
@@ -36,6 +38,9 @@ export function App() {
   const { state, setTrack, setPlaying } = usePlayerStore();
   const queue = useQueue();
   const refreshQueue = queue.refresh;
+  const lib = useLibrary();
+  // Lagu yang sedang dipilih untuk dimasukkan ke playlist (null = dialog tutup).
+  const [pickTarget, setPickTarget] = useState<Track | null>(null);
   // Handler "lagu habis" disimpan di ref supaya effect audio tidak perlu
   // dipasang ulang setiap render (dan tidak menangkap state basi).
   const onEndedRef = useRef<() => void>(() => {});
@@ -124,6 +129,9 @@ export function App() {
   async function startAudio(t: Track) {
     setTrack(t);
     setPlaying(true);
+    // Riwayat dicatat di sini karena inilah titik lagu benar-benar diminta
+    // diputar — bukan saat diklik dan resolve-nya gagal.
+    void lib.recordPlay(t);
     try {
       // Alur nyata (ARCHITECTURE.md §6): Rust me-resolve URL, webview memutar.
       const stream = await invoke<{ url: string; expiresAtMs: number }>("resolve_stream", {
@@ -197,6 +205,17 @@ export function App() {
   // Selalu menunjuk versi terbaru handleEnded, tanpa memasang ulang effect.
   onEndedRef.current = () => void handleEnded();
 
+  /** Putar seluruh isi playlist sebagai antrean baru, mulai dari lagu pertama. */
+  async function playWholePlaylist(id: number) {
+    try {
+      const v = await invoke<QueueView>("play_playlist", { id });
+      queue.refresh();
+      if (v.current) await startAudio(v.current);
+    } catch (err) {
+      notifyError(errMessage(err, "Gagal memutar playlist"));
+    }
+  }
+
   function cycleRepeat() {
     const order: QueueView["repeat"][] = ["off", "all", "one"];
     const next = order[(order.indexOf(queue.view.repeat) + 1) % order.length];
@@ -231,11 +250,25 @@ export function App() {
               onPlay={handlePlay}
               onQueue={(t) => void queue.add(t)}
               onPlayNext={(t) => void queue.playNext(t)}
+              onFavorite={(t) => void lib.toggleFavorite(t)}
+              favoriteIds={new Set(lib.favorites.map((f) => f.videoId))}
+              onAddToPlaylist={(t) => setPickTarget(t)}
               query={query}
               setQuery={setQuery}
             />
           )}
-          {route === "library" && <Library tab={libTab} setTab={setLibTab} />}
+          {route === "library" && (
+            <Library
+              tab={libTab}
+              setTab={setLibTab}
+              lib={lib}
+              onPlay={handlePlay}
+              onQueue={(t) => void queue.add(t)}
+              onPlayNext={(t) => void queue.playNext(t)}
+              onPlayPlaylist={(id) => void playWholePlaylist(id)}
+              onPickPlaylist={(t) => setPickTarget(t)}
+            />
+          )}
           {route === "settings" && <Settings />}
           {/* Mobile: tap mini player membuka layar penuh (DESIGN.md §3).
               Tanpa cabang ini, route 'queue' akan merender layar kosong. */}
@@ -271,6 +304,25 @@ export function App() {
       {!isWide && <BottomNav route={route} onNavigate={setRoute} />}
 
       {/* Toast untuk error ringan (DESIGN.md §5): tidak memblokir UI. */}
+      {pickTarget && (
+        <PlaylistPicker
+          track={pickTarget}
+          playlists={lib.playlists}
+          onClose={() => setPickTarget(null)}
+          onPick={async (id) => {
+            await lib.addToPlaylist(id, pickTarget);
+            setPickTarget(null);
+            setToast("Ditambahkan ke playlist");
+            setTimeout(() => setToast(null), 2500);
+          }}
+          onCreate={async (name) => {
+            const p = await lib.createPlaylist(name);
+            await lib.addToPlaylist(p.id, pickTarget);
+            setPickTarget(null);
+          }}
+        />
+      )}
+
       {toast && (
         <div
           role="status"

@@ -21,7 +21,7 @@ pub struct QueueView {
     pub current: Option<Track>,
 }
 
-fn view(q: &QueueManager) -> QueueView {
+pub(crate) fn view(q: &QueueManager) -> QueueView {
     QueueView {
         items: q.play_order(),
         cursor: q.cursor(),

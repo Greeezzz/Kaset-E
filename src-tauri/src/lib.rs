@@ -67,6 +67,21 @@ pub fn run() {
             commands::queue_previous,
             commands::set_shuffle,
             commands::set_repeat,
+            commands::toggle_favorite,
+            commands::list_favorites,
+            commands::is_favorite,
+            commands::record_play,
+            commands::list_history,
+            commands::clear_history,
+            commands::history_count,
+            commands::create_playlist,
+            commands::rename_playlist,
+            commands::delete_playlist,
+            commands::list_playlists,
+            commands::playlist_tracks,
+            commands::add_to_playlist,
+            commands::remove_from_playlist,
+            commands::play_playlist,
         ])
         .run(tauri::generate_context!())
         .expect("gagal menjalankan Kaset");

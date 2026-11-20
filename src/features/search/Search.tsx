@@ -8,12 +8,19 @@ export function Search({
   onPlay,
   onQueue,
   onPlayNext,
+  onFavorite,
+  favoriteIds,
+  onAddToPlaylist,
   query,
   setQuery,
 }: {
   onPlay: (t: Track) => void;
   onQueue: (t: Track) => void;
   onPlayNext: (t: Track) => void;
+  onFavorite: (t: Track) => void;
+  /** videoId yang sudah difavoritkan, supaya hati terisi dengan benar. */
+  favoriteIds: Set<string>;
+  onAddToPlaylist: (t: Track) => void;
   query: string;
   setQuery: (q: string) => void;
 }) {
@@ -89,6 +96,9 @@ export function Search({
                 onPlay={onPlay}
                 onQueue={onQueue}
                 onPlayNext={onPlayNext}
+                onFavorite={onFavorite}
+                favorite={favoriteIds.has(t.videoId)}
+                onAddToPlaylist={onAddToPlaylist}
               />
             ))}
           </div>

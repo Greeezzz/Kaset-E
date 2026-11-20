@@ -1,4 +1,6 @@
+pub mod library;
 pub(crate) mod migrations;
+pub mod playlist;
 pub mod queue;
 pub mod tracks;
 
