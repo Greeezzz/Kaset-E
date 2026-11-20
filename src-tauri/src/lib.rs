@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod models;
 pub mod paths;
+pub mod queue;
 pub mod resolver;
 pub mod state;
 
@@ -55,6 +56,17 @@ pub fn run() {
             commands::resolve_stream,
             commands::cover_get,
             commands::cover_stats,
+            commands::queue_get,
+            commands::queue_add,
+            commands::queue_play_next,
+            commands::queue_remove,
+            commands::queue_move,
+            commands::queue_clear,
+            commands::queue_jump,
+            commands::queue_next,
+            commands::queue_previous,
+            commands::set_shuffle,
+            commands::set_repeat,
         ])
         .run(tauri::generate_context!())
         .expect("gagal menjalankan Kaset");

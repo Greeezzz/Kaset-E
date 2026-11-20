@@ -81,6 +81,24 @@ const MOCK_TRACKS: Track[] = [
 
 const listeners = new Map<string, Set<(payload: unknown) => void>>();
 
+/** Antrean tiruan untuk mode browser (tanpa Rust). Perilakunya sengaja
+ *  mengikuti command Rust supaya UI bisa dikerjakan tanpa kompilasi. */
+const mockQueue = {
+  items: [] as QueueItem[],
+  cursor: 0,
+  shuffle: false,
+  repeat: "off" as "off" | "one" | "all",
+  view() {
+    return {
+      items: this.items.map((it, i) => ({ ...it, position: i })),
+      cursor: this.cursor,
+      shuffle: this.shuffle,
+      repeat: this.repeat,
+      current: this.items[this.cursor]?.track ?? null,
+    };
+  },
+};
+
 function emit(event: string, payload: unknown) {
   listeners.get(event)?.forEach((h) => h(payload));
 }
@@ -112,6 +130,62 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     case "resolver_status":
       // Di browser tidak ada yt-dlp; pemutaran nyata memang tidak tersedia.
       return false as T;
+    case "queue_get":
+      return mockQueue.view() as T;
+    case "queue_add": {
+      const t = args?.track as Track;
+      mockQueue.items.push({
+        position: mockQueue.items.length,
+        track: t,
+        originalOrder: mockQueue.items.length,
+      });
+      return mockQueue.view() as T;
+    }
+    case "queue_play_next": {
+      const t = args?.track as Track;
+      mockQueue.items.splice(mockQueue.cursor + 1, 0, {
+        position: 0,
+        track: t,
+        originalOrder: mockQueue.items.length,
+      });
+      return mockQueue.view() as T;
+    }
+    case "queue_remove":
+      mockQueue.items.splice(Number(args?.position), 1);
+      mockQueue.cursor = Math.min(mockQueue.cursor, Math.max(0, mockQueue.items.length - 1));
+      return mockQueue.view() as T;
+    case "queue_move": {
+      const from = Number(args?.from);
+      const to = Number(args?.to);
+      const [moved] = mockQueue.items.splice(from, 1);
+      if (moved) mockQueue.items.splice(to, 0, moved);
+      return mockQueue.view() as T;
+    }
+    case "queue_clear":
+      mockQueue.items = [];
+      mockQueue.cursor = 0;
+      return mockQueue.view() as T;
+    case "queue_jump":
+      mockQueue.cursor = Number(args?.position);
+      return mockQueue.view() as T;
+    case "set_shuffle":
+      mockQueue.shuffle = Boolean(args?.enabled);
+      return mockQueue.view() as T;
+    case "set_repeat":
+      mockQueue.repeat = args?.mode as "off" | "one" | "all";
+      return mockQueue.view() as T;
+    case "queue_next":
+      if (mockQueue.cursor + 1 >= mockQueue.items.length) {
+        if (mockQueue.repeat === "all") mockQueue.cursor = 0;
+        else return null as T;
+      } else {
+        mockQueue.cursor += 1;
+      }
+      return mockQueue.view() as T;
+    case "queue_previous":
+      if (mockQueue.items.length === 0) return null as T;
+      mockQueue.cursor = Math.max(0, mockQueue.cursor - 1);
+      return mockQueue.view() as T;
     case "resolve_stream": {
       // Mock tidak memutar audio nyata, tapi harus mengembalikan bentuk data
       // yang sama supaya jalur UI benar-benar teruji tanpa Rust.

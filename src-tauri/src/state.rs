@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 
 use crate::catalog::mock::MockCatalog;
 use crate::catalog::youtube_music::YouTubeMusicCatalog;
 use crate::catalog::{MusicCatalog, StreamResolver};
 use crate::db::Db;
+use crate::queue::QueueManager;
 use crate::resolver::{ResilientResolver, YtDlpResolver};
 
 /// State global aplikasi yang dibagikan ke setiap command.
@@ -16,6 +17,10 @@ pub struct AppState {
     /// pernah menunggu jaringan saat membuka aplikasi.
     catalog: RwLock<Arc<dyn MusicCatalog>>,
     resolver: RwLock<Arc<dyn StreamResolver>>,
+    /// Antrean pemutaran. Di belakang Mutex karena setiap mutasi harus
+    /// serialisasi — dua mutation bersamaan bisa membuat cursor dan order
+    /// tidak sinkron.
+    pub queue: Mutex<QueueManager>,
     /// Direktori data aplikasi: database, cache cover, log.
     pub data_dir: std::path::PathBuf,
 }
@@ -34,12 +39,51 @@ impl AppState {
         // breaker berlaku apa pun implementasinya (RESILIENCE.md).
         let resolver: Arc<dyn StreamResolver> = mock.clone();
 
+        // Pulihkan antrean yang tersimpan supaya app dibuka dengan keadaan
+        // terakhir. Gagal memuat bukan error fatal: mulai dengan antrean kosong.
+        let queue = match crate::db::queue::load(&db) {
+            Ok(Some(q)) => {
+                tracing::info!(items = q.len(), "antrean dipulihkan");
+                q
+            }
+            Ok(None) => QueueManager::new(0),
+            Err(e) => {
+                tracing::warn!(error = %e, "gagal memulihkan antrean; mulai kosong");
+                QueueManager::new(0)
+            }
+        };
+
         Ok(Self {
             db,
             catalog: RwLock::new(mock),
             resolver: RwLock::new(resolver),
+            queue: Mutex::new(queue),
             data_dir,
         })
+    }
+
+    /// Jalankan closure dengan antrean terkunci, lalu simpan perubahannya.
+    ///
+    /// Semua command antrean lewat sini supaya persistensi tidak bisa lupa —
+    /// inilah yang membuat "queue tersimpan setelah app ditutup" dijamin, bukan
+    /// kebetulan. Snapshot diambil di dalam lock yang sama supaya tidak ada
+    /// jendela waktu di mana state berubah antara mutasi dan penyimpanan.
+    pub fn with_queue<T>(&self, f: impl FnOnce(&mut QueueManager) -> T) -> T {
+        let (out, snapshot) = {
+            let mut q = self.queue.lock();
+            let out = f(&mut q);
+            (out, q.clone())
+        };
+        // I/O dilakukan di luar lock supaya tidak menahan pembaca lain.
+        if let Err(e) = crate::db::queue::save(&self.db, &snapshot) {
+            tracing::warn!(error = %e, "gagal menyimpan antrean");
+        }
+        out
+    }
+
+    /// Baca antrean tanpa menyimpan (untuk query).
+    pub fn queue_snapshot(&self) -> QueueManager {
+        self.queue.lock().clone()
     }
 
     /// Resolver yang sedang aktif.

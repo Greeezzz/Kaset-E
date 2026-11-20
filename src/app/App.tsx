@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Route } from "./routes";
 import { invoke, listen } from "../lib/tauri";
-import type { PlayerState, QueueItem, Track } from "../types";
+import type { PlayerState, Track } from "../types";
 import { Sidebar } from "./layout/Sidebar";
 import { BottomNav } from "./layout/BottomNav";
 import { MiniPlayer } from "./layout/MiniPlayer";
@@ -14,6 +14,7 @@ import { Settings } from "../features/settings/Settings";
 import { usePlayerStore } from "../stores/playerStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { audioEngine } from "../lib/audio";
+import { useQueue, type QueueView } from "../hooks/useQueue";
 
 /** Ambil pesan ramah dari error Tauri (yang datang sebagai objek {message, permanent}). */
 function errMessage(err: unknown, fallback: string): string {
@@ -28,12 +29,16 @@ function errMessage(err: unknown, fallback: string): string {
 export function App() {
   const [route, setRoute] = useState<Route>("search");
   const [queueOpen, setQueueOpen] = useState(true);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [query, setQuery] = useState("");
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
   const [toast, setToast] = useState<string | null>(null);
 
   const { state, setTrack, setPlaying } = usePlayerStore();
+  const queue = useQueue();
+  const refreshQueue = queue.refresh;
+  // Handler "lagu habis" disimpan di ref supaya effect audio tidak perlu
+  // dipasang ulang setiap render (dan tidak menangkap state basi).
+  const onEndedRef = useRef<() => void>(() => {});
   const isWide = useMediaQuery("(min-width: 900px)");
 
   function notifyError(message: string) {
@@ -51,7 +56,11 @@ export function App() {
         })),
       onPlaying: () => setPlaying(true),
       onPaused: () => setPlaying(false),
-      onEnded: () => setPlaying(false),
+      onEnded: () => {
+        // Lagu selesai: lanjut otomatis ke antrean berikutnya. Kalau antrean
+        // habis (repeat off), pemutaran berhenti — bukan error.
+        onEndedRef.current();
+      },
       onError: (msg) => {
         setPlaying(false);
         notifyError(msg);
@@ -69,7 +78,12 @@ export function App() {
       const offState = await listen("player://state", (s: PlayerState) => {
         usePlayerStore.setState({ state: s });
       });
-      const offQueue = await listen("queue://changed", (q: QueueItem[]) => setQueue(q));
+      const offQueue = await listen("queue://changed", () => {
+        // Antrean dikelola hook useQueue lewat command; event ini hanya
+        // memberi tahu bahwa ada perubahan dari sisi Rust. `refresh` stabil
+        // (useCallback), jadi aman dipakai di dalam effect.
+        void refreshQueue();
+      });
       if (disposed) {
         offState();
         offQueue();
@@ -82,7 +96,7 @@ export function App() {
       disposed = true;
       unsubs.forEach((u) => u());
     };
-  }, []);
+  }, [refreshQueue]);
 
   // Shortcut desktop (DESIGN.md). Ctrl+K fokus pencarian, Ctrl+Q toggle queue.
   useEffect(() => {
@@ -103,7 +117,11 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isWide]);
 
-  async function handlePlay(t: Track) {
+  /** Putar lagu. Kalau belum ada di antrean, masukkan dulu supaya
+   *  next/prev punya konteks — inilah yang membuat "putar dari pencarian"
+   *  terasa seperti player sungguhan, bukan satu lagu lepas. */
+  /** Jalankan audio untuk satu lagu. Tidak menyentuh antrean sama sekali. */
+  async function startAudio(t: Track) {
     setTrack(t);
     setPlaying(true);
     try {
@@ -118,6 +136,71 @@ export function App() {
       setPlaying(false);
       notifyError(errMessage(err, "Gagal memutar lagu"));
     }
+  }
+
+  /** Putar lagu yang diklik user. Kalau belum ada di antrean, masukkan dulu
+   *  supaya next/prev punya konteks — inilah yang membuat "putar dari
+   *  pencarian" terasa seperti player sungguhan, bukan satu lagu lepas. */
+  async function handlePlay(t: Track) {
+    // Cari posisi di antrean berdasarkan indeks, bukan judul: lagu yang sama
+    // boleh muncul dua kali, dan `findIndex` akan selalu menemukan yang
+    // pertama — itu membuat cursor melompat ke lagu yang salah.
+    const existing = queue.view.items.findIndex(
+      (i, pos) => i.track.videoId === t.videoId && pos > queue.view.cursor,
+    );
+    const fallback = queue.view.items.findIndex((i) => i.track.videoId === t.videoId);
+    const pos = existing >= 0 ? existing : fallback;
+
+    if (pos >= 0) {
+      if (pos !== queue.view.cursor) await queue.jump(pos);
+    } else {
+      await queue.add(t);
+    }
+    await startAudio(t);
+  }
+
+  /** Putar lagu pada posisi tertentu di antrean, lalu sinkronkan player. */
+  async function playQueueIndex(position: number) {
+    const v = await queue.jump(position);
+    if (v?.current) {
+      await startAudio(v.current);
+    }
+  }
+
+  /** Lanjut ke lagu berikutnya di antrean. `null` = antrean habis. */
+  async function playNextInQueue() {
+    const v = await queue.next();
+    if (!v?.current) {
+      setPlaying(false);
+      return;
+    }
+    await startAudio(v.current);
+  }
+
+  /** Dipanggil saat audio benar-benar habis. */
+  async function handleEnded() {
+    // Repeat one: ulang lagu yang sama tanpa menyentuh antrean.
+    if (queue.view.repeat === "one" && queue.view.current) {
+      // Ulang lagu yang sama: cursor tidak berubah, audio dimuat ulang.
+      await startAudio(queue.view.current);
+      return;
+    }
+    const v = await queue.next();
+    if (!v?.current) {
+      // Antrean habis dan repeat bukan "all": berhenti dengan hormat.
+      setPlaying(false);
+      return;
+    }
+    await startAudio(v.current);
+  }
+
+  // Selalu menunjuk versi terbaru handleEnded, tanpa memasang ulang effect.
+  onEndedRef.current = () => void handleEnded();
+
+  function cycleRepeat() {
+    const order: QueueView["repeat"][] = ["off", "all", "one"];
+    const next = order[(order.indexOf(queue.view.repeat) + 1) % order.length];
+    void queue.setRepeat(next);
   }
 
   function togglePlay() {
@@ -143,21 +226,40 @@ export function App() {
         {isWide && <Sidebar route={route} onNavigate={setRoute} />}
 
         <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
-          {route === "search" && <Search onPlay={handlePlay} query={query} setQuery={setQuery} />}
+          {route === "search" && (
+            <Search
+              onPlay={handlePlay}
+              onQueue={(t) => void queue.add(t)}
+              onPlayNext={(t) => void queue.playNext(t)}
+              query={query}
+              setQuery={setQuery}
+            />
+          )}
           {route === "library" && <Library tab={libTab} setTab={setLibTab} />}
           {route === "settings" && <Settings />}
           {/* Mobile: tap mini player membuka layar penuh (DESIGN.md §3).
               Tanpa cabang ini, route 'queue' akan merender layar kosong. */}
           {route === "queue" && (
-            <FullPlayer state={state} queue={queue} onClose={() => setRoute("search")} />
+            <FullPlayer state={state} queue={queue.view.items} onClose={() => setRoute("search")} />
           )}
         </main>
 
-        {isWide && queueOpen && <QueuePanel items={queue} onClose={() => setQueueOpen(false)} />}
+        {isWide && queueOpen && (
+          <QueuePanel
+            view={queue.view}
+            onClose={() => setQueueOpen(false)}
+            onPlayIndex={(pos) => void playQueueIndex(pos)}
+            onRemove={(pos) => void queue.remove(pos)}
+            onMove={(from, to) => void queue.move(from, to)}
+            onClear={() => void queue.clear()}
+            onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
+            onCycleRepeat={cycleRepeat}
+          />
+        )}
       </div>
 
       {isWide ? (
-        <PlayerBar state={state} onToggle={togglePlay} />
+        <PlayerBar state={state} onToggle={togglePlay} onNext={() => void playNextInQueue()} />
       ) : (
         <MiniPlayer
           track={state.track}

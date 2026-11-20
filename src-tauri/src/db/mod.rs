@@ -1,4 +1,5 @@
 pub(crate) mod migrations;
+pub mod queue;
 pub mod tracks;
 
 use parking_lot::Mutex;

@@ -6,10 +6,14 @@ import { EmptyState } from "../../components/EmptyState";
 
 export function Search({
   onPlay,
+  onQueue,
+  onPlayNext,
   query,
   setQuery,
 }: {
   onPlay: (t: Track) => void;
+  onQueue: (t: Track) => void;
+  onPlayNext: (t: Track) => void;
   query: string;
   setQuery: (q: string) => void;
 }) {
@@ -77,8 +81,15 @@ export function Search({
 
         {results && results.tracks.length > 0 && (
           <div style={{ display: "grid", gap: 2 }}>
-            {results.tracks.map((t) => (
-              <TrackRow key={t.videoId} track={t} onPlay={onPlay} />
+            {results.tracks.map((t, i) => (
+              <TrackRow
+                key={t.videoId}
+                track={t}
+                index={i}
+                onPlay={onPlay}
+                onQueue={onQueue}
+                onPlayNext={onPlayNext}
+              />
             ))}
           </div>
         )}

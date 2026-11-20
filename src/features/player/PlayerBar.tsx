@@ -2,7 +2,16 @@ import type { PlayerState } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
 import { formatDuration } from "../../lib/format";
 
-export function PlayerBar({ state, onToggle }: { state: PlayerState; onToggle: () => void }) {
+export function PlayerBar({
+  state,
+  onToggle,
+  onNext,
+}: {
+  state: PlayerState;
+  onToggle: () => void;
+  /** Lanjut ke lagu berikutnya di antrean. */
+  onNext?: () => void;
+}) {
   const progress = state.durationMs > 0 ? Math.min(1, state.positionMs / state.durationMs) : 0;
   const playing = state.status === "playing";
   const loading = state.status === "loading";
@@ -76,6 +85,22 @@ export function PlayerBar({ state, onToggle }: { state: PlayerState; onToggle: (
           }}
         >
           {loading ? "…" : playing ? "❙❙" : "▶"}
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={!onNext}
+          aria-label="Lagu berikutnya"
+          title="Lagu berikutnya"
+          style={{
+            minWidth: 44,
+            minHeight: 44,
+            fontSize: 14,
+            color: onNext ? "var(--ink)" : "var(--ink-muted)",
+            opacity: onNext ? 1 : 0.4,
+          }}
+        >
+          ⏭
         </button>
         <div className="muted" style={{ fontSize: 11 }}>
           {state.status}
