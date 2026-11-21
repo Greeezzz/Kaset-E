@@ -33,8 +33,8 @@ Catatan implementasi yang menyimpang dari dokumen asli:
 - [x] Kotak pencarian (UI) + state loading/empty
 - [x] Koneksi ke `MusicCatalog` mock, hasil lagu tampil di list
 - [x] `MusicCatalog` nyata: hanya endpoint pencarian lagu (bukan album/artis)
-- [ ] Saran pencarian (suggestions) — command `search_suggestions` ada di Rust, UI belum memanggilnya
-- [ ] History pencarian lokal
+- [x] Saran pencarian (suggestions) — riwayat lokal tampil lebih dulu, lalu saran katalog dengan debounce 250 ms; jawaban basi dibuang, keyboard (panah/Enter/Escape) didukung
+- [x] History pencarian lokal — tabel `search_history` (migrasi `0003`), normalisasi `query_norm` supaya tidak ada duplikat, hitungan `hits`, hapus per entri / semua, dipangkas ke 100
 - [x] Empty state + pesan error saat pencarian gagal
 
 Catatan Fase 1 Search: katalog di-upgrade di background saat app start, jadi
@@ -96,7 +96,7 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 
 **Kriteria selesai Fase 1:** bisa dipakai seharian di desktop tanpa iklan, queue dan playlist tersimpan setelah app ditutup.
 
-**Status Fase 1: 30/35 item (86%).** Sisa 5 item: suggestions di UI, history pencarian, media key, tray menu, export/import JSON.
+**Status Fase 1: 32/35 item (91%).** Sisa 3 item, semuanya Desktop polish: media key, tray menu, export/import JSON.
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
