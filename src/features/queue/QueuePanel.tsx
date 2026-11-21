@@ -44,6 +44,10 @@ export function QueuePanel({
 
   const { items, cursor, shuffle, repeat } = view;
   const current = items[cursor];
+  // Baris yang sedang diputar SUDAH tampil di blok SEDANG DIPUTAR di atas.
+  // Kalau ikut dirender lagi di daftar BERIKUTNYA, lagu yang sama muncul dua
+  // kali dan user mengira antreannya dobel.
+  const berikutnya = items.map((it, pos) => ({ it, pos })).filter(({ pos }) => pos !== cursor);
 
   return (
     <aside
@@ -183,8 +187,13 @@ export function QueuePanel({
               BERIKUTNYA
             </div>
 
-            {items.map((it, pos) => {
-              const isCurrent = pos === cursor;
+            {berikutnya.length === 0 && current ? (
+              <p className="muted" style={{ padding: "var(--s-2)", fontSize: 13 }}>
+                Tidak ada lagu setelah ini.
+              </p>
+            ) : null}
+
+            {berikutnya.map(({ it, pos }) => {
               return (
                 <div
                   key={`${pos}-${it.track.videoId}`}
@@ -210,24 +219,15 @@ export function QueuePanel({
                       dragOver === pos && dragFrom !== pos
                         ? "2px solid var(--accent)"
                         : "2px solid transparent",
-                    opacity: isCurrent ? 0.55 : 1,
                   }}
                 >
                   <TrackRow
                     track={it.track}
-                    active={isCurrent}
                     index={pos}
                     onPlay={() => onPlayIndex(pos)}
+                    onRemove={() => onRemove(pos)}
+                    labelHapus="Hapus dari antrean"
                   />
-                  <button
-                    type="button"
-                    onClick={() => onRemove(pos)}
-                    aria-label={`Hapus ${it.track.title} dari antrean`}
-                    title="Hapus dari antrean"
-                    style={{ width: 32, height: 32, color: "var(--ink-muted)", flex: "0 0 32px" }}
-                  >
-                    ✕
-                  </button>
                 </div>
               );
             })}

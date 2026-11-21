@@ -31,7 +31,9 @@ function errMessage(err: unknown, fallback: string): string {
 
 export function App() {
   const [route, setRoute] = useState<Route>("search");
-  const [queueOpen, setQueueOpen] = useState(true);
+  // Panel kanan: default TERTUTUP (DESIGN-LAYOUT bagian 1). Pilihan terakhir
+  // diingat supaya user yang selalu membukanya tidak perlu membuka tiap start.
+  const [queueOpen, setQueueOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
   const [toast, setToast] = useState<string | null>(null);
@@ -82,6 +84,28 @@ export function App() {
     });
     audioEngine.setVolume(usePlayerStore.getState().state.volume);
   }, [setPlaying]);
+
+  // Pulihkan preferensi panel kanan.
+  useEffect(() => {
+    let hidup = true;
+    void invoke<string | null>("setting_get", { key: "queue_open" })
+      .then((v) => {
+        if (hidup && v === "1") setQueueOpen(true);
+      })
+      .catch(() => {});
+    return () => {
+      hidup = false;
+    };
+  }, []);
+
+  /** Buka/tutup panel kanan, dan ingat pilihannya. */
+  function toggleQueue() {
+    setQueueOpen((buka) => {
+      const baru = !buka;
+      void invoke("setting_set", { key: "queue_open", value: baru ? "1" : "0" }).catch(() => {});
+      return baru;
+    });
+  }
 
   // Pulihkan volume terakhir. Gagal baca bukan masalah: pakai default 0.8.
   useEffect(() => {
@@ -136,7 +160,7 @@ export function App() {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key.toLowerCase() === "q") {
         e.preventDefault();
-        setQueueOpen((v) => !v);
+        toggleQueue();
       }
       if (e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -375,7 +399,7 @@ export function App() {
         {isWide && queueOpen && (
           <QueuePanel
             view={queue.view}
-            onClose={() => setQueueOpen(false)}
+            onClose={toggleQueue}
             onPlayIndex={(pos) => void playQueueIndex(pos)}
             onRemove={(pos) => void queue.remove(pos)}
             onMove={(from, to) => void queue.move(from, to)}
@@ -393,6 +417,8 @@ export function App() {
           onNext={() => void playNextInQueue()}
           onSeek={handleSeek}
           onVolume={handleVolume}
+          onToggleQueue={toggleQueue}
+          queueOpen={queueOpen}
         />
       ) : (
         <MiniPlayer

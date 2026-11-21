@@ -2,6 +2,7 @@ import type { PlayerState } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
 import { SeekBar } from "./SeekBar";
 import { VolumeControl } from "./VolumeControl";
+import { T } from "../../lib/strings";
 
 export function PlayerBar({
   state,
@@ -9,6 +10,8 @@ export function PlayerBar({
   onNext,
   onSeek,
   onVolume,
+  onToggleQueue,
+  queueOpen = false,
 }: {
   state: PlayerState;
   onToggle: () => void;
@@ -18,6 +21,10 @@ export function PlayerBar({
   onSeek?: (positionMs: number) => void;
   /** Ubah volume 0..1. */
   onVolume?: (volume: number) => void;
+  /** Buka/tutup panel antrean di kanan. */
+  onToggleQueue?: () => void;
+  /** Panel antrean sedang terbuka (tombol tampil aktif). */
+  queueOpen?: boolean;
 }) {
   const playing = state.status === "playing";
   const loading = state.status === "loading";
@@ -50,7 +57,7 @@ export function PlayerBar({
               whiteSpace: "nowrap",
             }}
           >
-            {state.track?.title ?? "Belum ada lagu"}
+            {state.track?.title ?? T.belumAdaLagu}
           </span>
           <span className="muted" style={{ display: "block", fontSize: 13 }}>
             {state.track?.artist ?? "—"}
@@ -101,15 +108,46 @@ export function PlayerBar({
           >
             ⏭
           </button>
-          <span className="muted" style={{ fontSize: 11 }}>
-            {state.status}
-            {state.shuffle ? " · acak" : ""}
-            {state.repeat !== "off" ? ` · repeat ${state.repeat}` : ""}
+          <span className="muted mono" style={{ fontSize: 11 }}>
+            {/* Status mentah ("idle") dulu bocor ke UI. Sekarang hanya keadaan
+                yang perlu diketahui user yang ditampilkan. */}
+            {state.status === "loading" ? "MEMUAT…" : null}
+            {state.status === "error" ? "GAGAL" : null}
+            {!state.track ? "STANDBY" : null}
+            {state.shuffle ? " · ACAK" : ""}
+            {state.repeat !== "off" ? ` · REPEAT ${state.repeat.toUpperCase()}` : ""}
           </span>
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
+        {onToggleQueue ? (
+          <button
+            type="button"
+            onClick={onToggleQueue}
+            aria-label="Antrean"
+            aria-pressed={queueOpen}
+            title="Antrean (Ctrl+Q)"
+            style={{
+              minHeight: 32,
+              padding: "0 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              // Aktif = blok kuning + teks hitam (aturan kontras Endfield).
+              background: queueOpen ? "var(--accent)" : "transparent",
+              color: queueOpen ? "var(--accent-ink)" : "var(--ink-muted)",
+              border: queueOpen ? "1px solid var(--accent)" : "1px solid var(--line)",
+              cursor: "pointer",
+            }}
+          >
+            ANTREAN
+          </button>
+        ) : null}
+
         {onVolume ? (
           <VolumeControl volume={state.volume} onChange={onVolume} />
         ) : (

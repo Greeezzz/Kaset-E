@@ -3,6 +3,7 @@ import { invoke } from "../../lib/tauri";
 import type { SearchResults, Track } from "../../types";
 import { TrackRow } from "../../components/TrackRow";
 import { EmptyState } from "../../components/EmptyState";
+import { T } from "../../lib/strings";
 import { SuggestionPanel } from "./SuggestionPanel";
 import { useSearchSuggestions } from "./useSearchSuggestions";
 
@@ -117,7 +118,7 @@ export function Search({
 
   return (
     <section style={{ padding: "var(--s-4) var(--s-4) var(--s-8)", maxWidth: 900 }}>
-      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>Search</h1>
+      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>CARI</h1>
 
       <form onSubmit={runSearch} style={{ display: "flex", gap: "var(--s-2)" }}>
         <div ref={bungkusRef} style={{ position: "relative", flex: 1 }}>
@@ -200,14 +201,11 @@ export function Search({
         )}
 
         {results && results.tracks.length === 0 && (
-          <EmptyState title="Tidak ada hasil" hint="Coba kata kunci lain." />
+          <EmptyState title={T.tidakAdaHasil} hint={T.tidakAdaHasilHint} />
         )}
 
         {!results && !loading && !error && (
-          <EmptyState
-            title="Mulai dari sini"
-            hint="Ketik judul lagu atau nama artis, lalu tekan Cari. Panah bawah membuka riwayat."
-          />
+          <EmptyState title="MULAI DARI SINI" hint={T.mulaiHint} />
         )}
       </div>
     </section>

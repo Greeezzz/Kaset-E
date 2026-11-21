@@ -1,9 +1,12 @@
 import type { Route } from "../routes";
+import { T } from "../../lib/strings";
 
 const ITEMS: { id: Route; label: string }[] = [
-  { id: "search", label: "Search" },
-  { id: "library", label: "Library" },
-  { id: "settings", label: "Settings" },
+  // Satu bahasa untuk semua label UI (DESIGN-LAYOUT bagian 7). Sebelumnya
+  // campur: "Search" di sidebar, "ANTREAN" di panel kanan.
+  { id: "search", label: T.navCari },
+  { id: "library", label: T.navLibrary },
+  { id: "settings", label: T.navPengaturan },
 ];
 
 export function BottomNav({ route, onNavigate }: { route: Route; onNavigate: (r: Route) => void }) {
