@@ -27,6 +27,9 @@ pub enum AppError {
 
     #[error("input tidak valid: {0}")]
     Invalid(String),
+
+    #[error("jaringan: {0}")]
+    Network(String),
 }
 
 impl AppError {

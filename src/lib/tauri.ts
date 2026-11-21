@@ -319,6 +319,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     }
     case "cover_get":
       return { key: String(args?.key ?? ""), path: null } as T;
+    case "cover_download":
+      return { key: String(args?.key ?? ""), path: null, status: "missing" } as T;
     default:
       return null as T;
   }

@@ -16,7 +16,7 @@ pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "kaset_lib=info,warn".into()),
+                .unwrap_or_else(|_| "kaset_lib=debug,warn".into()),
         )
         .init();
 
@@ -56,6 +56,7 @@ pub fn run() {
             commands::resolve_stream,
             commands::cover_get,
             commands::cover_stats,
+            commands::cover_download,
             commands::queue_get,
             commands::queue_add,
             commands::queue_play_next,
