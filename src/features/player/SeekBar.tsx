@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { formatDuration } from "../../lib/format";
+import { T } from "../../lib/strings";
 
 interface Props {
   positionMs: number;
@@ -8,10 +9,16 @@ interface Props {
   /** Dipanggil sekali saat user melepas jari/mouse, bukan tiap gerakan. */
   onSeek: (positionMs: number) => void;
   disabled?: boolean;
+  /** Tampilkan garis scan tipis saat stream sedang dimuat (DESIGN-ENDFIELD §8). */
+  loading?: boolean;
 }
 
+const SEGMENTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+const TICKS = [10, 20, 30, 40, 50, 60, 70, 80, 90] as const;
+
 /**
- * Bar seek yang bisa diklik, di-drag, dan dioperasikan keyboard.
+ * Bar seek bersegmen (DESIGN-ENDFIELD §6, DESIGN-LAYOUT §6): 10 segmen dengan
+ * tick tiap 10%, kepala blok kuning kecil, waktu mono di kedua ujung.
  *
  * Kenapa seek baru dikirim saat pointer dilepas, bukan tiap gerakan: stream
  * berasal dari googlevideo, dan setiap `currentTime` baru memicu permintaan
@@ -19,7 +26,7 @@ interface Props {
  * tersendat dan resolver kebanjiran. Selama drag, UI menampilkan posisi
  * pratinjau saja.
  */
-export function SeekBar({ positionMs, durationMs, onSeek, disabled }: Props) {
+export function SeekBar({ positionMs, durationMs, onSeek, disabled, loading = false }: Props) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [pratinjau, setPratinjau] = useState<number | null>(null);
   const [drag, setDrag] = useState(false);
@@ -95,16 +102,24 @@ export function SeekBar({ positionMs, durationMs, onSeek, disabled }: Props) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", width: "100%" }}>
-      <span className="mono muted" style={{ fontSize: 12, minWidth: 42, textAlign: "right" }}>
+      <span
+        className="mono"
+        style={{
+          fontSize: 11,
+          minWidth: 42,
+          textAlign: "right",
+          color: drag ? "var(--ink)" : "var(--ink-muted)",
+        }}
+      >
         {formatDuration(tampil)}
       </span>
 
-      {/* Hitbox 14px supaya mudah diklik, walau visualnya tetap tipis. */}
+      {/* Hitbox 22px supaya mudah diklik/drag meski batang visualnya ramping. */}
       <div
         ref={trackRef}
         role="slider"
         tabIndex={bisa ? 0 : -1}
-        aria-label="Posisi pemutaran"
+        aria-label={T.posisiPemutaran}
         aria-valuemin={0}
         aria-valuemax={durationMs}
         aria-valuenow={Math.round(tampil)}
@@ -119,53 +134,102 @@ export function SeekBar({ positionMs, durationMs, onSeek, disabled }: Props) {
         style={{
           position: "relative",
           flex: 1,
-          height: 14,
+          height: 22,
           display: "flex",
           alignItems: "center",
           cursor: bisa ? (drag ? "grabbing" : "pointer") : "default",
           touchAction: "none",
-          opacity: bisa ? 1 : 0.45,
         }}
       >
-        {/* jalur */}
+        {/* 10 segmen (masing-masing 10%) dengan celah 2px antar segmen. */}
         <div
+          aria-hidden="true"
+          style={{
+            position: "relative",
+            width: "100%",
+            height: drag ? 6 : 4,
+            display: "grid",
+            gridTemplateColumns: "repeat(10, 1fr)",
+            gap: 2,
+            transition: "height var(--t-fast) var(--ease)",
+          }}
+        >
+          {SEGMENTS.map((seg) => {
+            const isi = Math.min(1, Math.max(0, rasio * 10 - seg));
+            return (
+              <span
+                key={seg}
+                style={{
+                  position: "relative",
+                  display: "block",
+                  height: "100%",
+                  background: "var(--line)",
+                  overflow: "hidden",
+                }}
+              >
+                {isi > 0 && (
+                  <span
+                    style={{
+                      display: "block",
+                      height: "100%",
+                      width: `${isi * 100}%`,
+                      background: "var(--accent)",
+                    }}
+                  />
+                )}
+              </span>
+            );
+          })}
+
+          {loading && <span className="scan-bar" />}
+        </div>
+
+        {/* Tick marks dekoratif tiap 10% di tepi bawah bar. */}
+        <div
+          aria-hidden="true"
           style={{
             position: "absolute",
             left: 0,
             right: 0,
-            height: drag ? 4 : 2,
-            background: "var(--line)",
-            transition: "height 120ms ease",
-          }}
-        />
-        {/* terisi */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            width: `${rasio * 100}%`,
-            height: drag ? 4 : 2,
-            background: "var(--accent)",
-            transition: drag ? "none" : "height 120ms ease",
-          }}
-        />
-        {/* gagang: hanya terlihat saat drag/hover supaya tidak berisik */}
-        <div
-          style={{
-            position: "absolute",
-            left: `calc(${rasio * 100}% - 5px)`,
-            width: 10,
-            height: 10,
-            background: "var(--accent)",
-            border: "1px solid var(--line-strong)",
-            opacity: bisa ? (drag ? 1 : 0.55) : 0,
-            transition: "opacity 120ms ease",
+            bottom: 1,
+            height: 4,
             pointerEvents: "none",
           }}
-        />
+        >
+          {TICKS.map((pct) => (
+            <span
+              key={pct}
+              style={{
+                position: "absolute",
+                left: `${pct}%`,
+                bottom: 0,
+                width: 1,
+                height: pct === 50 ? 4 : 3,
+                background: "var(--line)",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Kepala blok kuning kecil (selalu tajam saat ada lagu). */}
+        {bisa && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: `calc(${rasio * 100}% - 4px)`,
+              width: 8,
+              height: drag ? 16 : 12,
+              background: "var(--accent)",
+              border: "1px solid var(--line-strong)",
+              transition: drag ? "none" : "height var(--t-fast) var(--ease)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
       </div>
 
-      <span className="mono muted" style={{ fontSize: 12, minWidth: 42 }}>
+      <span className="mono muted" style={{ fontSize: 11, minWidth: 42 }}>
         {formatDuration(durationMs)}
       </span>
     </div>

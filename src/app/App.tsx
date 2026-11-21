@@ -44,7 +44,7 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
 
-  const { state, setTrack, setPlaying } = usePlayerStore();
+  const { state, setTrack, setPlaying, setStatus } = usePlayerStore();
   const queue = useQueue();
   const refreshQueue = queue.refresh;
   const lib = useLibrary();
@@ -212,7 +212,7 @@ export function App() {
   /** Jalankan audio untuk satu lagu. Tidak menyentuh antrean sama sekali. */
   async function startAudio(t: Track) {
     setTrack(t);
-    setPlaying(true);
+    setStatus("loading");
     // Riwayat dicatat di sini karena inilah titik lagu benar-benar diminta
     // diputar — bukan saat diklik dan resolve-nya gagal.
     void lib.recordPlay(t);
@@ -226,7 +226,7 @@ export function App() {
     } catch (err) {
       console.error("putar gagal:", err);
       loadedVideoIdRef.current = null;
-      setPlaying(false);
+      setStatus("error");
       notifyError(errMessage(err, "Gagal memutar lagu"));
     }
   }
@@ -240,15 +240,18 @@ export function App() {
   async function recoverStream(t: Track, resumeAtMs: number) {
     if (recoveringRef.current === t.videoId) return;
     recoveringRef.current = t.videoId;
+    setStatus("loading");
     try {
       streamCache.invalidate(t.videoId);
       const stream = await streamCache.get(t.videoId, true);
       await audioEngine.load(stream.url, resumeAtMs);
+      loadedVideoIdRef.current = t.videoId;
       setPlaying(true);
     } catch (err) {
       // Percobaan kedua juga gagal: berhenti dengan jujur, jangan berpura-pura.
       console.error("pemulihan stream gagal:", err);
-      setPlaying(false);
+      loadedVideoIdRef.current = null;
+      setStatus("error");
       notifyError(errMessage(err, "Stream tidak bisa dipulihkan"));
     } finally {
       recoveringRef.current = null;
@@ -333,7 +336,8 @@ export function App() {
       void recoverStream(track, posisi);
       return;
     }
-    setPlaying(false);
+    loadedVideoIdRef.current = null;
+    setStatus("error");
     notifyError(msg);
   };
 

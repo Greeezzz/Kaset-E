@@ -170,6 +170,34 @@ h3 {
   animation-delay: 360ms;
 }
 
+/* Garis scan loading pada progress bar (DESIGN-ENDFIELD §8). */
+@keyframes kaset-scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.scan-bar {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.scan-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 28%;
+  background: var(--accent);
+  animation: kaset-scan 1.1s linear infinite;
+}
+
 /* Hormati preferensi pengguna (DESIGN-ENDFIELD §8). */
 @media (prefers-reduced-motion: reduce) {
   *,

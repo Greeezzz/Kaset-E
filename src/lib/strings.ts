@@ -23,6 +23,7 @@ export const T = {
   gantiNama: "GANTI NAMA",
   baru: "+ BARU",
   memuat: "MEMUAT…",
+  gagal: "GAGAL",
   standby: "STANDBY",
 
   // Pencarian

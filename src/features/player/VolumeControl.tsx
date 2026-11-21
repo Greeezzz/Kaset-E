@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { T } from "../../lib/strings";
 
 interface Props {
   volume: number;
@@ -6,7 +7,7 @@ interface Props {
 }
 
 /**
- * Kontrol volume: tombol bisu + slider.
+ * Kontrol volume: tombol bisu tanpa latar + slider (DESIGN-LAYOUT bagian 6).
  *
  * Mute menyimpan volume sebelumnya di ref supaya "buka bisu" mengembalikan
  * angka yang user pilih, bukan default 80%. Volume 0 dari slider juga
@@ -21,25 +22,25 @@ export function VolumeControl({ volume, onChange }: Props) {
   const ubah = (v: number) => onChange(Math.min(1, Math.max(0, v)));
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "var(--s-1)" }}>
       <button
         type="button"
         onClick={() => ubah(bisu ? sebelumBisu.current : 0)}
-        aria-label={bisu ? "Bunyikan" : "Bisukan"}
-        title={bisu ? "Bunyikan" : "Bisukan"}
+        aria-label={bisu ? T.bunyikan : T.bisukan}
+        aria-pressed={bisu}
+        title={bisu ? T.bunyikan : T.bisukan}
         style={{
-          minWidth: 32,
-          minHeight: 32,
+          width: 44,
+          height: 44,
           display: "grid",
           placeItems: "center",
-          border: "1px solid var(--line)",
           background: "transparent",
-          color: "var(--ink)",
+          color: bisu ? "var(--ink-muted)" : "var(--ink)",
           cursor: "pointer",
         }}
       >
-        {/* Glyph teks: konsisten dengan ikon lain yang belum diganti set garis. */}
-        <span aria-hidden="true" style={{ fontSize: 13 }}>
+        {/* Glyph teks sementara; akan diganti set ikon garis 1.5px di Langkah 8. */}
+        <span aria-hidden="true" style={{ fontSize: 14 }}>
           {bisu ? "🔇" : volume < 0.5 ? "🔉" : "🔊"}
         </span>
       </button>
@@ -51,12 +52,10 @@ export function VolumeControl({ volume, onChange }: Props) {
         step={1}
         value={Math.round(volume * 100)}
         onChange={(e) => ubah(Number(e.target.value) / 100)}
-        aria-label="Volume"
+        aria-label={T.volume}
         aria-valuetext={`${Math.round(volume * 100)} persen`}
         style={{
           width: 84,
-          // Slider bawaan browser diwarnai lewat accent-color; tidak perlu
-          // restyle thumb manual dan tetap menghormati tema.
           accentColor: "var(--accent)",
           cursor: "pointer",
         }}
@@ -64,7 +63,7 @@ export function VolumeControl({ volume, onChange }: Props) {
 
       <span
         className="mono muted"
-        style={{ fontSize: 12, minWidth: 30, textAlign: "right" }}
+        style={{ fontSize: 11, minWidth: 28, textAlign: "right" }}
         aria-hidden="true"
       >
         {Math.round(volume * 100)}
