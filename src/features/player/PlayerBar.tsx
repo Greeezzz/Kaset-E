@@ -20,6 +20,7 @@ export function PlayerBar({
   onSeek,
   onVolume,
   onToggleQueue,
+  onOpenNowPlaying,
   queueOpen = false,
 }: {
   state: PlayerState;
@@ -29,6 +30,7 @@ export function PlayerBar({
   onSeek?: (positionMs: number) => void;
   onVolume?: (volume: number) => void;
   onToggleQueue?: () => void;
+  onOpenNowPlaying?: () => void;
   queueOpen?: boolean;
 }) {
   const playing = state.status === "playing";
@@ -49,12 +51,32 @@ export function PlayerBar({
         padding: "0 var(--s-4)",
       }}
     >
-      {/* Zona kiri: identitas lagu */}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", minWidth: 0 }}>
+      {/* Zona kiri: identitas lagu (klik membuka tab SEDANG DIPUTAR). */}
+      <button
+        type="button"
+        onClick={onOpenNowPlaying}
+        disabled={!onOpenNowPlaying}
+        aria-label={T.bukaSedangDiputar}
+        title={T.bukaSedangDiputar}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--s-3)",
+          minWidth: 0,
+          textAlign: "left",
+          padding: 0,
+          cursor: onOpenNowPlaying ? "pointer" : "default",
+        }}
+      >
         {ada ? (
-          <CoverArt coverKey={state.track!.coverKey} title={state.track!.title} size={52} />
+          <CoverArt
+            coverKey={state.track!.coverKey}
+            title={state.track!.title}
+            size={52}
+            radius={0}
+          />
         ) : (
-          <CoverArt coverKey={null} title="Kaset" size={52} />
+          <CoverArt coverKey={null} title="Kaset" size={52} radius={0} />
         )}
         <span style={{ minWidth: 0 }}>
           <span
@@ -82,7 +104,7 @@ export function PlayerBar({
             {state.track?.artist ?? "\u2014"}
           </span>
         </span>
-      </div>
+      </button>
 
       {/* Zona tengah: transport + progress */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>

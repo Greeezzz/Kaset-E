@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
-import { TrackRow } from "../../components/TrackRow";
 import { CoverArt } from "../../components/CoverArt";
 import type { QueueView } from "../../hooks/useQueue";
+import { formatDuration } from "../../lib/format";
+import { T } from "../../lib/strings";
+import type { Track } from "../../types";
 
 interface Props {
   view: QueueView;
-  onClose: () => void;
+  /** Lagu aktif dari playerStore agar tetap sinkron dengan PlayerBar. */
+  activeTrack?: Track | null;
+  isPlaying?: boolean;
   onPlayIndex: (position: number) => void;
   onRemove: (position: number) => void;
   onMove: (from: number, to: number) => void;
@@ -16,21 +20,22 @@ interface Props {
 }
 
 const REPEAT_LABEL: Record<QueueView["repeat"], string> = {
-  off: "REPEAT OFF",
-  one: "REPEAT ONE",
-  all: "REPEAT ALL",
+  off: T.repeatOff,
+  one: T.repeatOne,
+  all: T.repeatAll,
 };
 
 /**
- * Panel antrean.
+ * Isi tab ANTREAN di panel kanan (DESIGN-LAYOUT bagian 4.2).
  *
- * Mengikuti DESIGN-ENDFIELD §6: kepala panel bergaya sistem
- * (`02 / ANTREAN — n ITEM`), pemisah "SEDANG DIPUTAR" / "BERIKUTNYA", indeks
- * mono, penanda aktif garis kuning di tepi kiri.
+ * Setiap baris memakai CSS grid dengan lebar tetap untuk handle, indeks,
+ * cover, durasi, dan ✕ — supaya kolom durasi dan ✕ sejajar sempurna antar
+ * baris dan tidak pernah memicu scroll horizontal.
  */
 export function QueuePanel({
   view,
-  onClose,
+  activeTrack = null,
+  isPlaying = false,
   onPlayIndex,
   onRemove,
   onMove,
@@ -38,166 +43,204 @@ export function QueuePanel({
   onToggleShuffle,
   onCycleRepeat,
 }: Props) {
-  // Indeks baris yang sedang di-drag. HTML5 drag tidak perlu dependensi.
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   const { items, cursor, shuffle, repeat } = view;
-  const current = items[cursor];
+  const currentItem = items[cursor] ?? null;
+  const currentTrack = currentItem?.track ?? activeTrack;
+
   // Baris yang sedang diputar SUDAH tampil di blok SEDANG DIPUTAR di atas.
-  // Kalau ikut dirender lagi di daftar BERIKUTNYA, lagu yang sama muncul dua
-  // kali dan user mengira antreannya dobel.
+  // Melewati `cursor` memastikan lagu aktif tidak tampil dobel di kedua blok.
   const berikutnya = items.map((it, pos) => ({ it, pos })).filter(({ pos }) => pos !== cursor);
 
   return (
-    <aside
-      aria-label="Antrean"
-      style={{
-        borderLeft: "1px solid var(--line)",
-        background: "var(--panel)",
-        display: "flex",
-        flexDirection: "column",
-        // Panel ini anak dari grid, jadi lebarnya ditentukan kolom. Tanpa
-        // minHeight 0 daftar panjang akan memaksa panel tumbuh melewati tinggi
-        // dan mendorong player bar keluar layar.
-        minHeight: 0,
-        overflow: "hidden",
-      }}
-    >
-      <header
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {/* Kepala sistem: 02 / ANTREAN ──── N ITEM */}
+      <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "var(--s-2)",
           padding: "var(--s-3) var(--s-3) var(--s-2)",
-          borderBottom: "1px solid var(--line)",
+          flex: "0 0 auto",
         }}
       >
-        <span className="label">02 / ANTREAN</span>
+        <span className="label" aria-hidden="true">
+          02 /
+        </span>
+        <span className="label" style={{ color: "var(--ink)" }}>
+          {T.antrean}
+        </span>
         <span style={{ flex: 1, borderTop: "1px solid var(--line)" }} aria-hidden="true" />
-        <span className="label">{items.length} ITEM</span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Tutup antrean"
-          style={{ width: 32, height: 32, color: "var(--ink-muted)" }}
-        >
-          ✕
-        </button>
-      </header>
+        <span className="label">
+          {items.length} {T.item}
+        </span>
+      </div>
 
+      {/* Baris kontrol: ACAK, REPEAT, KOSONGKAN (outline merah + konfirmasi). */}
       <div
         style={{
           display: "flex",
           gap: "var(--s-1)",
-          padding: "var(--s-2) var(--s-3)",
+          padding: "0 var(--s-3) var(--s-2)",
           borderBottom: "1px solid var(--line)",
+          flex: "0 0 auto",
         }}
       >
         <button
           type="button"
           onClick={onToggleShuffle}
           aria-pressed={shuffle}
-          title={shuffle ? "Matikan acak" : "Acak antrean"}
           style={{
             flex: 1,
-            minHeight: 32,
+            minHeight: 36,
+            padding: "0 6px",
             background: shuffle ? "var(--accent)" : "transparent",
             color: shuffle ? "var(--accent-ink)" : "var(--ink-muted)",
-            border: "1px solid var(--line)",
+            border: shuffle ? "1px solid var(--accent)" : "1px solid var(--line)",
             fontFamily: "var(--font-mono)",
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: "0.08em",
+            fontWeight: shuffle ? 600 : 400,
           }}
         >
-          ACAK {shuffle ? "ON" : "OFF"}
+          {T.acak}
         </button>
         <button
           type="button"
           onClick={onCycleRepeat}
-          title="Ubah mode ulang"
           style={{
             flex: 1,
-            minHeight: 32,
+            minHeight: 36,
+            padding: "0 6px",
             background: repeat !== "off" ? "var(--accent)" : "transparent",
             color: repeat !== "off" ? "var(--accent-ink)" : "var(--ink-muted)",
-            border: "1px solid var(--line)",
+            border: repeat !== "off" ? "1px solid var(--accent)" : "1px solid var(--line)",
             fontFamily: "var(--font-mono)",
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: "0.08em",
+            fontWeight: repeat !== "off" ? 600 : 400,
           }}
         >
           {REPEAT_LABEL[repeat]}
         </button>
         <button
           type="button"
-          onClick={onClear}
+          onClick={() => {
+            if (items.length === 0) return;
+            if (confirm(T.konfirmasiKosongkanAntrean)) onClear();
+          }}
           disabled={items.length === 0}
-          title="Kosongkan antrean"
           style={{
-            minHeight: 32,
+            minHeight: 36,
             padding: "0 var(--s-2)",
-            border: "1px solid var(--line)",
+            border: items.length === 0 ? "1px solid var(--line)" : "1px solid var(--danger)",
             color: items.length === 0 ? "var(--ink-muted)" : "var(--danger)",
-            opacity: items.length === 0 ? 0.5 : 1,
+            opacity: items.length === 0 ? 0.45 : 1,
+            cursor: items.length === 0 ? "default" : "pointer",
             fontFamily: "var(--font-mono)",
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: "0.08em",
           }}
         >
-          KOSONGKAN
+          {T.kosongkan}
         </button>
       </div>
 
-      <div style={{ overflowY: "auto", padding: "var(--s-2)", flex: 1 }}>
-        {items.length === 0 ? (
-          <EmptyState
-            title="ANTREAN KOSONG"
-            hint="Tekan + pada lagu hasil pencarian untuk menambahkannya."
-          />
+      {/* Daftar antrean — scroll vertikal sendiri, tanpa scroll horizontal. */}
+      <div
+        style={{
+          overflowY: "auto",
+          overflowX: "hidden",
+          padding: "var(--s-2)",
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        {items.length === 0 && !currentTrack ? (
+          <EmptyState title={T.antreanKosong} hint={T.antreanKosongHint} />
         ) : (
           <>
-            {current && (
+            {currentTrack && (
               <section style={{ marginBottom: "var(--s-3)" }}>
                 <div className="label" style={{ padding: "var(--s-1) var(--s-2)" }}>
-                  SEDANG DIPUTAR
+                  {T.sedangDiputar}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "40px minmax(0, 1fr) 44px",
+                    alignItems: "center",
+                    gap: "var(--s-2)",
+                    padding: "var(--s-2)",
+                    background: "var(--panel-2)",
+                    boxShadow: "inset 3px 0 0 var(--accent)",
+                  }}
+                >
                   <CoverArt
-                    coverKey={current.track.coverKey}
-                    title={current.track.title}
-                    size={48}
+                    coverKey={currentTrack.coverKey}
+                    title={currentTrack.title}
+                    size={40}
+                    radius={0}
                   />
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ minWidth: 0 }}>
                     <div
                       style={{
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        fontSize: 13,
+                        fontWeight: 600,
                       }}
                     >
-                      {current.track.title}
+                      {currentTrack.title}
                     </div>
-                    <div className="muted" style={{ fontSize: 13 }}>
-                      {current.track.artist}
+                    <div
+                      className="muted"
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: 12,
+                      }}
+                    >
+                      {currentTrack.artist}
                     </div>
+                  </div>
+                  <div
+                    style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}
+                  >
+                    {isPlaying ? (
+                      <span
+                        className="eq-bars"
+                        style={{ color: "var(--ink)" }}
+                        aria-label={T.sedangDiputar}
+                      >
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    ) : (
+                      <span className="mono muted" style={{ fontSize: 11 }}>
+                        {formatDuration(currentTrack.durationMs)}
+                      </span>
+                    )}
                   </div>
                 </div>
               </section>
             )}
 
             <div className="label" style={{ padding: "var(--s-1) var(--s-2)" }}>
-              BERIKUTNYA
+              {T.berikutnya}
             </div>
 
-            {berikutnya.length === 0 && current ? (
-              <p className="muted" style={{ padding: "var(--s-2)", fontSize: 13 }}>
-                Tidak ada lagu setelah ini.
+            {berikutnya.length === 0 ? (
+              <p className="muted" style={{ padding: "var(--s-2)", fontSize: 13, margin: 0 }}>
+                {T.tidakAdaBerikutnya}
               </p>
-            ) : null}
-
-            {berikutnya.map(({ it, pos }) => {
-              return (
+            ) : (
+              berikutnya.map(({ it, pos }) => (
                 <div
                   key={`${pos}-${it.track.videoId}`}
                   draggable
@@ -216,27 +259,124 @@ export function QueuePanel({
                     setDragOver(null);
                   }}
                   style={{
-                    display: "flex",
+                    display: "grid",
+                    // Lebar tetap untuk handle, indeks, cover, durasi, dan ✕:
+                    // judul/artis menyerap sisa dengan ellipsis (tanpa scroll X).
+                    gridTemplateColumns: "14px 20px 36px minmax(0, 1fr) 42px 36px",
                     alignItems: "center",
+                    gap: 6,
+                    padding: "4px 4px",
+                    minHeight: 52,
+                    borderBottom: "1px solid var(--line)",
                     borderTop:
                       dragOver === pos && dragFrom !== pos
                         ? "2px solid var(--accent)"
                         : "2px solid transparent",
                   }}
                 >
-                  <TrackRow
-                    track={it.track}
-                    index={pos}
-                    onPlay={() => onPlayIndex(pos)}
-                    onRemove={() => onRemove(pos)}
-                    labelHapus="Hapus dari antrean"
+                  <DragHandle />
+
+                  <span
+                    className="mono muted"
+                    style={{ fontSize: 10, textAlign: "right" }}
+                    aria-hidden="true"
+                  >
+                    {String(pos + 1).padStart(2, "0")}
+                  </span>
+
+                  <CoverArt
+                    coverKey={it.track.coverKey}
+                    title={it.track.title}
+                    size={36}
+                    radius={0}
                   />
+
+                  <button
+                    type="button"
+                    onClick={() => onPlayIndex(pos)}
+                    style={{
+                      minWidth: 0,
+                      textAlign: "left",
+                      padding: "4px 0",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: 13,
+                      }}
+                    >
+                      {it.track.title}
+                    </span>
+                    <span
+                      className="muted"
+                      style={{
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: 12,
+                      }}
+                    >
+                      {it.track.artist}
+                    </span>
+                  </button>
+
+                  <span className="mono muted" style={{ fontSize: 11, textAlign: "right" }}>
+                    {formatDuration(it.track.durationMs)}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => onRemove(pos)}
+                    aria-label={`${T.hapusDariAntrean}: ${it.track.title}`}
+                    title={T.hapusDariAntrean}
+                    style={{
+                      width: 36,
+                      height: 44,
+                      display: "grid",
+                      placeItems: "center",
+                      color: "var(--ink-muted)",
+                      fontSize: 12,
+                    }}
+                  >
+                    ✕
+                  </button>
                 </div>
-              );
-            })}
+              ))
+            )}
           </>
         )}
       </div>
-    </aside>
+    </div>
+  );
+}
+
+/** Handle drag 6 titik kotak (DESIGN-ENDFIELD §6, DESIGN-LAYOUT §4.2). */
+function DragHandle() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 3px)",
+        gap: 2,
+        justifyContent: "center",
+        color: "var(--ink-muted)",
+        cursor: "grab",
+        opacity: 0.65,
+      }}
+    >
+      <span style={{ width: 3, height: 3, background: "currentColor" }} />
+      <span style={{ width: 3, height: 3, background: "currentColor" }} />
+      <span style={{ width: 3, height: 3, background: "currentColor" }} />
+      <span style={{ width: 3, height: 3, background: "currentColor" }} />
+      <span style={{ width: 3, height: 3, background: "currentColor" }} />
+      <span style={{ width: 3, height: 3, background: "currentColor" }} />
+    </span>
   );
 }

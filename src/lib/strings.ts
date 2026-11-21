@@ -48,13 +48,22 @@ export const T = {
   bunyikan: "Bunyikan",
   belumAdaLagu: "Belum ada lagu",
 
-  // Antrean
+  // Antrean & Panel Kanan
   antrean: "ANTREAN",
   antreanKosong: "ANTREAN KOSONG",
   antreanKosongHint: "Tambahkan lagu dari hasil pencarian atau playlist.",
   sedangDiputar: "SEDANG DIPUTAR",
   berikutnya: "BERIKUTNYA",
   kosongkan: "KOSONGKAN",
+  konfirmasiKosongkanAntrean: "Kosongkan seluruh antrean pemutaran?",
+  tidakAdaBerikutnya: "Tidak ada lagu setelah ini.",
+  hapusDariAntrean: "Hapus dari antrean",
+  tutupPanel: "Tutup panel",
+  item: "ITEM",
+  memutar: "MEMUTAR",
+  dijeda: "DIJEDA",
+  belumAdaLaguHint: "Pilih lagu dari pencarian atau playlist untuk mulai memutar.",
+  bukaSedangDiputar: "Lihat detail sedang diputar",
   acak: "ACAK",
   repeat: "REPEAT",
   repeatOff: "REPEAT OFF",

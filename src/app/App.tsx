@@ -7,7 +7,7 @@ import { BottomNav } from "./layout/BottomNav";
 import { MiniPlayer } from "./layout/MiniPlayer";
 import { PlayerBar } from "../features/player/PlayerBar";
 import { FullPlayer } from "../features/player/FullPlayer";
-import { QueuePanel } from "../features/queue/QueuePanel";
+import { RightPanel, type RightPanelTab } from "../features/queue/RightPanel";
 import { Search } from "../features/search/Search";
 import { Library } from "../features/library/Library";
 import { Settings } from "../features/settings/Settings";
@@ -34,6 +34,7 @@ export function App() {
   // Panel kanan: default TERTUTUP (DESIGN-LAYOUT bagian 1). Pilihan terakhir
   // diingat supaya user yang selalu membukanya tidak perlu membuka tiap start.
   const [queueOpen, setQueueOpen] = useState(false);
+  const [rightTab, setRightTab] = useState<RightPanelTab>("queue");
   const [query, setQuery] = useState("");
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
   // Playlist yang sedang dipilih di sidebar (null = Lagu Disukai).
@@ -55,6 +56,9 @@ export function App() {
   // Lagu yang sedang dipulihkan, supaya tidak ada dua resolve bersamaan untuk
   // lagu yang sama. Null = tidak sedang memulihkan.
   const recoveringRef = useRef<string | null>(null);
+  // videoId yang benar-benar sudah dimuat ke elemen <audio>. Membedakan lagu
+  // hasil pemulihan saat start (belum di-resolve) dari lagu yang sedang dijeda.
+  const loadedVideoIdRef = useRef<string | null>(null);
   // Timer penyimpanan volume (debounce 500 ms).
   const simpanVolumeRef = useRef<number | null>(null);
 
@@ -103,14 +107,32 @@ export function App() {
     };
   }, []);
 
-  /** Buka/tutup panel kanan, dan ingat pilihannya. */
-  function toggleQueue() {
-    setQueueOpen((buka) => {
-      const baru = !buka;
-      void invoke("setting_set", { key: "queue_open", value: baru ? "1" : "0" }).catch(() => {});
-      return baru;
-    });
+  /** Buka tab tertentu di panel kanan; kalau tab itu sudah terbuka, tutup. */
+  function toggleRightTab(tab: RightPanelTab) {
+    if (queueOpen && rightTab === tab) {
+      setQueueOpen(false);
+      void invoke("setting_set", { key: "queue_open", value: "0" }).catch(() => {});
+      return;
+    }
+    setRightTab(tab);
+    setQueueOpen(true);
+    void invoke("setting_set", { key: "queue_open", value: "1" }).catch(() => {});
   }
+
+  function closeRightPanel() {
+    setQueueOpen(false);
+    void invoke("setting_set", { key: "queue_open", value: "0" }).catch(() => {});
+  }
+
+  // Sinkronisasi awal: kalau antrean dipulihkan dari SQLite saat start,
+  // tampilkan lagu aktif di PlayerBar (status paused) supaya PlayerBar
+  // dan panel kanan selalu membaca kebenaran yang sama (DESIGN-LAYOUT §6).
+  const queueCurrent = queue.view.current;
+  useEffect(() => {
+    if (!state.track && queueCurrent) {
+      setTrack(queueCurrent);
+    }
+  }, [state.track, queueCurrent, setTrack]);
 
   // Pulihkan volume terakhir. Gagal baca bukan masalah: pakai default 0.8.
   useEffect(() => {
@@ -165,7 +187,14 @@ export function App() {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key.toLowerCase() === "q") {
         e.preventDefault();
-        toggleQueue();
+        setRightTab("queue");
+        setQueueOpen((buka) => {
+          const baru = !buka;
+          void invoke("setting_set", { key: "queue_open", value: baru ? "1" : "0" }).catch(
+            () => {},
+          );
+          return baru;
+        });
       }
       if (e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -193,8 +222,10 @@ export function App() {
       // adalah pemborosan yang terasa oleh user.
       const stream = await streamCache.get(t.videoId);
       await audioEngine.load(stream.url);
+      loadedVideoIdRef.current = t.videoId;
     } catch (err) {
       console.error("putar gagal:", err);
+      loadedVideoIdRef.current = null;
       setPlaying(false);
       notifyError(errMessage(err, "Gagal memutar lagu"));
     }
@@ -377,6 +408,11 @@ export function App() {
       audioEngine.pause();
       setPlaying(false);
     } else if (state.track) {
+      // Lagu hasil pemulihan saat start belum dimuat ke <audio>; resolve dulu.
+      if (loadedVideoIdRef.current !== state.track.videoId) {
+        void startAudio(state.track);
+        return;
+      }
       void audioEngine.play();
       setPlaying(true);
     }
@@ -507,13 +543,19 @@ export function App() {
         </main>
 
         {isWide && queueOpen && (
-          <QueuePanel
+          <RightPanel
+            tab={rightTab}
+            onTabChange={setRightTab}
+            onClose={closeRightPanel}
+            playerState={state}
             view={queue.view}
-            onClose={toggleQueue}
             onPlayIndex={(pos) => void playQueueIndex(pos)}
             onRemove={(pos) => void queue.remove(pos)}
             onMove={(from, to) => void queue.move(from, to)}
             onClear={() => {
+              audioEngine.pause();
+              loadedVideoIdRef.current = null;
+              setTrack(null);
               setPlayingSourceId(null);
               void queue.clear();
             }}
@@ -531,8 +573,9 @@ export function App() {
           onPrevious={() => void playPreviousInQueue()}
           onSeek={handleSeek}
           onVolume={handleVolume}
-          onToggleQueue={toggleQueue}
-          queueOpen={queueOpen}
+          onToggleQueue={() => toggleRightTab("queue")}
+          onOpenNowPlaying={() => toggleRightTab("now")}
+          queueOpen={queueOpen && rightTab === "queue"}
         />
       ) : (
         <MiniPlayer
