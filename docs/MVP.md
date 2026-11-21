@@ -51,7 +51,7 @@ mock tetap dipakai dan Settings menampilkan "Mock (contoh)".
 - [x] Resolve ulang otomatis saat URL kedaluwarsa / error 403
 - [x] Backoff + klasifikasi error + circuit breaker (lihat `RESILIENCE.md`)
 - [x] Handle tombol Next/Prev dengan coalescing request — coalescing per `video_id` di `streamCache` (dua klik lagu sama = satu resolve) + throttle 1,5 detik di resolver
-- [ ] Slider seek & volume di UI — engine sudah punya `seek`/`setVolume`, tapi belum ada kontrol `<input type="range">`; seek juga belum bisa diklik di progress bar
+- [x] Slider seek & volume di UI — bar seek bisa diklik/drag/keyboard (panah 5 detik, Shift+panah 30 detik, Home/End), volume slider + tombol bisu, dan volume tersimpan lintas restart
 
 Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 
@@ -96,7 +96,7 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 
 **Kriteria selesai Fase 1:** bisa dipakai seharian di desktop tanpa iklan, queue dan playlist tersimpan setelah app ditutup.
 
-**Status Fase 1: 29/35 item (83%).** Sisa 6 item: suggestions di UI, history pencarian, slider seek/volume, media key, tray menu, export/import JSON.
+**Status Fase 1: 30/35 item (86%).** Sisa 5 item: suggestions di UI, history pencarian, media key, tray menu, export/import JSON.
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
