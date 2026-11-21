@@ -83,9 +83,9 @@ export function useSearchSuggestions(query: string, aktif: boolean) {
     const q = query.trim().toLowerCase();
     const riwayatCocok = riwayat.filter((r) => (q ? r.query.toLowerCase().includes(q) : true));
 
-    // YouTube sendiri kadang mengembalikan saran yang sama dua kali, dan
-    // saran bisa mengulang isi riwayat. Keduanya harus dibuang: daftar yang
-    // berisi baris kembar terlihat seperti bug bagi user.
+    // Saran katalog bisa mengulang isi riwayat (mis. "daft punk" ada di
+    // keduanya), dan itu harus dibuang: baris kembar di daftar terlihat
+    // seperti bug. Dedupe juga menjaga kalau katalog mengirim entri kembar.
     const sudahAda = new Set(riwayatCocok.map((r) => r.query.toLowerCase()));
     const saranBaru: ItemSaran[] = [];
     for (const mentah of saran) {
