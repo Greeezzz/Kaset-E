@@ -1,10 +1,12 @@
 import { fnv1a, initials } from "../lib/format";
+import { useCover } from "../hooks/useCover";
 
 interface Props {
   /** Kunci cover; null = belum ada data sama sekali. */
   coverKey: string | null;
   title: string;
-  /** Path file lokal dari Rust (hasil command cover_get). Null = belum ter-cache. */
+  /** Path lokal dari Rust (opsional). Kalau kosong, komponen mengambil sendiri
+   *  dari cache dan mengunduh di background. */
   localPath?: string | null;
   size?: number;
   radius?: number;
@@ -19,6 +21,11 @@ interface Props {
  * tetap rapi, (b) tidak ada IP user yang bocor ke Google tiap render.
  */
 export function CoverArt({ coverKey, title, localPath, size = 48, radius = 6 }: Props) {
+  // Cover diambil sendiri dari cache; `localPath` dari pemanggil tetap dihormati
+  // supaya komponen bisa dipakai dengan path yang sudah diketahui.
+  const dariHook = useCover(coverKey);
+  const url = localPath ?? dariHook;
+
   const style = {
     width: size,
     height: size,
@@ -26,10 +33,10 @@ export function CoverArt({ coverKey, title, localPath, size = 48, radius = 6 }: 
     flex: `0 0 ${size}px`,
   } as const;
 
-  if (localPath) {
+  if (url) {
     return (
       <img
-        src={localPath}
+        src={url}
         alt=""
         aria-hidden="true"
         style={{ ...style, objectFit: "cover", background: "var(--surface-2)" }}
