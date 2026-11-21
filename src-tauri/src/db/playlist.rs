@@ -24,6 +24,13 @@ pub struct Playlist {
     pub track_count: i64,
     pub created_at: i64,
     pub updated_at: i64,
+    /// Kunci cover 4 lagu pertama, untuk mosaik di sidebar.
+    ///
+    /// Diambil dalam query yang sama dengan daftar playlist: kalau UI harus
+    /// memanggil `playlist_tracks` untuk tiap playlist, membuka aplikasi
+    /// dengan 30 playlist berarti 30 query tambahan sebelum sidebar selesai
+    /// dirender.
+    pub cover_keys: Vec<String>,
 }
 
 pub fn create(db: &crate::db::Db, name: &str) -> AppResult<Playlist> {
@@ -40,6 +47,7 @@ pub fn create(db: &crate::db::Db, name: &str) -> AppResult<Playlist> {
             track_count: 0,
             created_at: now,
             updated_at: now,
+            cover_keys: Vec::new(),
         })
     })
 }
@@ -73,24 +81,46 @@ pub fn delete(db: &crate::db::Db, id: i64) -> AppResult<()> {
     })
 }
 
+fn cover_keys_for(c: &rusqlite::Connection, playlist_id: i64) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = c.prepare(
+        "SELECT video_id FROM playlist_tracks
+         WHERE playlist_id = ?1 AND position < 4
+         ORDER BY position",
+    )?;
+    let rows = stmt.query_map([playlist_id], |r| {
+        let vid: String = r.get(0)?;
+        Ok(Track::cover_key_for(&vid))
+    })?;
+    let mut keys = Vec::new();
+    for row in rows {
+        keys.push(row?);
+    }
+    Ok(keys)
+}
+
 pub fn get(db: &crate::db::Db, id: i64) -> AppResult<Playlist> {
     db.with(|c| {
-        let mut stmt = c.prepare(
-            "SELECT p.id, p.name, p.created_at, p.updated_at,
-                    (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id)
-             FROM playlists p WHERE p.id = ?1",
-        )?;
-        let mut rows = stmt.query([id])?;
-        match rows.next()? {
-            Some(r) => Ok(Playlist {
-                id: r.get(0)?,
-                name: r.get(1)?,
-                created_at: r.get(2)?,
-                updated_at: r.get(3)?,
-                track_count: r.get(4)?,
-            }),
-            None => Err(AppError::NotFound(format!("playlist {id} tidak ada"))),
-        }
+        let mut pl = {
+            let mut stmt = c.prepare(
+                "SELECT p.id, p.name, p.created_at, p.updated_at,
+                        (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id)
+                 FROM playlists p WHERE p.id = ?1",
+            )?;
+            let mut rows = stmt.query([id])?;
+            match rows.next()? {
+                Some(r) => Playlist {
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    created_at: r.get(2)?,
+                    updated_at: r.get(3)?,
+                    track_count: r.get(4)?,
+                    cover_keys: Vec::new(),
+                },
+                None => return Err(AppError::NotFound(format!("playlist {id} tidak ada"))),
+            }
+        };
+        pl.cover_keys = cover_keys_for(c, id)?;
+        Ok(pl)
     })
 }
 
@@ -108,12 +138,31 @@ pub fn list(db: &crate::db::Db) -> AppResult<Vec<Playlist>> {
                 created_at: r.get(2)?,
                 updated_at: r.get(3)?,
                 track_count: r.get(4)?,
+                cover_keys: Vec::new(),
             })
         })?;
         let mut out = Vec::new();
         for row in rows {
             out.push(row?);
         }
+
+        // Lengkapi cover_keys dengan satu query untuk semua playlist sekaligus.
+        // Empat lagu pertama per playlist cukup untuk mosaik 2x2.
+        if !out.is_empty() {
+            let mut cov = c.prepare(
+                "SELECT playlist_id, video_id FROM playlist_tracks
+                 WHERE position < 4 ORDER BY playlist_id, position",
+            )?;
+            let mut rows = cov.query([])?;
+            while let Some(r) = rows.next()? {
+                let pid: i64 = r.get(0)?;
+                let vid: String = r.get(1)?;
+                if let Some(pl) = out.iter_mut().find(|p| p.id == pid) {
+                    pl.cover_keys.push(Track::cover_key_for(&vid));
+                }
+            }
+        }
+
         Ok(out)
     })
 }
@@ -332,5 +381,26 @@ mod tests {
             .with(|c| Ok(c.query_row("SELECT COUNT(*) FROM playlist_tracks", [], |r| r.get(0))?))
             .unwrap();
         assert_eq!(sisa, 0, "ON DELETE CASCADE harus membersihkan isi playlist");
+    }
+
+    #[test]
+    fn cover_keys_maksimal_empat_dan_ikut_bergeser() {
+        let db = Db::open_in_memory().unwrap();
+        let p = create(&db, "Mosaik").unwrap();
+        assert!(p.cover_keys.is_empty());
+
+        for id in ["a", "b", "c", "d", "e"] {
+            add_track(&db, p.id, &track(id, id)).unwrap();
+        }
+
+        let expected = vec!["v:a", "v:b", "v:c", "v:d"];
+        assert_eq!(get(&db, p.id).unwrap().cover_keys, expected);
+        assert_eq!(list(&db).unwrap()[0].cover_keys, expected);
+
+        // Hapus lagu pertama: posisi merapat dan lagu ke-5 masuk ke slot ke-4.
+        assert!(remove_track(&db, p.id, "a").unwrap());
+        let shifted = vec!["v:b", "v:c", "v:d", "v:e"];
+        assert_eq!(get(&db, p.id).unwrap().cover_keys, shifted);
+        assert_eq!(list(&db).unwrap()[0].cover_keys, shifted);
     }
 }

@@ -1,21 +1,88 @@
+import { useEffect, useRef, useState } from "react";
 import type { Route } from "../routes";
 import { T } from "../../lib/strings";
+import { PlaylistCover } from "../../components/PlaylistCover";
+import type { Playlist } from "../../hooks/useLibrary";
+import type { Track } from "../../types";
 
-const ITEMS: { id: Route; label: string }[] = [
+const NAV: { id: Route; label: string }[] = [
   // Satu bahasa untuk semua label UI (DESIGN-LAYOUT bagian 7).
   { id: "search", label: T.navCari },
-  { id: "library", label: T.navLibrary },
   { id: "settings", label: T.navPengaturan },
 ];
 
+interface Props {
+  route: Route;
+  onNavigate: (r: Route) => void;
+  playlists: Playlist[];
+  favorites: Track[];
+  selectedPlaylistId: number | null;
+  /** ID playlist yang sedang aktif diputar (untuk equalizer bar-segmen). */
+  playingPlaylistId?: number | null;
+  onSelectPlaylist: (id: number) => void;
+  onSelectFavorites: () => void;
+  onCreatePlaylist: (name: string) => Promise<void>;
+  onRenamePlaylist: (id: number, name: string) => Promise<void>;
+  onDeletePlaylist: (id: number) => Promise<void>;
+}
+
 /**
- * Sidebar kiri.
+ * Sidebar kiri: navigasi + daftar library.
  *
- * Scroll-nya sendiri (DESIGN-LAYOUT bagian 1): header dan navigasi tetap di
+ * Scroll-nya sendiri (DESIGN-LAYOUT bagian 1): kepala dan navigasi tetap di
  * tempat, hanya daftar library yang bergulir. Kalau seluruh sidebar ikut
  * scroll, tombol navigasi bisa hilang ke atas saat playlist banyak.
+ *
+ * "LAGU DISUKAI" selalu paling atas dan tidak bisa diganti nama atau dihapus —
+ * itu bukan playlist, itu tampilan lain dari tabel favorites.
  */
-export function Sidebar({ route, onNavigate }: { route: Route; onNavigate: (r: Route) => void }) {
+export function Sidebar({
+  route,
+  onNavigate,
+  playlists,
+  favorites,
+  selectedPlaylistId,
+  playingPlaylistId = null,
+  onSelectPlaylist,
+  onSelectFavorites,
+  onCreatePlaylist,
+  onRenamePlaylist,
+  onDeletePlaylist,
+}: Props) {
+  const diLibrary = route === "library";
+
+  const [buatBuka, setBuatBuka] = useState(false);
+  const [namaBaru, setNamaBaru] = useState("");
+  const [sibukBuat, setSibukBuat] = useState(false);
+
+  const [menuId, setMenuId] = useState<number | null>(null);
+  const [renameId, setRenameId] = useState<number | null>(null);
+  const [renameVal, setRenameVal] = useState("");
+
+  async function kirimBuat(e: React.FormEvent) {
+    e.preventDefault();
+    const bersih = namaBaru.trim();
+    if (!bersih || sibukBuat) return;
+    setSibukBuat(true);
+    try {
+      await onCreatePlaylist(bersih);
+      setNamaBaru("");
+      setBuatBuka(false);
+    } finally {
+      setSibukBuat(false);
+    }
+  }
+
+  async function simpanRename(id: number) {
+    const bersih = renameVal.trim();
+    setRenameId(null);
+    setRenameVal("");
+    if (!bersih) return;
+    await onRenamePlaylist(id, bersih);
+  }
+
+  const favoritAktif = diLibrary && selectedPlaylistId === null;
+
   return (
     <nav
       aria-label="Navigasi utama"
@@ -28,7 +95,7 @@ export function Sidebar({ route, onNavigate }: { route: Route; onNavigate: (r: R
         overflow: "hidden",
       }}
     >
-      {/* Kepala panel gaya sistem: nomor + judul, mono caps. */}
+      {/* Kepala panel: nomor + judul, mono caps (gaya sistem Endfield). */}
       <div
         style={{
           padding: "var(--s-4) var(--s-4) var(--s-2)",
@@ -51,22 +118,26 @@ export function Sidebar({ route, onNavigate }: { route: Route; onNavigate: (r: R
             fontSize: 18,
             fontWeight: 600,
             letterSpacing: "0.04em",
+            flex: 1,
           }}
         >
           {T.navLibrary}
+        </span>
+        <span className="mono muted" style={{ fontSize: 11 }} aria-hidden="true">
+          {playlists.length}
         </span>
       </div>
 
       <div
         style={{
-          padding: "0 var(--s-3) var(--s-3)",
+          padding: "0 var(--s-3) var(--s-2)",
           display: "flex",
           flexDirection: "column",
           gap: 2,
           flex: "0 0 auto",
         }}
       >
-        {ITEMS.map((it) => {
+        {NAV.map((it) => {
           const aktif = route === it.id;
           return (
             <button
@@ -76,10 +147,8 @@ export function Sidebar({ route, onNavigate }: { route: Route; onNavigate: (r: R
               onClick={() => onNavigate(it.id)}
               style={{
                 padding: "10px var(--s-3)",
-                minHeight: 40,
+                minHeight: 44,
                 textAlign: "left",
-                // Item aktif = blok kuning dengan teks hitam. JANGAN teks kuning
-                // di atas latar terang — kontrasnya gagal (DESIGN-ENDFIELD §3).
                 background: aktif ? "var(--accent)" : "transparent",
                 color: aktif ? "var(--accent-ink)" : "var(--ink)",
                 border: "none",
@@ -95,23 +164,470 @@ export function Sidebar({ route, onNavigate }: { route: Route; onNavigate: (r: R
             </button>
           );
         })}
+
+        {/* Tombol buat playlist: outline, bukan kuning — kuning hanya untuk
+            keadaan aktif, supaya tidak ada dua ajakan yang bersaing. */}
+        <button
+          type="button"
+          onClick={() => {
+            setBuatBuka((b) => !b);
+            setNamaBaru("");
+          }}
+          aria-expanded={buatBuka}
+          style={{
+            marginTop: "var(--s-2)",
+            padding: "10px var(--s-3)",
+            minHeight: 44,
+            textAlign: "left",
+            background: "transparent",
+            color: "var(--ink)",
+            border: "1px solid var(--line-strong)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            cursor: "pointer",
+          }}
+        >
+          {T.baru}
+        </button>
+
+        {buatBuka && (
+          <form
+            onSubmit={(e) => void kirimBuat(e)}
+            style={{
+              marginTop: "var(--s-2)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--s-1)",
+              padding: "var(--s-2)",
+              background: "var(--bg)",
+              border: "1px solid var(--line)",
+            }}
+          >
+            <input
+              autoFocus
+              type="text"
+              value={namaBaru}
+              maxLength={80}
+              onChange={(e) => setNamaBaru(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setBuatBuka(false);
+                  setNamaBaru("");
+                }
+              }}
+              placeholder={T.namaPlaylistBaru}
+              aria-label={T.namaPlaylistBaru}
+              style={{
+                width: "100%",
+                minHeight: 36,
+                padding: "0 var(--s-2)",
+                background: "var(--panel)",
+                border: "1px solid var(--line-strong)",
+                color: "var(--ink)",
+                fontSize: 13,
+              }}
+            />
+            <div style={{ display: "flex", gap: "var(--s-1)" }}>
+              <button
+                type="submit"
+                disabled={sibukBuat || !namaBaru.trim()}
+                style={{
+                  flex: 1,
+                  minHeight: 34,
+                  background: namaBaru.trim() ? "var(--accent)" : "transparent",
+                  color: namaBaru.trim() ? "var(--accent-ink)" : "var(--ink-muted)",
+                  border: "1px solid var(--line)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {T.simpan}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBuatBuka(false);
+                  setNamaBaru("");
+                }}
+                style={{
+                  minHeight: 34,
+                  padding: "0 var(--s-2)",
+                  color: "var(--ink-muted)",
+                  border: "1px solid var(--line)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {T.batal}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
-      {/* Area daftar library nanti masuk di sini (langkah 3). Sementara hanya
-          pemisah supaya struktur scroll-nya sudah benar. */}
+      {/* Daftar library — satu-satunya bagian sidebar yang bergulir. */}
       <div
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
+          overflowX: "hidden",
           borderTop: "1px solid var(--line)",
-          padding: "var(--s-3)",
+          padding: "var(--s-2)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
         }}
       >
-        <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-          Daftar playlist menyusul.
-        </p>
+        {/* LAGU DISUKAI: dipin di atas, cover khusus (hati), tidak bisa dihapus. */}
+        <BarisLibrary
+          aktif={favoritAktif}
+          judul={T.laguDisukai}
+          meta={`${favorites.length} ${T.lagu}`}
+          onClick={onSelectFavorites}
+          cover={
+            <div
+              aria-hidden="true"
+              style={{
+                width: 44,
+                height: 44,
+                flex: "0 0 44px",
+                display: "grid",
+                placeItems: "center",
+                // Saat baris aktif (berlatar kuning), balik kotak hati jadi
+                // hitam-kuning agar kotak cover tidak tenggelam ke latar baris.
+                background: favoritAktif ? "var(--accent-ink)" : "var(--accent)",
+                color: favoritAktif ? "var(--accent)" : "var(--accent-ink)",
+                fontSize: 18,
+              }}
+            >
+              ♥
+            </div>
+          }
+        />
+
+        {playlists.length === 0 ? (
+          <p className="muted" style={{ fontSize: 12, padding: "var(--s-2)", margin: 0 }}>
+            {T.belumAdaPlaylistSidebar}
+          </p>
+        ) : (
+          playlists.map((p) =>
+            renameId === p.id ? (
+              <form
+                key={p.id}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void simpanRename(p.id);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--s-1)",
+                  padding: "6px 8px",
+                  minHeight: 56,
+                  background: "var(--bg)",
+                  border: "1px solid var(--line-strong)",
+                }}
+              >
+                <input
+                  autoFocus
+                  type="text"
+                  value={renameVal}
+                  maxLength={80}
+                  onChange={(e) => setRenameVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setRenameId(null);
+                      setRenameVal("");
+                    }
+                  }}
+                  aria-label={T.namaBaruUntuk(p.name)}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 34,
+                    padding: "0 var(--s-2)",
+                    background: "var(--panel)",
+                    border: "1px solid var(--line)",
+                    color: "var(--ink)",
+                    fontSize: 13,
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!renameVal.trim()}
+                  style={{
+                    minHeight: 34,
+                    padding: "0 var(--s-2)",
+                    background: renameVal.trim() ? "var(--accent)" : "transparent",
+                    color: renameVal.trim() ? "var(--accent-ink)" : "var(--ink-muted)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {T.simpan}
+                </button>
+              </form>
+            ) : (
+              <BarisLibrary
+                key={p.id}
+                aktif={diLibrary && selectedPlaylistId === p.id}
+                sedangDiputar={playingPlaylistId === p.id}
+                judul={p.name}
+                meta={`${T.playlist} · ${p.trackCount} ${T.lagu}`}
+                onClick={() => onSelectPlaylist(p.id)}
+                cover={<PlaylistCover coverKeys={p.coverKeys} title={p.name} size={44} />}
+                menuBuka={menuId === p.id}
+                onToggleMenu={(buka) => setMenuId(buka ? p.id : null)}
+                onRename={() => {
+                  setMenuId(null);
+                  setRenameId(p.id);
+                  setRenameVal(p.name);
+                }}
+                onDelete={() => {
+                  setMenuId(null);
+                  if (confirm(T.konfirmasiHapusPlaylist(p.name))) {
+                    void onDeletePlaylist(p.id);
+                  }
+                }}
+              />
+            ),
+          )
+        )}
       </div>
     </nav>
+  );
+}
+
+/** Satu baris library: cover + nama + metadata mono kecil + menu opsional. */
+function BarisLibrary({
+  cover,
+  judul,
+  meta,
+  aktif,
+  sedangDiputar = false,
+  onClick,
+  menuBuka = false,
+  onToggleMenu,
+  onRename,
+  onDelete,
+}: {
+  cover: React.ReactNode;
+  judul: string;
+  meta: string;
+  aktif: boolean;
+  sedangDiputar?: boolean;
+  onClick: () => void;
+  menuBuka?: boolean;
+  onToggleMenu?: (buka: boolean) => void;
+  onRename?: () => void;
+  onDelete?: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const [fokus, setFokus] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const adaMenu = Boolean(onToggleMenu && (onRename || onDelete));
+
+  useEffect(() => {
+    if (!menuBuka || !onToggleMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onToggleMenu(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onToggleMenu(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuBuka, onToggleMenu]);
+
+  const tampilMenuBtn = adaMenu && (hover || fokus || menuBuka);
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        background: aktif ? "var(--accent)" : hover ? "var(--panel-2)" : "transparent",
+        color: aktif ? "var(--accent-ink)" : "var(--ink)",
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setFokus(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setFokus(false);
+      }}
+      onContextMenu={(e) => {
+        if (!adaMenu || !onToggleMenu) return;
+        e.preventDefault();
+        onToggleMenu(true);
+      }}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={aktif ? "page" : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--s-2)",
+          padding: "6px 8px",
+          minHeight: 56,
+          minWidth: 0,
+          flex: 1,
+          textAlign: "left",
+          background: "transparent",
+          color: "inherit",
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
+        {cover}
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span
+            style={{
+              display: "block",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: 14,
+              fontWeight: aktif ? 600 : 400,
+            }}
+          >
+            {judul}
+          </span>
+          <span
+            className="mono"
+            style={{
+              display: "block",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              // Metadata ikut berubah warna saat aktif supaya tetap terbaca
+              // di atas blok kuning.
+              color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
+              opacity: aktif ? 0.75 : 1,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {meta.toUpperCase()}
+          </span>
+        </span>
+        {sedangDiputar && (
+          <span className="eq-bars" aria-label={T.sedangDiputar}>
+            <span />
+            <span />
+            <span />
+          </span>
+        )}
+      </button>
+
+      {adaMenu && onToggleMenu && (
+        <div ref={menuRef} style={{ position: "relative", flex: "0 0 auto" }}>
+          <button
+            type="button"
+            onClick={() => onToggleMenu(!menuBuka)}
+            aria-label={T.menuPlaylist(judul)}
+            aria-haspopup="menu"
+            aria-expanded={menuBuka}
+            title={T.aksiLain}
+            style={{
+              width: 44,
+              height: 44,
+              display: "grid",
+              placeItems: "center",
+              background: "transparent",
+              border: "none",
+              color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
+              fontSize: 16,
+              opacity: tampilMenuBtn ? 1 : 0,
+              pointerEvents: tampilMenuBtn ? "auto" : "none",
+              transition: "opacity var(--t-fast) var(--ease)",
+            }}
+          >
+            {"\u22ef"}
+          </button>
+
+          {menuBuka && (
+            <div
+              role="menu"
+              style={{
+                position: "absolute",
+                top: "calc(100% - 2px)",
+                right: 4,
+                zIndex: 30,
+                minWidth: 160,
+                padding: 4,
+                background: "var(--panel)",
+                border: "1px solid var(--line-strong)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+              }}
+            >
+              {onRename && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={onRename}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    minHeight: 44,
+                    color: "var(--ink)",
+                    fontSize: 13,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--accent-dim)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {T.gantiNama}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={onDelete}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    minHeight: 44,
+                    color: "var(--danger)",
+                    fontSize: 13,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--accent-dim)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {T.hapus}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

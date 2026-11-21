@@ -92,6 +92,7 @@ const mockLib = {
     trackCount: number;
     createdAt: number;
     updatedAt: number;
+    coverKeys: string[];
   }[],
   items: new Map<number, Track[]>(),
   seq: 0,
@@ -182,6 +183,7 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         trackCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        coverKeys: [] as string[],
       };
       mockLib.playlists.unshift(p);
       mockLib.items.set(p.id, []);
@@ -210,7 +212,10 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       if (!list.some((x) => x.videoId === t.videoId)) list.push(t);
       mockLib.items.set(id, list);
       const p = mockLib.playlists.find((x) => x.id === id);
-      if (p) p.trackCount = list.length;
+      if (p) {
+        p.trackCount = list.length;
+        p.coverKeys = list.slice(0, 4).map((x) => x.coverKey);
+      }
       return undefined as T;
     }
     case "remove_from_playlist": {
@@ -218,7 +223,10 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       const list = (mockLib.items.get(id) ?? []).filter((x) => x.videoId !== args?.videoId);
       mockLib.items.set(id, list);
       const p = mockLib.playlists.find((x) => x.id === id);
-      if (p) p.trackCount = list.length;
+      if (p) {
+        p.trackCount = list.length;
+        p.coverKeys = list.slice(0, 4).map((x) => x.coverKey);
+      }
       return true as T;
     }
     case "play_playlist": {

@@ -76,6 +76,12 @@ export const T = {
   riwayat: "RIWAYAT",
   belumAdaFavorit: "BELUM ADA FAVORIT",
   belumAdaPlaylist: "BELUM ADA PLAYLIST",
+  belumAdaPlaylistSidebar: "Belum ada playlist. Tekan + BARU.",
+  namaPlaylistBaru: "Nama playlist baru",
+  menuPlaylist: (nama: string) => `Menu playlist ${nama}`,
+  namaBaruUntuk: (nama: string) => `Nama baru untuk ${nama}`,
+  konfirmasiHapusPlaylist: (nama: string) =>
+    `Hapus playlist "${nama}"? Lagu di dalamnya tidak terhapus.`,
   riwayatKosong: "RIWAYAT KOSONG",
   lagu: "LAGU",
 

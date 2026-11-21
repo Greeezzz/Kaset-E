@@ -10,6 +10,8 @@ export interface Playlist {
   trackCount: number;
   createdAt: number;
   updatedAt: number;
+  /** Kunci cover 4 lagu pertama, untuk mosaik di sidebar. */
+  coverKeys: string[];
 }
 
 /**

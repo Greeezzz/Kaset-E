@@ -10,6 +10,9 @@ interface Props {
   tab: LibraryTab;
   setTab: (t: LibraryTab) => void;
   lib: ReturnType<typeof useLibrary>;
+  /** Playlist yang dipilih dari sidebar (null = tidak ada / Lagu Disukai). */
+  selectedPlaylistId?: number | null;
+  onSelectPlaylist?: (id: number | null) => void;
   onPlay: (t: Track) => void;
   onQueue: (t: Track) => void;
   onPlayNext: (t: Track) => void;
@@ -39,6 +42,8 @@ export function Library({
   tab,
   setTab,
   lib,
+  selectedPlaylistId = null,
+  onSelectPlaylist,
   onPlay,
   onQueue,
   onPlayNext,
@@ -46,7 +51,7 @@ export function Library({
   onPickPlaylist,
 }: Props) {
   const [newName, setNewName] = useState("");
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<number | null>(selectedPlaylistId);
   const [detail, setDetail] = useState<Track[]>([]);
   const [renaming, setRenaming] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -54,7 +59,7 @@ export function Library({
   // Diambil terpisah karena `lib` adalah objek baru setiap render, sementara
   // fungsi-fungsi ini stabil (useCallback). Tanpa pemisahan ini, effect akan
   // berjalan di setiap render.
-  const { refreshFavorites, refreshHistory, refreshPlaylists } = lib;
+  const { refreshFavorites, refreshHistory, refreshPlaylists, playlistTracks } = lib;
 
   // Riwayat tidak di-refresh setiap kali lagu diputar (itu berarti memuat
   // ulang seluruh daftar puluhan kali per lagu), jadi dimuat saat tab dibuka.
@@ -65,14 +70,38 @@ export function Library({
     if (tab === "Playlist") void refreshPlaylists();
   }, [tab, refreshFavorites, refreshHistory, refreshPlaylists]);
 
-  async function openPlaylist(p: Playlist) {
-    if (openId === p.id) {
+  // Sinkronkan pilihan dari sidebar: klik playlist di sidebar langsung
+  // membuka isinya di area tengah tanpa klik ulang.
+  useEffect(() => {
+    if (selectedPlaylistId === null) {
       setOpenId(null);
       setDetail([]);
       return;
     }
+    let hidup = true;
+    setOpenId(selectedPlaylistId);
+    void playlistTracks(selectedPlaylistId)
+      .then((list) => {
+        if (hidup) setDetail(list);
+      })
+      .catch(() => {
+        if (hidup) setDetail([]);
+      });
+    return () => {
+      hidup = false;
+    };
+  }, [selectedPlaylistId, playlistTracks]);
+
+  async function openPlaylist(p: Playlist) {
+    if (openId === p.id) {
+      setOpenId(null);
+      setDetail([]);
+      onSelectPlaylist?.(null);
+      return;
+    }
     setOpenId(p.id);
-    setDetail(await lib.playlistTracks(p.id));
+    onSelectPlaylist?.(p.id);
+    setDetail(await playlistTracks(p.id));
   }
 
   async function buat(e: React.FormEvent) {
@@ -301,6 +330,7 @@ export function Library({
                             if (openId === p.id) {
                               setOpenId(null);
                               setDetail([]);
+                              onSelectPlaylist?.(null);
                             }
                           }
                         }}

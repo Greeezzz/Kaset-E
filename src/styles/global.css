@@ -133,6 +133,43 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Equalizer bar-segmen (DESIGN-ENDFIELD §6, DESIGN-LAYOUT §2): balok kotak,
+ * bukan gelombang halus. Otomatis berhenti pada prefers-reduced-motion. */
+@keyframes kaset-eq {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.eq-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.eq-bars span {
+  display: block;
+  width: 3px;
+  height: 100%;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: kaset-eq 700ms steps(4, end) infinite;
+}
+
+.eq-bars span:nth-child(2) {
+  animation-delay: 180ms;
+}
+
+.eq-bars span:nth-child(3) {
+  animation-delay: 360ms;
+}
+
 /* Hormati preferensi pengguna (DESIGN-ENDFIELD §8). */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -36,6 +36,10 @@ export function App() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
+  // Playlist yang sedang dipilih di sidebar (null = Lagu Disukai).
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
+  // Playlist yang sedang diputar (untuk indikator equalizer di sidebar).
+  const [playingPlaylistId, setPlayingPlaylistId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const { state, setTrack, setPlaying } = usePlayerStore();
@@ -305,9 +309,54 @@ export function App() {
     try {
       const v = await invoke<QueueView>("play_playlist", { id });
       queue.refresh();
+      setPlayingPlaylistId(id);
       if (v.current) await startAudio(v.current);
     } catch (err) {
       notifyError(errMessage(err, "Gagal memutar playlist"));
+    }
+  }
+
+  function handleSelectFavorites() {
+    setSelectedPlaylistId(null);
+    setLibTab("Favorit");
+    setRoute("library");
+  }
+
+  function handleSelectPlaylist(id: number) {
+    setSelectedPlaylistId(id);
+    setLibTab("Playlist");
+    setRoute("library");
+  }
+
+  async function handleCreatePlaylist(name: string) {
+    try {
+      const p = await lib.createPlaylist(name);
+      setSelectedPlaylistId(p.id);
+      setLibTab("Playlist");
+      setRoute("library");
+    } catch (err) {
+      notifyError(errMessage(err, "Gagal membuat playlist"));
+    }
+  }
+
+  async function handleRenamePlaylist(id: number, name: string) {
+    try {
+      await lib.renamePlaylist(id, name);
+    } catch (err) {
+      notifyError(errMessage(err, "Gagal mengganti nama playlist"));
+    }
+  }
+
+  async function handleDeletePlaylist(id: number) {
+    try {
+      await lib.deletePlaylist(id);
+      if (selectedPlaylistId === id) {
+        setSelectedPlaylistId(null);
+        setLibTab("Favorit");
+      }
+      if (playingPlaylistId === id) setPlayingPlaylistId(null);
+    } catch (err) {
+      notifyError(errMessage(err, "Gagal menghapus playlist"));
     }
   }
 
@@ -381,7 +430,21 @@ export function App() {
           overflow: "hidden",
         }}
       >
-        {isWide && <Sidebar route={route} onNavigate={setRoute} />}
+        {isWide && (
+          <Sidebar
+            route={route}
+            onNavigate={setRoute}
+            playlists={lib.playlists}
+            favorites={lib.favorites}
+            selectedPlaylistId={selectedPlaylistId}
+            playingPlaylistId={state.status === "playing" ? playingPlaylistId : null}
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectFavorites={handleSelectFavorites}
+            onCreatePlaylist={handleCreatePlaylist}
+            onRenamePlaylist={handleRenamePlaylist}
+            onDeletePlaylist={handleDeletePlaylist}
+          />
+        )}
 
         {/* minWidth 0 wajib: tanpa itu kolom tengah menolak menyusut dan
             memaksa scroll horizontal saat panel kanan dibuka. */}
@@ -403,6 +466,8 @@ export function App() {
               tab={libTab}
               setTab={setLibTab}
               lib={lib}
+              selectedPlaylistId={selectedPlaylistId}
+              onSelectPlaylist={setSelectedPlaylistId}
               onPlay={handlePlay}
               onQueue={(t) => void queue.add(t)}
               onPlayNext={(t) => void queue.playNext(t)}
@@ -425,7 +490,10 @@ export function App() {
             onPlayIndex={(pos) => void playQueueIndex(pos)}
             onRemove={(pos) => void queue.remove(pos)}
             onMove={(from, to) => void queue.move(from, to)}
-            onClear={() => void queue.clear()}
+            onClear={() => {
+              setPlayingPlaylistId(null);
+              void queue.clear();
+            }}
             onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
             onCycleRepeat={cycleRepeat}
           />
