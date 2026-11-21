@@ -33,7 +33,7 @@ Catatan implementasi yang menyimpang dari dokumen asli:
 - [x] Kotak pencarian (UI) + state loading/empty
 - [x] Koneksi ke `MusicCatalog` mock, hasil lagu tampil di list
 - [x] `MusicCatalog` nyata: hanya endpoint pencarian lagu (bukan album/artis)
-- [x] Saran pencarian (suggestions) — backend siap; wiring UI menyusul
+- [ ] Saran pencarian (suggestions) — command `search_suggestions` ada di Rust, UI belum memanggilnya
 - [ ] History pencarian lokal
 - [x] Empty state + pesan error saat pencarian gagal
 
@@ -44,13 +44,14 @@ mock tetap dipakai dan Settings menampilkan "Mock (contoh)".
 **Playback**
 - [x] Kontrak `StreamResolver` + mock yang bisa disuruh gagal (untuk tes backoff)
 - [x] `StreamResolver` nyata: resolve satu `video_id` → URL audio + `expires_at`
-- [x] Engine audio desktop: `load` + `play` (belum seek/volume)
-- [x] Pause (seek & volume slider menyusul)
+- [x] Engine audio desktop: `load` + `play` + `seek` + `setVolume` (API engine lengkap)
+- [x] Pause
 - [x] Event posisi berkala ke UI
-- [ ] Auto-lanjut ke item queue berikutnya saat `Ended`
-- [ ] Resolve ulang otomatis saat URL kedaluwarsa / error 403
+- [x] Auto-lanjut ke item queue berikutnya saat `Ended` (repeat off/one/all ikut dihormati)
+- [x] Resolve ulang otomatis saat URL kedaluwarsa / error 403
 - [x] Backoff + klasifikasi error + circuit breaker (lihat `RESILIENCE.md`)
-- [ ] Handle tombol Next/Prev dengan coalescing request (skip cepat tidak membanjiri resolver)
+- [x] Handle tombol Next/Prev dengan coalescing request — coalescing per `video_id` di `streamCache` (dua klik lagu sama = satu resolve) + throttle 1,5 detik di resolver
+- [ ] Slider seek & volume di UI — engine sudah punya `seek`/`setVolume`, tapi belum ada kontrol `<input type="range">`; seek juga belum bisa diklik di progress bar
 
 Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 
@@ -58,35 +59,46 @@ Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 - **Engine audio: `<audio>` di webview**, bukan `rodio`. Ini opsi yang ARCHITECTURE.md §10 izinkan sebagai "yang lebih cepat jadi". Terbukti memutar webm/opus dari googlevideo.
 - **Dua bug yang ditemukan lewat uji end-to-end** dan sudah diperbaiki + dikunci test: (1) `crossOrigin="anonymous"` membuat Chromium menolak audio karena googlevideo tidak mengirim CORS; (2) CSP tidak punya `media-src` sehingga `default-src 'self'` memblokir domain audio. Detail di `SETUP.md`.
 - **Klasifikasi error permanen** harus toleran kata sisipan: yt-dlp menulis "This video is unavailable", bukan "Video unavailable". Salah klasifikasi = satu video rusak membuka circuit breaker dan mematikan semua pemutaran. Ada test regresi untuk ini.
+- **Tiga bug pemulihan stream** yang hanya muncul saat aplikasi dijalankan, bukan saat membaca kode: (1) posisi pemulihan selalu 0 karena elemen memicu `timeupdate` 0 ketika sumber gagal — pencatatan posisi dipindah ke engine dengan syarat `readyState>=2 && !error && !paused`; (2) pemulihan tidak pernah jalan karena `play()` menangkap penolakan dan mengirim kode `null`, sehingga MediaError 4 yang asli tertutupi; (3) pemulihan tanpa batas percobaan bisa jadi loop resolve — sekarang satu percobaan per kegagalan per lagu.
+- **Jendela konsol Windows**: tanpa `CREATE_NO_WINDOW`, setiap resolve yt-dlp memunculkan jendela cmd sekejap karena proses anak dibuat sebagai proses konsol baru. Diverifikasi: hitungan `cmd.exe` tetap sama sebelum dan sesudah memutar lagu.
 
 **Cover Art**
 - [x] Skema tabel `covers` (migrasi `0002_covers.sql`)
 - [x] Command `cover_get` + placeholder generatif deterministik (FNV-1a, `CoverArt.tsx`)
-- [ ] Job unduh background dengan tangga kualitas (lihat `THUMBNAILS.md`)
+- [x] Job unduh background dengan tangga kualitas (lihat `THUMBNAILS.md`)
 - [x] Crop tengah 1:1 komponen `CoverArt` (object-fit: cover)
-- [ ] Event `cover://ready` menggantikan placeholder tanpa reload
-- [ ] Eviction LRU + batas ukuran
+- [x] Event `cover://ready` menggantikan placeholder tanpa reload
+- [x] Eviction LRU + batas ukuran
+
+Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
+
+- **Titik dua di nama file.** Kunci cover berbentuk `v:<video_id>`, dan `:` ilegal di Windows. `fs::write` selalu gagal tapi kegagalannya ditelan `continue` — akibatnya keempat tangga kualitas dicoba, gambar 190 KB sebenarnya sudah terunduh lalu dibuang, dan hasil akhirnya `error`. Sekarang kunci dipetakan ke nama aman (`v-<video_id>.jpg`) dan ada unit test regresi.
+- **Kegagalan tanpa log.** Setiap cabang gagal kini mencatat url, status, ukuran, dan magic bytes; sebelumnya penyebabnya tidak terlihat sama sekali sehingga diagnosis butuh tebak-tebakan.
 
 **Queue**
 - [x] Model `QueueItem` (+ kolom `original_order` di skema)
-- [ ] Add to queue, play next, remove, clear
-- [ ] Drag-reorder di UI
-- [ ] Shuffle non-destruktif (kolom `original_order`) + unit test
-- [ ] Repeat off/one/all + unit test
-- [ ] Simpan dan pulihkan queue saat app dibuka
+- [x] Add to queue, play next, remove, clear
+- [x] Drag-reorder di UI (HTML5 drag, tanpa dependensi)
+- [x] Shuffle non-destruktif (kolom `original_order`) + unit test
+- [x] Repeat off/one/all + unit test
+- [x] Simpan dan pulihkan queue saat app dibuka
 
 **Library minimal**
-- [ ] CRUD playlist lokal (buat, ganti nama, hapus)
-- [ ] Tambah/hapus lagu dari playlist
-- [ ] Favorit (toggle)
-- [ ] History (catat + tampilkan daftar)
+- [x] CRUD playlist lokal (buat, ganti nama, hapus)
+- [x] Tambah/hapus lagu dari playlist
+- [x] Favorit (toggle)
+- [x] History (catat + tampilkan daftar)
 
 **Desktop polish**
-- [ ] Media key lewat plugin global-shortcut
-- [ ] Tray icon (monokrom) + menu dasar
+- [ ] Media key lewat plugin global-shortcut — plugin belum terpasang
+- [ ] Tray icon (monokrom) + menu dasar — `trayIcon` ada di `tauri.conf.json` dan fitur `tray-icon` aktif, tapi belum ada menu/handler di Rust
 - [ ] Export/import JSON library
 
 **Kriteria selesai Fase 1:** bisa dipakai seharian di desktop tanpa iklan, queue dan playlist tersimpan setelah app ditutup.
+
+**Status Fase 1: 29/35 item (83%).** Sisa 6 item: suggestions di UI, history pencarian, slider seek/volume, media key, tray menu, export/import JSON.
+
+**Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
 ## Fase 2 — Android (target `v0.2.0`)
 
@@ -113,7 +125,7 @@ Catatan Fase 1 Playback — keputusan yang diambil dari uji nyata:
 **Prasyarat keras (blocker, sudah diuji):**
 
 - [x] **Upsert lagu ke tabel `tracks` saat diputar/disimpan.** Terverifikasi pada database nyata: setelah satu pencarian, `tracks` naik 0 → 20 lagu, dan `favorites`/`history`/`queue_items`/`playlist_tracks`/`listen_events` semua lolos FK. Implementasi di `db::tracks::ensure_track*`, dipanggil dari command `search` dan `resolve_stream`.
-- [ ] **Keputusan timezone.** `started_at` disimpan sebagai epoch ms (UTC). Heatmap 24 jam dan streak harian harus dihitung dalam waktu lokal pengguna, kalau tidak "hari" akan bergeser (WIB UTC+7: mendengar 06:00 masuk hari sebelumnya). Lihat `REVIEW-V2.md` §2.
+- [x] **Keputusan timezone.** `started_at` disimpan sebagai epoch ms (UTC); heatmap 24 jam dan streak dihitung dalam zona waktu perangkat. WIB UTC+7: mendengar 06:00 tetap masuk hari yang benar. Lihat `REVIEW-V2.md` §2.
 
 - [ ] Migrasi `0003_listen_events` + repository
 - [ ] Pencatat listen (akumulasi delta, bukan selesai-mulai) + tes

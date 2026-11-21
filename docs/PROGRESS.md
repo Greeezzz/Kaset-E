@@ -2,22 +2,24 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `aee0a49`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `bc7a2c6`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
 | Fase | Selesai |
 |------|---------|
 | Fase 0 — Fondasi | **6/6 (selesai)** |
-| Fase 1 — Desktop MVP | **15/34 (sedang dikerjakan)** |
+| Fase 1 — Desktop MVP | **29/35 (83%, sedang dikerjakan)** |
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
-| Fase 4 — Stats + Smart Shuffle | 1/8 (prasyaratnya sudah dikerjakan) |
+| Fase 4 — Stats + Smart Shuffle | 2/8 (prasyaratnya sudah selesai) |
 | Fase 5 — Import Playlist | 0/5 |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **22/44 item (50%)** |
+| **Total** | **37/67 item (55%)** |
 
-Ukuran kode: 2.133 baris Rust + 1.552 baris TypeScript/TSX. 29 unit test hijau.
+Ukuran kode: **4.787 baris Rust + 3.462 baris TypeScript/TSX**. **79 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 21 commit.
+
+Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 9 tabel + `schema_migrations` (skema versi `0002`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
 
 ## Yang sudah benar-benar jalan (terverifikasi di aplikasi, bukan mock)
 
@@ -31,13 +33,25 @@ Ukuran kode: 2.133 baris Rust + 1.552 baris TypeScript/TSX. 29 unit test hijau.
 - **Pemulihan stream otomatis** — URL di-cache di memori (lagu sama tidak resolve ulang), dicek umurnya dengan margin 60 detik, dan saat audio ditolak (MediaError 2/4) di-resolve ulang sekali lalu lanjut dari posisi terakhir. Diverifikasi di aplikasi nyata: main 11,2 s → URL dirusak → pulih sendiri dan lanjut di 29,5 s; tiga kerusakan berturut-turut = tepat 3 resolve, bukan loop. Tiga bug ketemu lewat uji ini: posisi pemulihan selalu 0 (elemen memicu `timeupdate` 0 saat gagal), pemulihan tidak pernah jalan (`play()` mengirim kode `null` sehingga MediaError tertutupi), dan tidak ada batas percobaan.
 - **Cover art tersimpan offline** — diunduh lewat Rust (bukan `<img>` ke i.ytimg.com), tangga kualitas maxres → sd → hq → mq, divalidasi magic bytes JPEG/PNG, disimpan di `<app_data>/covers`, dicatat di tabel `covers`. UI menampilkan placeholder generatif selama belum ada lalu menukarnya sendiri lewat event `cover://ready`. Diverifikasi di aplikasi: 24 cover termuat 1280×720 dirender 40×40 crop tengah 1:1; setelah restart `cover_get` 4 ms dari cache dengan 23 gambar langsung tampil tanpa unduh ulang. Eviction LRU (250 MB / 3000 file) melindungi cover yang masih dirujuk favorit/playlist/antrean.
 - **Library hidup** — favorit, riwayat, playlist semuanya tersambung dan tersimpan. Diverifikasi di aplikasi nyata: favorit bertahan setelah restart, playlist 3 lagu diputar (audio 11,4 s/299 s), hapus lagu di tengah merapatkan posisi tanpa bentrok, dialog playlist tidak menggandakan lagu, riwayat tercatat. Dua bug ketemu lewat uji ini dan sudah diperbaiki: tombol ▶ playlist menampilkan hitungan basi, dan tab History menampilkan 0 padahal database terisi.
+- **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
-## Yang berikutnya (urutan kerja Fase 1 yang tersisa)
+## Sisa Fase 1 (6 item, urutan kerja)
 
-1. **`tracks` untuk lagu yang dipulihkan** — antrean tersimpan merujuk `video_id`; kalau barisnya hilang dari `tracks`, pemulihan gagal diam-diam dan antrean mulai kosong (sudah ditangani sebagai warning, tapi belum diuji).
-2. **Polish desktop** — media key, tray, export/import JSON.
-3. **Desain lanjutan** — set ikon garis 1.5px (sekarang UI masih pakai glyph teks `▶ ❙❙ ✕`), PlayerBar "control deck" dengan progress bersegmen.
+1. **Slider seek & volume di UI** — engine sudah punya `seek()` dan `setVolume()`, tapi belum ada kontrol `<input type="range">`, dan progress bar belum bisa diklik. Ini yang paling kerasa saat dipakai.
+2. **Saran pencarian di UI** — command `search_suggestions` sudah ada dan teruji di Rust; `Search.tsx` belum memanggilnya.
+3. **History pencarian lokal** — belum ada tabel maupun UI.
+4. **Tray icon + menu dasar** — `trayIcon` sudah ada di `tauri.conf.json` dan fitur `tray-icon` aktif, tapi belum ada menu/handler di Rust.
+5. **Media key** — plugin `global-shortcut` belum terpasang.
+6. **Export/import JSON library** — belum ada command maupun UI.
+
+Setelah 6 item ini, Fase 1 selesai dan `v0.1.0` bisa ditandai.
+
+## Catatan teknis yang perlu diingat
+
+- **`tracks` untuk lagu yang dipulihkan** — antrean tersimpan merujuk `video_id`; kalau barisnya hilang dari `tracks`, pemulihan gagal diam-diam dan antrean mulai kosong. Sudah ditangani sebagai warning, belum diuji dengan sengaja menghapus baris.
+- **CSP masih mengizinkan `https://*.ytimg.com`** di `img-src`. Cover sekarang selalu lewat Rust, jadi ini sisa yang bisa dihapus setelah dipastikan tidak ada jalur lain yang memakainya.
+- **Desain lanjutan** — UI masih memakai glyph teks `▶ ❙❙ ✕`, belum set ikon garis 1.5px; PlayerBar masih progress tipis, belum "control deck" bersegmen.
 
 ## Yang sudah diputuskan (jangan ditanyakan lagi)
 
@@ -51,6 +65,6 @@ Ukuran kode: 2.133 baris Rust + 1.552 baris TypeScript/TSX. 29 unit test hijau.
 ## Blocker / catatan yang perlu diingat
 
 - `AGENTS.md` **tidak bisa ditulis agent** (file instruksi dilindungi). Patch tambahannya ada di `REVIEW-V2.md` §7 untuk ditempel manual.
-- `yt-dlp` tidak dibundel (aturan `AGENTS.md`). Dev lokal menaruhnya di `.tools/` (di-gitignore) dan set `KASET_YTDLP_PATH`.
-- Jebakan build Windows dan cara verifikasi audio lewat CDP ada di `SETUP.md` §8–9.
+- `yt-dlp` tidak dibundel (aturan `AGENTS.md`). Dev lokal menaruhnya di `.tools/` (di-gitignore) dan set `KASET_YTDLP_PATH`; untuk pengguna akhir diunduh otomatis ke folder data aplikasi.
+- Jebakan build Windows dan cara verifikasi audio lewat CDP ada di `SETUP.md` §8–9. Yang paling sering kena: build gagal dengan `Access is denied` kalau `kaset.exe` masih berjalan.
 - Dua aturan di `FEATURES-V2.md` sudah dikoreksi sebelum dikerjakan: timezone, dan ambang delta seek (lihat `REVIEW-V2.md` §2–3).
