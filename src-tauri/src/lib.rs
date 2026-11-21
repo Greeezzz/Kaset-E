@@ -38,10 +38,26 @@ pub fn run() {
 
             // Upgrade katalog dan resolver di background: jendela tidak menunggu
             // jaringan. Kalau gagal, aplikasi tetap jalan dengan mock.
+            let handle2 = handle.clone();
             tauri::async_runtime::spawn(async move {
                 let state = handle.state::<state::AppState>();
                 state.upgrade_catalog().await;
                 state.upgrade_resolver().await;
+            });
+
+            // Bersihkan cache cover sekali saat start, setelah katalog siap.
+            // Dijalankan di task terpisah supaya eviction tidak menunda apa pun;
+            // kalau gagal, cache hanya tetap besar — bukan alasan gagal buka app.
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                let state = handle2.state::<state::AppState>();
+                match commands::cover_evict(state.clone()).await {
+                    Ok(r) if r.dihapus > 0 => {
+                        tracing::info!(dihapus = r.dihapus, "cache cover dibersihkan saat start")
+                    }
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!(error = %e, "eviction cover gagal saat start"),
+                }
             });
 
             Ok(())
@@ -57,6 +73,7 @@ pub fn run() {
             commands::cover_get,
             commands::cover_stats,
             commands::cover_download,
+            commands::cover_evict,
             commands::queue_get,
             commands::queue_add,
             commands::queue_play_next,

@@ -263,8 +263,137 @@ pub async fn cover_download(
     })
 }
 
-/// Ubah kunci cover jadi nama file yang aman di semua platform.
+/// Jalankan eviction LRU pada cache cover (THUMBNAILS.md §5).
 ///
+/// Batas: 250 MB atau 3000 file, mana yang tercapai dulu. Cover yang masih
+/// dirujuk playlist/favorit/antrean dipertahankan — menghapusnya berarti user
+/// melihat placeholder untuk lagu yang jelas-jelas masih ada di library-nya.
+/// Cover lagu yang sedang diputar tidak pernah dihapus.
+#[tauri::command]
+pub async fn cover_evict(state: State<'_, AppState>) -> AppResult<CoverEvictResult> {
+    evict(state.db.as_ref(), &state.covers_dir(), MAX_BYTES, MAX_FILES)
+}
+
+/// Batas cache cover: 250 MB atau 3000 file, mana yang tercapai dulu.
+const MAX_BYTES: i64 = 250 * 1024 * 1024;
+const MAX_FILES: i64 = 3000;
+
+/// Inti eviction, dipisah dari Tauri `State` supaya bisa diuji dengan DB
+/// in-memory dan folder sementara.
+fn evict(
+    db: &crate::db::Db,
+    covers_dir: &std::path::Path,
+    max_bytes: i64,
+    max_files: i64,
+) -> AppResult<CoverEvictResult> {
+
+    // Kunci yang masih dirujuk: favorit, isi playlist, dan antrean aktif.
+    // `video_id` di tabel-tabel itu dipetakan ke kunci `v:<id>`.
+    let dilindungi: std::collections::HashSet<String> = db.with(|c| {
+        let mut set = std::collections::HashSet::new();
+        for sql in [
+            "SELECT 'v:' || video_id FROM favorites",
+            "SELECT 'v:' || video_id FROM playlist_tracks",
+            "SELECT 'v:' || video_id FROM queue_items",
+            "SELECT 'v:' || video_id FROM history ORDER BY played_at DESC LIMIT 200",
+        ] {
+            let mut stmt = c.prepare(sql)?;
+            let mut rows = stmt.query([])?;
+            while let Some(r) = rows.next()? {
+                set.insert(r.get::<_, String>(0)?);
+            }
+        }
+        Ok(set)
+    })?;
+
+    let stats = db.with(|c| {
+        Ok(c.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(bytes), 0) FROM covers WHERE status = 'ok'",
+            [],
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
+        )?)
+    })?;
+
+    let (mut jumlah, mut total_bytes) = stats;
+    if jumlah <= max_files && total_bytes <= max_bytes {
+        return Ok(CoverEvictResult {
+            dihapus: 0,
+            bytes_dibebaskan: 0,
+            tersisa: jumlah,
+            bytes_tersisa: total_bytes,
+        });
+    }
+
+    // Urut dari paling lama tidak dipakai. `fetched_at` NULL dianggap paling tua
+    // supaya baris rusak ikut dibersihkan.
+    let kandidat: Vec<(String, Option<String>, i64)> = db.with(|c| {
+        let mut stmt = c.prepare(
+            "SELECT key, path, COALESCE(bytes, 0) FROM covers
+             WHERE status = 'ok'
+             ORDER BY COALESCE(fetched_at, 0) ASC",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next()? {
+            out.push((r.get(0)?, r.get(1)?, r.get(2)?));
+        }
+        Ok(out)
+    })?;
+
+    let mut dihapus = 0i64;
+    let mut bytes_dibebaskan = 0i64;
+
+    for (key, path, bytes) in kandidat {
+        if jumlah <= max_files && total_bytes <= max_bytes {
+            break;
+        }
+        if dilindungi.contains(&key) {
+            continue;
+        }
+
+        if let Some(rel) = &path {
+            let abs = covers_dir.join(rel);
+            if std::fs::remove_file(&abs).is_ok() {
+                bytes_dibebaskan += bytes;
+                total_bytes -= bytes;
+                jumlah -= 1;
+                dihapus += 1;
+            }
+        }
+
+        // Baris tetap dihapus walau file sudah tidak ada: DB tidak boleh
+        // menyimpan rujukan ke file yang sudah lenyap.
+        db.with(|c| {
+            c.execute("DELETE FROM covers WHERE key = ?1", [&key])?;
+            Ok(())
+        })?;
+    }
+
+    tracing::info!(
+        dihapus,
+        bytes_dibebaskan,
+        tersisa = jumlah,
+        "eviction cache cover selesai"
+    );
+
+    Ok(CoverEvictResult {
+        dihapus,
+        bytes_dibebaskan,
+        tersisa: jumlah,
+        bytes_tersisa: total_bytes,
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverEvictResult {
+    pub dihapus: i64,
+    pub bytes_dibebaskan: i64,
+    pub tersisa: i64,
+    pub bytes_tersisa: i64,
+}
+
+/// Ubah kunci cover jadi nama file yang aman di semua platform.
 /// Kunci berbentuk `v:<video_id>` dan `a:<collection_id>`. Titik dua ilegal di
 /// Windows, jadi diganti `-`. Hasilnya: `v-9RfVp-GhKfs.jpg`.
 fn nama_file_aman(key: &str) -> String {
@@ -304,6 +433,112 @@ mod tests {
         assert_eq!(nama_file_aman("a:MPREb_abc"), "a-MPREb_abc");
         assert!(!nama_file_aman("v:x").contains(':'));
         assert!(!nama_file_aman(r"a:/b\c").contains(['/', '\\']));
+    }
+
+    /// Siapkan DB in-memory + folder cover sementara berisi N baris & file.
+    fn siapkan(n: i64, ukuran: i64) -> (crate::db::Db, std::path::PathBuf) {
+        let db = crate::db::Db::open_in_memory().expect("db");
+        // Nama folder harus unik per pemanggilan: tes berjalan paralel, dan
+        // now_ms() saja bisa sama sehingga dua tes berbagi folder lalu saling
+        // menghapus file — hasilnya gagal acak yang menyesatkan.
+        static URUTAN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let unik = URUTAN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!(
+            "kaset_cover_test_{}_{unik}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).expect("folder");
+        for i in 0..n {
+            let key = format!("v:uji{i}");
+            let rel = format!("{}.jpg", nama_file_aman(&key));
+            std::fs::write(dir.join(&rel), vec![0u8; ukuran as usize]).expect("tulis");
+            db.with(|c| {
+                c.execute(
+                    "INSERT INTO covers (key, kind, path, bytes, status, attempts, fetched_at)
+                     VALUES (?1, 'track', ?2, ?3, 'ok', 1, ?4)",
+                    rusqlite::params![key, rel, ukuran, 1000 + i],
+                )?;
+                Ok(())
+            })
+            .expect("insert");
+        }
+        (db, dir)
+    }
+
+    fn jumlah_baris(db: &crate::db::Db) -> i64 {
+        db.with(|c| Ok(c.query_row("SELECT COUNT(*) FROM covers", [], |r| r.get(0))?))
+            .expect("hitung")
+    }
+
+    #[test]
+    fn eviction_menghapus_yang_paling_lama_sampai_batas() {
+        let (db, dir) = siapkan(10, 1000);
+        // Batas 6 file: 4 tertua harus pergi.
+        let r = evict(&db, &dir, i64::MAX, 6).expect("evict");
+        assert_eq!(r.dihapus, 4, "harus menghapus 4 file");
+        assert_eq!(jumlah_baris(&db), 6, "sisanya harus tepat 6");
+        // Yang tersisa harus yang fetched_at paling baru (uji4..uji9).
+        let sisa: Vec<String> = db
+            .with(|c| {
+                let mut s = c.prepare("SELECT key FROM covers ORDER BY fetched_at")?;
+                let mut rows = s.query([])?;
+                let mut out = Vec::new();
+                while let Some(row) = rows.next()? {
+                    out.push(row.get::<_, String>(0)?);
+                }
+                Ok(out)
+            })
+            .expect("baca");
+        assert_eq!(sisa.first().map(String::as_str), Some("v:uji4"));
+        // File yang dihapus benar-benar hilang dari disk.
+        assert!(!dir.join("v-uji0.jpg").exists());
+        assert!(dir.join("v-uji9.jpg").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn eviction_mempertahankan_cover_yang_masih_dirujuk() {
+        let (db, dir) = siapkan(10, 1000);
+        // uji0 paling tua TAPI jadi favorit -> tidak boleh dihapus.
+        db.with(|c| {
+            c.execute(
+                "INSERT INTO tracks (video_id, title, artist, updated_at) VALUES ('uji0', 'Judul', 'Artis', 1)",
+                [],
+            )?;
+            c.execute("INSERT INTO favorites (video_id, added_at) VALUES ('uji0', 1)", [])?;
+            Ok(())
+        })
+        .expect("favorit");
+
+        let r = evict(&db, &dir, i64::MAX, 6).expect("evict");
+        assert_eq!(r.dihapus, 4);
+        assert!(
+            dir.join("v-uji0.jpg").exists(),
+            "cover favorit tidak boleh dihapus"
+        );
+        // Yang pergi adalah uji1..uji4 (paling tua setelah uji0 dilindungi).
+        assert!(!dir.join("v-uji1.jpg").exists());
+        assert!(dir.join("v-uji5.jpg").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn eviction_tidak_menyentuh_apa_pun_di_bawah_batas() {
+        let (db, dir) = siapkan(5, 1000);
+        let r = evict(&db, &dir, i64::MAX, 3000).expect("evict");
+        assert_eq!(r.dihapus, 0);
+        assert_eq!(jumlah_baris(&db), 5);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn eviction_menghormati_batas_byte() {
+        let (db, dir) = siapkan(10, 1000);
+        // Batas 3500 byte: harus menyisakan 3 file.
+        let r = evict(&db, &dir, 3500, 3000).expect("evict");
+        assert!(r.dihapus >= 7, "harus menghapus minimal 7, dapat {}", r.dihapus);
+        assert!(r.bytes_tersisa <= 3500, "harus di bawah batas byte");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
