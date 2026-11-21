@@ -38,9 +38,10 @@ export function App() {
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
   // Playlist yang sedang dipilih di sidebar (null = Lagu Disukai).
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
-  // Playlist yang sedang diputar (untuk indikator equalizer di sidebar).
-  const [playingPlaylistId, setPlayingPlaylistId] = useState<number | null>(null);
+  // Sumber pemutaran aktif: ID playlist atau "favorites" (untuk tombol play/pause & equalizer).
+  const [playingSourceId, setPlayingSourceId] = useState<number | "favorites" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement | null>(null);
 
   const { state, setTrack, setPlaying } = usePlayerStore();
   const queue = useQueue();
@@ -241,6 +242,7 @@ export function App() {
     } else {
       await queue.add(t);
     }
+    setPlayingSourceId(null);
     await startAudio(t);
   }
 
@@ -304,15 +306,19 @@ export function App() {
     notifyError(msg);
   };
 
-  /** Putar seluruh isi playlist sebagai antrean baru, mulai dari lagu pertama. */
-  async function playWholePlaylist(id: number) {
+  /** Ganti antrean dengan isi playlist / koleksi lalu putar mulai dari `startIndex`. */
+  async function playTrackList(
+    tracks: Track[],
+    startIndex: number,
+    sourceId: number | "favorites" | null,
+  ) {
+    if (tracks.length === 0) return;
     try {
-      const v = await invoke<QueueView>("play_playlist", { id });
-      queue.refresh();
-      setPlayingPlaylistId(id);
-      if (v.current) await startAudio(v.current);
+      const v = await queue.replace(tracks, startIndex);
+      setPlayingSourceId(sourceId);
+      if (v?.current) await startAudio(v.current);
     } catch (err) {
-      notifyError(errMessage(err, "Gagal memutar playlist"));
+      notifyError(errMessage(err, "Gagal memutar daftar lagu"));
     }
   }
 
@@ -354,7 +360,7 @@ export function App() {
         setSelectedPlaylistId(null);
         setLibTab("Favorit");
       }
-      if (playingPlaylistId === id) setPlayingPlaylistId(null);
+      if (playingSourceId === id) setPlayingSourceId(null);
     } catch (err) {
       notifyError(errMessage(err, "Gagal menghapus playlist"));
     }
@@ -437,7 +443,11 @@ export function App() {
             playlists={lib.playlists}
             favorites={lib.favorites}
             selectedPlaylistId={selectedPlaylistId}
-            playingPlaylistId={state.status === "playing" ? playingPlaylistId : null}
+            playingPlaylistId={
+              state.status === "playing" && typeof playingSourceId === "number"
+                ? playingSourceId
+                : null
+            }
             onSelectPlaylist={handleSelectPlaylist}
             onSelectFavorites={handleSelectFavorites}
             onCreatePlaylist={handleCreatePlaylist}
@@ -448,7 +458,7 @@ export function App() {
 
         {/* minWidth 0 wajib: tanpa itu kolom tengah menolak menyusut dan
             memaksa scroll horizontal saat panel kanan dibuka. */}
-        <main style={{ minWidth: 0, overflowY: "auto", overflowX: "hidden" }}>
+        <main ref={mainRef} style={{ minWidth: 0, overflowY: "auto", overflowX: "hidden" }}>
           {route === "search" && (
             <Search
               onPlay={handlePlay}
@@ -457,6 +467,7 @@ export function App() {
               onFavorite={(t) => void lib.toggleFavorite(t)}
               favoriteIds={new Set(lib.favorites.map((f) => f.videoId))}
               onAddToPlaylist={(t) => setPickTarget(t)}
+              activeVideoId={state.track?.videoId ?? null}
               query={query}
               setQuery={setQuery}
             />
@@ -466,13 +477,25 @@ export function App() {
               tab={libTab}
               setTab={setLibTab}
               lib={lib}
+              isWide={isWide}
+              scrollContainerRef={mainRef}
               selectedPlaylistId={selectedPlaylistId}
               onSelectPlaylist={setSelectedPlaylistId}
-              onPlay={handlePlay}
+              activeVideoId={state.track?.videoId ?? null}
+              isPlaying={state.status === "playing"}
+              playingSourceId={playingSourceId}
+              shuffle={queue.view.shuffle}
+              onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
+              onTogglePlay={togglePlay}
+              onPlayTracks={(tracks, startIdx, srcId) =>
+                void playTrackList(tracks, startIdx, srcId)
+              }
               onQueue={(t) => void queue.add(t)}
               onPlayNext={(t) => void queue.playNext(t)}
-              onPlayPlaylist={(id) => void playWholePlaylist(id)}
               onPickPlaylist={(t) => setPickTarget(t)}
+              onRenamePlaylist={handleRenamePlaylist}
+              onDeletePlaylist={handleDeletePlaylist}
+              onGoSearch={() => setRoute("search")}
             />
           )}
           {route === "settings" && <Settings />}
@@ -491,7 +514,7 @@ export function App() {
             onRemove={(pos) => void queue.remove(pos)}
             onMove={(from, to) => void queue.move(from, to)}
             onClear={() => {
-              setPlayingPlaylistId(null);
+              setPlayingSourceId(null);
               void queue.clear();
             }}
             onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}

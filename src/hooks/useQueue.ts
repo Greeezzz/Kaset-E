@@ -65,6 +65,7 @@ export function useQueue() {
     remove: (position: number) => run("queue_remove", { position }),
     move: (from: number, to: number) => run("queue_move", { from, to }),
     clear: () => run("queue_clear"),
+    replace: (tracks: Track[], startIndex = 0) => run("queue_replace", { tracks, startIndex }),
     jump: (position: number) => run("queue_jump", { position }),
     setShuffle: (enabled: boolean) => run("set_shuffle", { enabled }),
     setRepeat: (mode: RepeatMode) => run("set_repeat", { mode }),

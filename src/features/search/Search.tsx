@@ -14,6 +14,7 @@ export function Search({
   onFavorite,
   favoriteIds,
   onAddToPlaylist,
+  activeVideoId = null,
   query,
   setQuery,
 }: {
@@ -24,6 +25,7 @@ export function Search({
   /** videoId yang sudah difavoritkan, supaya hati terisi dengan benar. */
   favoriteIds: Set<string>;
   onAddToPlaylist: (t: Track) => void;
+  activeVideoId?: string | null;
   query: string;
   setQuery: (q: string) => void;
 }) {
@@ -117,8 +119,8 @@ export function Search({
   const tampilkanPanel = panelTerbuka && (saran.items.length > 0 || saran.memuat);
 
   return (
-    <section style={{ padding: "var(--s-4) var(--s-4) var(--s-8)", maxWidth: 900 }}>
-      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>CARI</h1>
+    <section style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", minWidth: 0 }}>
+      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>{T.navCari}</h1>
 
       <form onSubmit={runSearch} style={{ display: "flex", gap: "var(--s-2)" }}>
         <div ref={bungkusRef} style={{ position: "relative", flex: 1 }}>
@@ -132,8 +134,8 @@ export function Search({
             }}
             onFocus={() => setPanelTerbuka(true)}
             onKeyDown={onKeyDown}
-            placeholder="Cari lagu, artis, atau album"
-            aria-label="Kata kunci pencarian"
+            placeholder={T.cariPlaceholder}
+            aria-label={T.labelKataKunci}
             aria-autocomplete="list"
             aria-expanded={tampilkanPanel}
             aria-controls="panel-saran-pencarian"
@@ -170,16 +172,19 @@ export function Search({
             padding: "0 var(--s-4)",
             background: "var(--accent)",
             color: "var(--accent-ink)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            letterSpacing: "0.08em",
             fontWeight: 600,
             cursor: "pointer",
           }}
         >
-          Cari
+          {T.cari}
         </button>
       </form>
 
       <div style={{ marginTop: "var(--s-4)" }}>
-        {loading && <p className="muted">Mencari…</p>}
+        {loading && <p className="muted">{T.sedangMencari}</p>}
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
 
         {results && results.tracks.length > 0 && (
@@ -189,6 +194,7 @@ export function Search({
                 key={t.videoId}
                 track={t}
                 index={i}
+                active={activeVideoId === t.videoId}
                 onPlay={onPlay}
                 onQueue={onQueue}
                 onPlayNext={onPlayNext}

@@ -71,9 +71,13 @@ export const T = {
 
   // Library
   laguDisukai: "LAGU DISUKAI",
+  koleksiDipin: "KOLEKSI · DIPIN",
   playlist: "PLAYLIST",
   favorit: "FAVORIT",
   riwayat: "RIWAYAT",
+  riwayatPutar: "RIWAYAT PUTAR",
+  hapusRiwayatSemua: "HAPUS RIWAYAT",
+  konfirmasiHapusRiwayat: "Hapus seluruh riwayat putar?",
   belumAdaFavorit: "BELUM ADA FAVORIT",
   belumAdaPlaylist: "BELUM ADA PLAYLIST",
   belumAdaPlaylistSidebar: "Belum ada playlist. Tekan + BARU.",
@@ -82,8 +86,26 @@ export const T = {
   namaBaruUntuk: (nama: string) => `Nama baru untuk ${nama}`,
   konfirmasiHapusPlaylist: (nama: string) =>
     `Hapus playlist "${nama}"? Lagu di dalamnya tidak terhapus.`,
+  hapusDariPlaylist: "Hapus dari playlist",
+  hapusPlaylist: "Hapus playlist",
+  noDataStandby: "NO DATA / STANDBY",
+  playlistKosongHint: "Belum ada lagu di sini. Cari lagu untuk mulai mengisi.",
+  favoritKosongHint: "Tandai ♥ pada lagu yang kamu suka untuk mengumpulkannya di sini.",
+  cariLagu: "CARI LAGU",
   riwayatKosong: "RIWAYAT KOSONG",
+  riwayatKosongHint: "Lagu yang kamu putar akan tercatat di sini.",
   lagu: "LAGU",
+  laguTerakhir: "LAGU TERAKHIR",
+
+  // Tabel lagu & urutan
+  kolomJudul: "JUDUL",
+  kolomAlbum: "ALBUM",
+  kolomDurasi: "DURASI",
+  urutkan: "Urutkan lagu",
+  urutAsli: "URUTAN",
+  urutJudul: "JUDUL",
+  urutArtis: "ARTIS",
+  urutDurasi: "DURASI",
 
   // Pengaturan
   pengaturan: "PENGATURAN",

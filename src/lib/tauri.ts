@@ -274,6 +274,18 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       mockQueue.items = [];
       mockQueue.cursor = 0;
       return mockQueue.view() as T;
+    case "queue_replace": {
+      const tracks = (args?.tracks as Track[] | undefined) ?? [];
+      const startIndex = Number(args?.startIndex ?? 0);
+      mockQueue.items = tracks.map((t, i) => ({
+        position: i,
+        track: t,
+        originalOrder: i,
+      }));
+      mockQueue.cursor =
+        tracks.length === 0 ? 0 : Math.min(Math.max(0, startIndex), tracks.length - 1);
+      return mockQueue.view() as T;
+    }
     case "queue_jump":
       mockQueue.cursor = Number(args?.position);
       return mockQueue.view() as T;

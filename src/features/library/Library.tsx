@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { RefObject } from "react";
 import { EmptyState } from "../../components/EmptyState";
-import { TrackRow } from "../../components/TrackRow";
-import type { Playlist, useLibrary } from "../../hooks/useLibrary";
+import { PlaylistPage } from "./PlaylistPage";
+import { PlaylistTable } from "./PlaylistTable";
+import type { useLibrary } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
+import { T } from "../../lib/strings";
 
 export type LibraryTab = "Playlist" | "Favorit" | "History";
 
@@ -10,452 +13,338 @@ interface Props {
   tab: LibraryTab;
   setTab: (t: LibraryTab) => void;
   lib: ReturnType<typeof useLibrary>;
-  /** Playlist yang dipilih dari sidebar (null = tidak ada / Lagu Disukai). */
-  selectedPlaylistId?: number | null;
-  onSelectPlaylist?: (id: number | null) => void;
-  onPlay: (t: Track) => void;
+  isWide: boolean;
+  scrollContainerRef: RefObject<HTMLElement | null>;
+  /** Playlist yang dipilih dari sidebar (`null` = Lagu Disukai). */
+  selectedPlaylistId: number | null;
+  onSelectPlaylist: (id: number | null) => void;
+  activeVideoId?: string | null;
+  isPlaying?: boolean;
+  /** ID playlist yang sedang aktif diputar (`"favorites"` untuk Lagu Disukai). */
+  playingSourceId?: number | "favorites" | null;
+  shuffle: boolean;
+  onToggleShuffle: () => void;
+  onTogglePlay: () => void;
+  onPlayTracks: (
+    tracks: Track[],
+    startIndex: number,
+    sourceId: number | "favorites" | null,
+  ) => void;
   onQueue: (t: Track) => void;
   onPlayNext: (t: Track) => void;
-  /** Putar seluruh isi playlist sebagai antrean baru. */
-  onPlayPlaylist: (id: number) => void;
-  /** Buka dialog "tambahkan ke playlist" untuk sebuah lagu. */
   onPickPlaylist: (t: Track) => void;
+  onRenamePlaylist: (id: number, name: string) => Promise<void>;
+  onDeletePlaylist: (id: number) => Promise<void>;
+  onGoSearch: () => void;
 }
 
-const TABS: LibraryTab[] = ["Playlist", "Favorit", "History"];
-
-const BTN = {
-  border: "1px solid var(--line)",
-  fontFamily: "var(--font-mono)",
-  fontSize: 11,
-  letterSpacing: "0.08em",
-} as const;
-
 /**
- * Library.
+ * Layar Library (area tengah).
  *
- * Tiga tab, satu pola: daftar lagu dengan aksi yang sama seperti di pencarian
- * (putar, antrekan, putar berikutnya). Konsistensi ini disengaja — user tidak
- * perlu mempelajari tata cara baru hanya karena lagunya berasal dari library.
+ * Pada desktop (`isWide`), navigasi daftar playlist + Lagu Disukai ada di
+ * sidebar kiri sehingga area tengah langsung menampilkan `PlaylistPage` penuh
+ * (atau `History` saat dibuka dari pintasan). Pada layar sempit tanpa sidebar,
+ * disediakan pemilih ringkas di atas agar semua koleksi tetap terjangkau.
  */
 export function Library({
   tab,
   setTab,
   lib,
-  selectedPlaylistId = null,
+  isWide,
+  scrollContainerRef,
+  selectedPlaylistId,
   onSelectPlaylist,
-  onPlay,
+  activeVideoId = null,
+  isPlaying = false,
+  playingSourceId = null,
+  shuffle,
+  onToggleShuffle,
+  onTogglePlay,
+  onPlayTracks,
   onQueue,
   onPlayNext,
-  onPlayPlaylist,
   onPickPlaylist,
+  onRenamePlaylist,
+  onDeletePlaylist,
+  onGoSearch,
 }: Props) {
-  const [newName, setNewName] = useState("");
-  const [openId, setOpenId] = useState<number | null>(selectedPlaylistId);
   const [detail, setDetail] = useState<Track[]>([]);
-  const [renaming, setRenaming] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Diambil terpisah karena `lib` adalah objek baru setiap render, sementara
-  // fungsi-fungsi ini stabil (useCallback). Tanpa pemisahan ini, effect akan
-  // berjalan di setiap render.
   const { refreshFavorites, refreshHistory, refreshPlaylists, playlistTracks } = lib;
 
-  // Riwayat tidak di-refresh setiap kali lagu diputar (itu berarti memuat
-  // ulang seluruh daftar puluhan kali per lagu), jadi dimuat saat tab dibuka.
-  // Tanpa ini, tab History menampilkan "0 LAGU" padahal database sudah terisi.
+  const selectedPlaylist = useMemo(
+    () =>
+      selectedPlaylistId === null
+        ? null
+        : (lib.playlists.find((p) => p.id === selectedPlaylistId) ?? null),
+    [lib.playlists, selectedPlaylistId],
+  );
+
+  // Kunci penyegaran daftar lagu: ikut berubah saat `updatedAt` atau jumlah lagu
+  // berubah (mis. setelah menambah lagu dari dialog PlaylistPicker).
+  const playlistVersion = selectedPlaylist
+    ? `${selectedPlaylist.id}:${selectedPlaylist.trackCount}:${selectedPlaylist.updatedAt}`
+    : null;
+
   useEffect(() => {
     if (tab === "Favorit") void refreshFavorites();
     if (tab === "History") void refreshHistory();
     if (tab === "Playlist") void refreshPlaylists();
   }, [tab, refreshFavorites, refreshHistory, refreshPlaylists]);
 
-  // Sinkronkan pilihan dari sidebar: klik playlist di sidebar langsung
-  // membuka isinya di area tengah tanpa klik ulang.
   useEffect(() => {
     if (selectedPlaylistId === null) {
-      setOpenId(null);
       setDetail([]);
+      setLoadingDetail(false);
       return;
     }
     let hidup = true;
-    setOpenId(selectedPlaylistId);
+    setLoadingDetail(true);
     void playlistTracks(selectedPlaylistId)
       .then((list) => {
         if (hidup) setDetail(list);
       })
       .catch(() => {
         if (hidup) setDetail([]);
+      })
+      .finally(() => {
+        if (hidup) setLoadingDetail(false);
       });
     return () => {
       hidup = false;
     };
-  }, [selectedPlaylistId, playlistTracks]);
+  }, [selectedPlaylistId, playlistVersion, playlistTracks]);
 
-  async function openPlaylist(p: Playlist) {
-    if (openId === p.id) {
-      setOpenId(null);
-      setDetail([]);
-      onSelectPlaylist?.(null);
-      return;
-    }
-    setOpenId(p.id);
-    onSelectPlaylist?.(p.id);
-    setDetail(await playlistTracks(p.id));
-  }
+  const favoriteIds = useMemo(() => new Set(lib.favorites.map((f) => f.videoId)), [lib.favorites]);
 
-  async function buat(e: React.FormEvent) {
-    e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    await lib.createPlaylist(name);
-    setNewName("");
-  }
-
-  async function simpanNama(id: number) {
-    const name = renameValue.trim();
-    if (name) await lib.renamePlaylist(id, name);
-    setRenaming(null);
-    setRenameValue("");
-  }
-
-  /** Satu baris lagu + aksi tambahan di kanan (di luar TrackRow). */
-  function baris(t: Track, i: number, aksi: React.ReactNode) {
+  // Tampilan Riwayat Putar.
+  if (tab === "History") {
     return (
-      <div key={`${t.videoId}-${i}`} style={{ display: "flex", alignItems: "center" }}>
-        <TrackRow track={t} index={i} onPlay={onPlay} onQueue={onQueue} onPlayNext={onPlayNext} />
-        {aksi}
-      </div>
+      <section style={{ padding: "var(--s-6) var(--s-6) var(--s-12)", minWidth: 0 }}>
+        {!isWide && (
+          <MobileBar
+            tab={tab}
+            selectedPlaylistId={selectedPlaylistId}
+            playlists={lib.playlists}
+            onSelectFavorites={() => {
+              onSelectPlaylist(null);
+              setTab("Favorit");
+            }}
+            onSelectPlaylist={(id) => {
+              onSelectPlaylist(id);
+              setTab("Playlist");
+            }}
+            onSelectHistory={() => setTab("History")}
+          />
+        )}
+
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--s-3)",
+            flexWrap: "wrap",
+            paddingBottom: "var(--s-4)",
+            marginBottom: "var(--s-4)",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              onSelectPlaylist(null);
+              setTab("Favorit");
+            }}
+            style={{
+              minHeight: 44,
+              padding: "0 var(--s-3)",
+              border: "1px solid var(--line)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              color: "var(--ink)",
+            }}
+          >
+            ← {T.laguDisukai}
+          </button>
+          <h1 style={{ fontSize: 28 }}>{T.riwayatPutar}</h1>
+          <span style={{ flex: 1, borderTop: "1px solid var(--line)" }} aria-hidden="true" />
+          <span className="label">
+            {lib.history.length} {T.laguTerakhir}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(T.konfirmasiHapusRiwayat)) void lib.clearHistory();
+            }}
+            disabled={lib.history.length === 0}
+            style={{
+              minHeight: 44,
+              padding: "0 var(--s-3)",
+              border: "1px solid var(--line)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              color: lib.history.length === 0 ? "var(--ink-muted)" : "var(--danger)",
+              opacity: lib.history.length === 0 ? 0.5 : 1,
+            }}
+          >
+            {T.hapusRiwayatSemua}
+          </button>
+        </header>
+
+        {lib.history.length === 0 ? (
+          <EmptyState title={T.riwayatKosong} hint={T.riwayatKosongHint} />
+        ) : (
+          <PlaylistTable
+            tracks={lib.history}
+            scrollContainerRef={scrollContainerRef}
+            activeVideoId={activeVideoId}
+            isPlaying={isPlaying}
+            favoriteIds={favoriteIds}
+            onPlayFromIndex={(idx) => onPlayTracks(lib.history, idx, null)}
+            onTogglePlay={onTogglePlay}
+            onQueue={onQueue}
+            onPlayNext={onPlayNext}
+            onFavorite={(t) => void lib.toggleFavorite(t)}
+            onAddToPlaylist={onPickPlaylist}
+          />
+        )}
+      </section>
     );
   }
 
+  const menampilkanPlaylist = tab === "Playlist" && selectedPlaylist !== null;
+  const tracksTampil = menampilkanPlaylist ? detail : lib.favorites;
+  const sourceId: number | "favorites" = menampilkanPlaylist ? selectedPlaylist.id : "favorites";
+
   return (
-    <section style={{ padding: "var(--s-4)" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s-2)",
-          marginBottom: "var(--s-3)",
-        }}
-      >
-        <h1 style={{ fontSize: 24 }}>Library</h1>
-        <span style={{ flex: 1, borderTop: "1px solid var(--line)" }} aria-hidden="true" />
-        <span className="label">
-          {lib.playlists.length} PLAYLIST · {lib.favorites.length} FAVORIT
-        </span>
-      </div>
-
-      <div
-        role="tablist"
-        aria-label="Bagian library"
-        style={{ display: "flex", gap: "var(--s-1)" }}
-      >
-        {TABS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            style={{
-              ...BTN,
-              minHeight: 40,
-              padding: "0 var(--s-3)",
-              background: tab === t ? "var(--accent)" : "transparent",
-              color: tab === t ? "var(--accent-ink)" : "var(--ink-muted)",
-              textTransform: "uppercase",
+    <div style={{ minWidth: 0 }}>
+      {!isWide && (
+        <div style={{ padding: "var(--s-4) var(--s-4) 0" }}>
+          <MobileBar
+            tab={tab}
+            selectedPlaylistId={selectedPlaylistId}
+            playlists={lib.playlists}
+            onSelectFavorites={() => {
+              onSelectPlaylist(null);
+              setTab("Favorit");
             }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+            onSelectPlaylist={(id) => {
+              onSelectPlaylist(id);
+              setTab("Playlist");
+            }}
+            onSelectHistory={() => setTab("History")}
+          />
+        </div>
+      )}
 
-      <div style={{ marginTop: "var(--s-4)" }}>
-        {tab === "Playlist" && (
-          <>
-            <form
-              onSubmit={buat}
-              style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-3)" }}
-            >
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Nama playlist baru"
-                aria-label="Nama playlist baru"
-                style={{
-                  flex: 1,
-                  minHeight: 40,
-                  padding: "0 var(--s-3)",
-                  background: "var(--panel)",
-                  border: "1px solid var(--line)",
-                  color: "var(--ink)",
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!newName.trim()}
-                style={{
-                  ...BTN,
-                  minHeight: 40,
-                  padding: "0 var(--s-4)",
-                  background: newName.trim() ? "var(--accent)" : "transparent",
-                  color: newName.trim() ? "var(--accent-ink)" : "var(--ink-muted)",
-                }}
-              >
-                BUAT
-              </button>
-            </form>
+      <PlaylistPage
+        playlist={menampilkanPlaylist ? selectedPlaylist : null}
+        tracks={tracksTampil}
+        loading={menampilkanPlaylist ? loadingDetail : lib.loading}
+        scrollContainerRef={scrollContainerRef}
+        activeVideoId={activeVideoId}
+        isPlaying={isPlaying}
+        isSourcePlaying={playingSourceId === sourceId}
+        shuffle={shuffle}
+        favoriteIds={favoriteIds}
+        onToggleShuffle={onToggleShuffle}
+        onTogglePlay={onTogglePlay}
+        onPlayTracks={(list, idx) => onPlayTracks(list, idx, sourceId)}
+        onQueue={onQueue}
+        onPlayNext={onPlayNext}
+        onFavorite={(t) => void lib.toggleFavorite(t)}
+        onAddToPlaylist={onPickPlaylist}
+        onRemoveFromPlaylist={
+          menampilkanPlaylist
+            ? (t) => {
+                void lib.removeFromPlaylist(selectedPlaylist.id, t.videoId);
+              }
+            : undefined
+        }
+        onRenamePlaylist={menampilkanPlaylist ? onRenamePlaylist : undefined}
+        onDeletePlaylist={menampilkanPlaylist ? onDeletePlaylist : undefined}
+        onGoSearch={onGoSearch}
+        onOpenHistory={!menampilkanPlaylist ? () => setTab("History") : undefined}
+      />
+    </div>
+  );
+}
 
-            {lib.playlists.length === 0 ? (
-              <EmptyState
-                title="BELUM ADA PLAYLIST"
-                hint="Buat playlist lewat kolom di atas, lalu tambahkan lagu dari pencarian."
-              />
-            ) : (
-              <div style={{ display: "grid", gap: "var(--s-1)" }}>
-                {lib.playlists.map((p) => (
-                  <div
-                    key={p.id}
-                    style={{ border: "1px solid var(--line)", background: "var(--panel)" }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--s-2)",
-                        padding: "var(--s-2)",
-                      }}
-                    >
-                      {renaming === p.id ? (
-                        <>
-                          <input
-                            autoFocus
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void simpanNama(p.id);
-                              if (e.key === "Escape") setRenaming(null);
-                            }}
-                            aria-label={`Nama baru untuk ${p.name}`}
-                            style={{
-                              flex: 1,
-                              minHeight: 32,
-                              padding: "0 var(--s-2)",
-                              background: "var(--bg)",
-                              border: "1px solid var(--accent)",
-                              color: "var(--ink)",
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void simpanNama(p.id)}
-                            style={{ minHeight: 32, padding: "0 var(--s-2)", color: "var(--ink)" }}
-                          >
-                            SIMPAN
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void openPlaylist(p)}
-                          aria-expanded={openId === p.id}
-                          style={{
-                            flex: 1,
-                            minHeight: 32,
-                            textAlign: "left",
-                            color: "var(--ink)",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "var(--s-2)",
-                          }}
-                        >
-                          <span
-                            className="mono"
-                            style={{ color: "var(--ink-muted)", fontSize: 12 }}
-                          >
-                            {openId === p.id ? "▾" : "▸"}
-                          </span>
-                          <span
-                            style={{
-                              flex: 1,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {p.name}
-                          </span>
-                          <span className="label">{p.trackCount} LAGU</span>
-                        </button>
-                      )}
+/** Pemilih koleksi ringkas saat sidebar tersembunyi (< 900px). */
+function MobileBar({
+  tab,
+  selectedPlaylistId,
+  playlists,
+  onSelectFavorites,
+  onSelectPlaylist,
+  onSelectHistory,
+}: {
+  tab: LibraryTab;
+  selectedPlaylistId: number | null;
+  playlists: { id: number; name: string }[];
+  onSelectFavorites: () => void;
+  onSelectPlaylist: (id: number) => void;
+  onSelectHistory: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "var(--s-1)",
+        overflowX: "auto",
+        paddingBottom: "var(--s-2)",
+        marginBottom: "var(--s-2)",
+      }}
+    >
+      <Pill aktif={tab === "Favorit"} onClick={onSelectFavorites}>
+        {T.laguDisukai}
+      </Pill>
+      {playlists.map((p) => (
+        <Pill
+          key={p.id}
+          aktif={tab === "Playlist" && selectedPlaylistId === p.id}
+          onClick={() => onSelectPlaylist(p.id)}
+        >
+          {p.name}
+        </Pill>
+      ))}
+      <Pill aktif={tab === "History"} onClick={onSelectHistory}>
+        {T.riwayat}
+      </Pill>
+    </div>
+  );
+}
 
-                      <button
-                        type="button"
-                        onClick={() => onPlayPlaylist(p.id)}
-                        disabled={p.trackCount === 0}
-                        title="Putar playlist"
-                        aria-label={`Putar playlist ${p.name}`}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          color: p.trackCount === 0 ? "var(--ink-muted)" : "var(--ink)",
-                          opacity: p.trackCount === 0 ? 0.4 : 1,
-                        }}
-                      >
-                        ▶
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRenaming(p.id);
-                          setRenameValue(p.name);
-                        }}
-                        aria-label={`Ganti nama ${p.name}`}
-                        title="Ganti nama"
-                        style={{ width: 32, height: 32, color: "var(--ink-muted)" }}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (
-                            confirm(`Hapus playlist "${p.name}"? Lagu di dalamnya tidak terhapus.`)
-                          ) {
-                            void lib.deletePlaylist(p.id);
-                            if (openId === p.id) {
-                              setOpenId(null);
-                              setDetail([]);
-                              onSelectPlaylist?.(null);
-                            }
-                          }
-                        }}
-                        aria-label={`Hapus playlist ${p.name}`}
-                        title="Hapus playlist"
-                        style={{ width: 32, height: 32, color: "var(--danger)" }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    {openId === p.id && (
-                      <div style={{ borderTop: "1px solid var(--line)", padding: "var(--s-2)" }}>
-                        {detail.length === 0 ? (
-                          <p className="muted" style={{ fontSize: 13, padding: "var(--s-2)" }}>
-                            Playlist kosong. Tambahkan lagu lewat tombol + di hasil pencarian.
-                          </p>
-                        ) : (
-                          detail.map((t, i) =>
-                            baris(
-                              t,
-                              i,
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await lib.removeFromPlaylist(p.id, t.videoId);
-                                  setDetail(await lib.playlistTracks(p.id));
-                                }}
-                                aria-label={`Hapus ${t.title} dari ${p.name}`}
-                                title="Hapus dari playlist"
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  color: "var(--ink-muted)",
-                                  flex: "0 0 32px",
-                                }}
-                              >
-                                ✕
-                              </button>,
-                            ),
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "Favorit" &&
-          (lib.favorites.length === 0 ? (
-            <EmptyState
-              title="BELUM ADA FAVORIT"
-              hint="Tekan ♥ pada lagu yang kamu suka — dari pencarian maupun dari pemutar."
-            />
-          ) : (
-            lib.favorites.map((t, i) =>
-              baris(
-                t,
-                i,
-                <button
-                  type="button"
-                  onClick={() => void lib.toggleFavorite(t)}
-                  aria-label={`Hapus ${t.title} dari favorit`}
-                  title="Hapus dari favorit"
-                  style={{ width: 32, height: 32, color: "var(--accent)", flex: "0 0 32px" }}
-                >
-                  ♥
-                </button>,
-              ),
-            )
-          ))}
-
-        {tab === "History" && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: "var(--s-2)" }}>
-              <span className="label">{lib.history.length} LAGU TERAKHIR</span>
-              <span
-                style={{ flex: 1, borderTop: "1px solid var(--line)", margin: "0 var(--s-2)" }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm("Hapus seluruh riwayat putar?")) void lib.clearHistory();
-                }}
-                disabled={lib.history.length === 0}
-                style={{
-                  ...BTN,
-                  minHeight: 28,
-                  padding: "0 var(--s-2)",
-                  color: lib.history.length === 0 ? "var(--ink-muted)" : "var(--danger)",
-                  opacity: lib.history.length === 0 ? 0.5 : 1,
-                }}
-              >
-                HAPUS RIWAYAT
-              </button>
-            </div>
-
-            {lib.history.length === 0 ? (
-              <EmptyState
-                title="RIWAYAT KOSONG"
-                hint="Lagu yang kamu putar akan tercatat di sini."
-              />
-            ) : (
-              lib.history.map((t, i) =>
-                baris(
-                  t,
-                  i,
-                  <button
-                    type="button"
-                    onClick={() => onPickPlaylist(t)}
-                    aria-label={`Tambahkan ${t.title} ke playlist`}
-                    title="Tambahkan ke playlist"
-                    style={{ width: 32, height: 32, color: "var(--ink-muted)", flex: "0 0 32px" }}
-                  >
-                    ≣
-                  </button>,
-                ),
-              )
-            )}
-          </>
-        )}
-      </div>
-    </section>
+function Pill({
+  aktif,
+  onClick,
+  children,
+}: {
+  aktif: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: "0 0 auto",
+        minHeight: 44,
+        padding: "0 var(--s-3)",
+        border: "1px solid var(--line)",
+        background: aktif ? "var(--accent)" : "var(--panel)",
+        color: aktif ? "var(--accent-ink)" : "var(--ink)",
+        fontFamily: "var(--font-mono)",
+        fontSize: 11,
+        letterSpacing: "0.08em",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
   );
 }

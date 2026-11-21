@@ -124,14 +124,9 @@ pub async fn play_playlist(
         return Err(AppError::invalid("playlist kosong"));
     }
     // Ganti antrean dengan isi playlist, lalu mulai dari lagu pertama.
-    for t in &tracks {
-        crate::db::ensure_track(&state.db, t)?;
-    }
+    crate::db::ensure_tracks(&state.db, &tracks)?;
     Ok(state.with_queue(|q| {
-        q.clear();
-        for t in &tracks {
-            q.add(t.clone());
-        }
+        q.replace(tracks, 0);
         crate::commands::queue::view(q)
     }))
 }

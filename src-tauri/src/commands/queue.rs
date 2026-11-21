@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::db::ensure_track;
+use crate::db::{ensure_track, ensure_tracks};
 use crate::error::{AppError, AppResult};
 use crate::models::{QueueItem, RepeatMode, Track};
 use crate::queue::QueueManager;
@@ -91,6 +91,27 @@ pub async fn queue_move(
 pub async fn queue_clear(state: State<'_, AppState>) -> AppResult<QueueView> {
     Ok(state.with_queue(|q| {
         q.clear();
+        view(q)
+    }))
+}
+
+/// Ganti seluruh antrean dengan daftar lagu baru, mulai dari `start_index`.
+///
+/// Dipakai saat memutar playlist atau klik ganda sebuah baris lagu di dalam
+/// playlist / Lagu Disukai (DESIGN-LAYOUT bagian 3.3).
+#[tauri::command]
+pub async fn queue_replace(
+    state: State<'_, AppState>,
+    tracks: Vec<Track>,
+    start_index: Option<usize>,
+) -> AppResult<QueueView> {
+    if tracks.is_empty() {
+        return Err(AppError::invalid("daftar lagu kosong"));
+    }
+    ensure_tracks(&state.db, &tracks)?;
+    let idx = start_index.unwrap_or(0);
+    Ok(state.with_queue(|q| {
+        q.replace(tracks, idx);
         view(q)
     }))
 }

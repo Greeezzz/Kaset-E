@@ -270,6 +270,35 @@ impl QueueManager {
         self.cursor = 0;
     }
 
+    /// Ganti seluruh antrean dengan daftar baru dan mulai dari `start_index`.
+    ///
+    /// Kalau shuffle aktif, lagu yang dipilih (`start_index`) ditaruh di posisi
+    /// pertama (`cursor = 0`) lalu sisanya diacak — jadi klik ganda baris #7
+    /// selalu memutar baris #7 lebih dulu, bukan lagu acak lain.
+    pub fn replace(&mut self, tracks: Vec<Track>, start_index: usize) {
+        self.items = tracks
+            .into_iter()
+            .enumerate()
+            .map(|(i, track)| QueueItem {
+                position: i as i64,
+                original_order: i as i64,
+                track,
+            })
+            .collect();
+        if self.items.is_empty() {
+            self.order.clear();
+            self.cursor = 0;
+            return;
+        }
+        let idx = start_index.min(self.items.len() - 1);
+        if self.shuffle {
+            self.enable_shuffle_for(idx);
+        } else {
+            self.order = (0..self.items.len()).collect();
+            self.cursor = idx;
+        }
+    }
+
     /// Ajukan lagu pada posisi pemutaran `pos` sebagai lagu aktif.
     pub fn jump_to(&mut self, pos: usize) -> bool {
         if pos < self.order.len() {
@@ -787,5 +816,46 @@ mod tests {
         sorted.sort();
         sorted.dedup();
         assert_eq!(orders.len(), sorted.len(), "original_order harus unik");
+    }
+
+    #[test]
+    fn replace_mengganti_antrean_dan_mulai_dari_indeks() {
+        let mut q = QueueManager::new(1);
+        q.add(track("lama"));
+        q.replace(vec![track("a"), track("b"), track("c"), track("d")], 2);
+        assert_eq!(ids(&q), vec!["a", "b", "c", "d"]);
+        assert_eq!(q.cursor(), 2);
+        assert_eq!(q.current().unwrap().track.video_id, "c");
+        assert_eq!(q.advance().unwrap().track.video_id, "d");
+    }
+
+    #[test]
+    fn replace_dengan_shuffle_menaruh_lagu_pilihan_di_awal() {
+        let mut q = QueueManager::new(42);
+        q.set_shuffle(true);
+        let list: Vec<Track> = (0..10).map(|i| track(&format!("t{i}"))).collect();
+        q.replace(list, 6);
+        assert_eq!(q.cursor(), 0);
+        assert_eq!(
+            q.current().unwrap().track.video_id,
+            "t6",
+            "lagu yang diklik harus diputar pertama walau shuffle aktif"
+        );
+        let mut got = ids(&q);
+        got.sort();
+        let mut want: Vec<String> = (0..10).map(|i| format!("t{i}")).collect();
+        want.sort();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn replace_kosong_dan_indeks_di_luar_batas_aman() {
+        let mut q = QueueManager::new(1);
+        q.replace(vec![track("a"), track("b")], 99);
+        assert_eq!(q.current().unwrap().track.video_id, "b");
+
+        q.replace(vec![], 0);
+        assert!(q.is_empty());
+        assert!(q.current().is_none());
     }
 }

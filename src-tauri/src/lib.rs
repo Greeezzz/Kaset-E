@@ -85,6 +85,7 @@ pub fn run() {
             commands::queue_remove,
             commands::queue_move,
             commands::queue_clear,
+            commands::queue_replace,
             commands::queue_jump,
             commands::queue_next,
             commands::queue_previous,
