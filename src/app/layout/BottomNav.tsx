@@ -16,8 +16,8 @@ export function BottomNav({ route, onNavigate }: { route: Route; onNavigate: (r:
       style={{
         display: "flex",
         height: "var(--bottomnav-h)",
-        borderTop: "1px solid var(--border)",
-        background: "var(--surface)",
+        borderTop: "1px solid var(--line)",
+        background: "var(--panel)",
       }}
     >
       {ITEMS.map((it) => (

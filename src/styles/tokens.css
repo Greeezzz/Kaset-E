@@ -93,9 +93,9 @@
   --r-lg: var(--cut-lg);
   --r-full: 999px;
 
-  /* Layout */
-  --sidebar-w: 220px;
-  --queue-w: 320px;
-  --playerbar-h: 76px;
+  /* Layout (DESIGN-LAYOUT bagian 1) */
+  --sidebar-w: 268px;
+  --queue-w: 336px;
+  --playerbar-h: 88px;
   --bottomnav-h: 56px;
 }

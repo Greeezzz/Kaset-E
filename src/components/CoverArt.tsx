@@ -39,7 +39,7 @@ export function CoverArt({ coverKey, title, localPath, size = 48, radius = 6 }: 
         src={url}
         alt=""
         aria-hidden="true"
-        style={{ ...style, objectFit: "cover", background: "var(--surface-2)" }}
+        style={{ ...style, objectFit: "cover", background: "var(--panel-2)" }}
       />
     );
   }

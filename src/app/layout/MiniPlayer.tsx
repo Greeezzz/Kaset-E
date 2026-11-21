@@ -16,8 +16,8 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: Props) {
         alignItems: "center",
         gap: "var(--s-3)",
         padding: "var(--s-2) var(--s-3)",
-        borderTop: "1px solid var(--border)",
-        background: "var(--surface-2)",
+        borderTop: "1px solid var(--line)",
+        background: "var(--panel-2)",
         minHeight: 56,
       }}
     >

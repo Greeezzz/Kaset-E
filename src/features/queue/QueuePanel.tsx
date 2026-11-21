@@ -53,12 +53,15 @@ export function QueuePanel({
     <aside
       aria-label="Antrean"
       style={{
-        width: "var(--queue-w)",
-        flex: "0 0 var(--queue-w)",
         borderLeft: "1px solid var(--line)",
         background: "var(--panel)",
         display: "flex",
         flexDirection: "column",
+        // Panel ini anak dari grid, jadi lebarnya ditentukan kolom. Tanpa
+        // minHeight 0 daftar panjang akan memaksa panel tumbuh melewati tinggi
+        // dan mendorong player bar keluar layar.
+        minHeight: 0,
+        overflow: "hidden",
       }}
     >
       <header

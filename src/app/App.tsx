@@ -248,6 +248,13 @@ export function App() {
     }
   }
 
+  /** Kembali ke lagu sebelumnya di antrean. */
+  async function playPreviousInQueue() {
+    const v = await queue.previous();
+    if (!v?.current) return;
+    await startAudio(v.current);
+  }
+
   /** Lanjut ke lagu berikutnya di antrean. `null` = antrean habis. */
   async function playNextInQueue() {
     const v = await queue.next();
@@ -360,10 +367,25 @@ export function App() {
         overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+      {/* Tiga area scroll independen: sidebar, tengah, panel kanan. Halaman
+          secara keseluruhan TIDAK scroll — kalau iya, player bar ikut tergeser
+          dan sidebar kehilangan posisinya (DESIGN-LAYOUT bagian 1). */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isWide
+            ? `var(--sidebar-w) minmax(0, 1fr)${queueOpen ? " var(--queue-w)" : ""}`
+            : "minmax(0, 1fr)",
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
         {isWide && <Sidebar route={route} onNavigate={setRoute} />}
 
-        <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+        {/* minWidth 0 wajib: tanpa itu kolom tengah menolak menyusut dan
+            memaksa scroll horizontal saat panel kanan dibuka. */}
+        <main style={{ minWidth: 0, overflowY: "auto", overflowX: "hidden" }}>
           {route === "search" && (
             <Search
               onPlay={handlePlay}
@@ -415,6 +437,7 @@ export function App() {
           state={state}
           onToggle={togglePlay}
           onNext={() => void playNextInQueue()}
+          onPrevious={() => void playPreviousInQueue()}
           onSeek={handleSeek}
           onVolume={handleVolume}
           onToggleQueue={toggleQueue}
@@ -458,9 +481,9 @@ export function App() {
             bottom: 92,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "var(--surface-2)",
+            background: "var(--panel-2)",
             border: "1px solid var(--danger)",
-            color: "var(--text)",
+            color: "var(--ink)",
             padding: "var(--s-2) var(--s-4)",
             borderRadius: "var(--r-sm)",
             fontSize: 13,

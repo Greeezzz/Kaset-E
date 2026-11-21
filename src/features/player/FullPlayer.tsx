@@ -65,7 +65,7 @@ export function FullPlayer({
 
       <div
         aria-hidden="true"
-        style={{ height: 4, background: "var(--surface-2)", borderRadius: 999 }}
+        style={{ height: 4, background: "var(--panel-2)", borderRadius: 999 }}
       >
         <div
           style={{
