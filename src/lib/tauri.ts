@@ -97,6 +97,9 @@ const mockLib = {
   seq: 0,
 };
 
+/** Pengaturan tiruan untuk mode browser. */
+const mockSettings = new Map<string, string>();
+
 const mockQueue = {
   items: [] as QueueItem[],
   cursor: 0,
@@ -321,6 +324,11 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       return { key: String(args?.key ?? ""), path: null } as T;
     case "cover_download":
       return { key: String(args?.key ?? ""), path: null, status: "missing" } as T;
+    case "setting_get":
+      return (mockSettings.get(String(args?.key)) ?? null) as T;
+    case "setting_set":
+      mockSettings.set(String(args?.key), String(args?.value));
+      return undefined as T;
     default:
       return null as T;
   }

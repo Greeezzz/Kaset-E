@@ -134,7 +134,12 @@ export class AudioEngine {
 
   seek(positionMs: number) {
     const secs = positionMs / 1000;
-    if (Number.isFinite(secs) && secs >= 0) this.el.currentTime = secs;
+    if (!Number.isFinite(secs) || secs < 0) return;
+    this.el.currentTime = secs;
+    // Seek yang berhasil adalah posisi sehat baru. Tanpa ini, melompat ke
+    // menit 3 lalu kena kegagalan sumber akan memulihkan ke menit 0 — user
+    // dikembalikan ke tempat yang sudah ia tinggalkan.
+    this.lastGoodMs = Math.round(secs * 1000);
   }
 
   setVolume(volume: number) {

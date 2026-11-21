@@ -74,6 +74,8 @@ pub fn run() {
             commands::cover_stats,
             commands::cover_download,
             commands::cover_evict,
+            commands::setting_get,
+            commands::setting_set,
             commands::queue_get,
             commands::queue_add,
             commands::queue_play_next,

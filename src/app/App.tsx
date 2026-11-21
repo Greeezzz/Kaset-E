@@ -48,6 +48,8 @@ export function App() {
   // Lagu yang sedang dipulihkan, supaya tidak ada dua resolve bersamaan untuk
   // lagu yang sama. Null = tidak sedang memulihkan.
   const recoveringRef = useRef<string | null>(null);
+  // Timer penyimpanan volume (debounce 500 ms).
+  const simpanVolumeRef = useRef<number | null>(null);
 
   // Handler pemulihan, sama seperti onEnded: disimpan di ref supaya effect
   // audio tidak dipasang ulang setiap render.
@@ -80,6 +82,23 @@ export function App() {
     });
     audioEngine.setVolume(usePlayerStore.getState().state.volume);
   }, [setPlaying]);
+
+  // Pulihkan volume terakhir. Gagal baca bukan masalah: pakai default 0.8.
+  useEffect(() => {
+    let hidup = true;
+    void invoke<string | null>("setting_get", { key: "volume" })
+      .then((v) => {
+        if (!hidup || v === null || v === undefined) return;
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0 || n > 1) return;
+        audioEngine.setVolume(n);
+        usePlayerStore.getState().setVolume(n);
+      })
+      .catch(() => {});
+    return () => {
+      hidup = false;
+    };
+  }, []);
 
   // Sinkronkan state pemutar dari Rust. Rust yang memegang kebenaran, UI cerminan.
   useEffect(() => {
@@ -277,6 +296,37 @@ export function App() {
     }
   }
 
+  /**
+   * Lompat ke posisi tertentu.
+   *
+   * UI diperbarui segera supaya bar tidak melompat balik sambil menunggu
+   * `timeupdate` berikutnya (yang datang hanya ~4×/detik). Posisi "sehat"
+   * di engine ikut diset — kalau tidak, seek ke depan lalu terjadi kegagalan
+   * sumber akan memulihkan ke posisi lama, bukan ke tempat user melompat.
+   */
+  function handleSeek(positionMs: number) {
+    const durasi = usePlayerStore.getState().state.durationMs;
+    audioEngine.seek(positionMs);
+    usePlayerStore.getState().setPosition(positionMs, durasi);
+  }
+
+  /** Ubah volume; engine langsung menuruti, store jadi cermin untuk UI.
+   *
+   *  Penyimpanan ditunda 500 ms: menggeser slider menghasilkan puluhan
+   *  perubahan, dan menulis SQLite puluhan kali hanya membebani disk tanpa
+   *  manfaat — yang perlu bertahan cuma nilai akhirnya. */
+  function handleVolume(volume: number) {
+    audioEngine.setVolume(volume);
+    usePlayerStore.getState().setVolume(volume);
+
+    if (simpanVolumeRef.current) window.clearTimeout(simpanVolumeRef.current);
+    simpanVolumeRef.current = window.setTimeout(() => {
+      void invoke("setting_set", { key: "volume", value: String(volume) }).catch(() => {
+        // Volume bukan hal krusial: gagal simpan tidak boleh mengganggu.
+      });
+    }, 500);
+  }
+
   return (
     <div
       style={{
@@ -337,7 +387,13 @@ export function App() {
       </div>
 
       {isWide ? (
-        <PlayerBar state={state} onToggle={togglePlay} onNext={() => void playNextInQueue()} />
+        <PlayerBar
+          state={state}
+          onToggle={togglePlay}
+          onNext={() => void playNextInQueue()}
+          onSeek={handleSeek}
+          onVolume={handleVolume}
+        />
       ) : (
         <MiniPlayer
           track={state.track}

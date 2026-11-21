@@ -1,18 +1,24 @@
 import type { PlayerState } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
-import { formatDuration } from "../../lib/format";
+import { SeekBar } from "./SeekBar";
+import { VolumeControl } from "./VolumeControl";
 
 export function PlayerBar({
   state,
   onToggle,
   onNext,
+  onSeek,
+  onVolume,
 }: {
   state: PlayerState;
   onToggle: () => void;
   /** Lanjut ke lagu berikutnya di antrean. */
   onNext?: () => void;
+  /** Lompat ke posisi tertentu (ms). */
+  onSeek?: (positionMs: number) => void;
+  /** Ubah volume 0..1. */
+  onVolume?: (volume: number) => void;
 }) {
-  const progress = state.durationMs > 0 ? Math.min(1, state.positionMs / state.durationMs) : 0;
   const playing = state.status === "playing";
   const loading = state.status === "loading";
 
@@ -23,25 +29,12 @@ export function PlayerBar({
         borderTop: "1px solid var(--border)",
         background: "var(--surface)",
         display: "grid",
-        gridTemplateColumns: "minmax(180px, 1fr) 2fr minmax(180px, 1fr)",
+        gridTemplateColumns: "minmax(180px, 1fr) minmax(280px, 2.4fr) minmax(160px, 1fr)",
         alignItems: "center",
         gap: "var(--s-4)",
         padding: "0 var(--s-4)",
-        position: "relative",
       }}
     >
-      {/* progress tipis di tepi atas (DESIGN.md) */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          height: 2,
-          width: `${progress * 100}%`,
-          background: "var(--accent)",
-        }}
-      />
       <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", minWidth: 0 }}>
         {state.track ? (
           <CoverArt coverKey={state.track.coverKey} title={state.track.title} size={44} />
@@ -65,52 +58,65 @@ export function PlayerBar({
         </span>
       </div>
 
-      <div style={{ textAlign: "center" }}>
-        <div className="mono muted" style={{ fontSize: 13 }}>
-          {formatDuration(state.positionMs)} / {formatDuration(state.durationMs)}
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={!state.track}
-          aria-label={playing ? "Jeda" : "Putar"}
-          style={{
-            minWidth: 44,
-            minHeight: 44,
-            fontSize: 16,
-            border: "1px solid var(--line)",
-            background: state.track ? "var(--accent)" : "transparent",
-            color: state.track ? "var(--accent-ink)" : "var(--ink-muted)",
-            opacity: state.track ? 1 : 0.5,
-          }}
-        >
-          {loading ? "…" : playing ? "❙❙" : "▶"}
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!onNext}
-          aria-label="Lagu berikutnya"
-          title="Lagu berikutnya"
-          style={{
-            minWidth: 44,
-            minHeight: 44,
-            fontSize: 14,
-            color: onNext ? "var(--ink)" : "var(--ink-muted)",
-            opacity: onNext ? 1 : 0.4,
-          }}
-        >
-          ⏭
-        </button>
-        <div className="muted" style={{ fontSize: 11 }}>
-          {state.status}
-          {state.shuffle ? " · acak" : ""}
-          {state.repeat !== "off" ? ` · repeat ${state.repeat}` : ""}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+        <SeekBar
+          positionMs={state.positionMs}
+          durationMs={state.durationMs}
+          onSeek={(ms) => onSeek?.(ms)}
+          disabled={!state.track || !onSeek}
+        />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <button
+            type="button"
+            onClick={onToggle}
+            disabled={!state.track}
+            aria-label={playing ? "Jeda" : "Putar"}
+            style={{
+              minWidth: 40,
+              minHeight: 32,
+              fontSize: 15,
+              border: "1px solid var(--line)",
+              background: state.track ? "var(--accent)" : "transparent",
+              color: state.track ? "var(--accent-ink)" : "var(--ink-muted)",
+              opacity: state.track ? 1 : 0.5,
+              cursor: state.track ? "pointer" : "default",
+            }}
+          >
+            {loading ? "…" : playing ? "❙❙" : "▶"}
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!onNext}
+            aria-label="Lagu berikutnya"
+            title="Lagu berikutnya"
+            style={{
+              minWidth: 40,
+              minHeight: 32,
+              fontSize: 13,
+              color: onNext ? "var(--ink)" : "var(--ink-muted)",
+              opacity: onNext ? 1 : 0.4,
+              cursor: onNext ? "pointer" : "default",
+            }}
+          >
+            ⏭
+          </button>
+          <span className="muted" style={{ fontSize: 11 }}>
+            {state.status}
+            {state.shuffle ? " · acak" : ""}
+            {state.repeat !== "off" ? ` · repeat ${state.repeat}` : ""}
+          </span>
         </div>
       </div>
 
-      <div className="muted" style={{ textAlign: "right", fontSize: 13 }}>
-        Volume {Math.round(state.volume * 100)}%
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        {onVolume ? (
+          <VolumeControl volume={state.volume} onChange={onVolume} />
+        ) : (
+          <span className="muted" style={{ fontSize: 13 }}>
+            Volume {Math.round(state.volume * 100)}%
+          </span>
+        )}
       </div>
     </div>
   );

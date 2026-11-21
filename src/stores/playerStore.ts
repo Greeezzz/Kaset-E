@@ -9,6 +9,9 @@ interface PlayerStore {
   state: PlayerState;
   setTrack: (t: Track | null) => void;
   setPlaying: (p: boolean) => void;
+  /** Posisi dari engine. Dipakai juga untuk pratinjau setelah seek. */
+  setPosition: (positionMs: number, durationMs?: number) => void;
+  setVolume: (volume: number) => void;
 }
 
 const INITIAL: PlayerState = {
@@ -35,4 +38,13 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
     })),
   setPlaying: (playing) =>
     set((s) => ({ state: { ...s.state, status: playing ? "playing" : "paused" } })),
+  setPosition: (positionMs, durationMs) =>
+    set((s) => ({
+      state: {
+        ...s.state,
+        positionMs,
+        durationMs: durationMs && durationMs > 0 ? durationMs : s.state.durationMs,
+      },
+    })),
+  setVolume: (volume) => set((s) => ({ state: { ...s.state, volume } })),
 }));
