@@ -100,6 +100,9 @@ const mockLib = {
 /** Pengaturan tiruan untuk mode browser. */
 const mockSettings = new Map<string, string>();
 
+/** Riwayat pencarian tiruan untuk mode browser. */
+const mockSearchHistory: { query: string; hits: number; lastUsedAt: number }[] = [];
+
 const mockQueue = {
   items: [] as QueueItem[],
   cursor: 0,
@@ -324,6 +327,21 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       return { key: String(args?.key ?? ""), path: null } as T;
     case "cover_download":
       return { key: String(args?.key ?? ""), path: null, status: "missing" } as T;
+    case "search_history_list":
+      return [...mockSearchHistory]
+        .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+        .slice(0, Number(args?.limit ?? 10))
+        .map((h) => ({ query: h.query, hits: h.hits, lastUsedAt: h.lastUsedAt })) as T;
+    case "search_history_remove": {
+      const i = mockSearchHistory.findIndex((h) => h.query === String(args?.query));
+      if (i >= 0) mockSearchHistory.splice(i, 1);
+      return (i >= 0) as T;
+    }
+    case "search_history_clear": {
+      const n = mockSearchHistory.length;
+      mockSearchHistory.length = 0;
+      return n as T;
+    }
     case "setting_get":
       return (mockSettings.get(String(args?.key)) ?? null) as T;
     case "setting_set":

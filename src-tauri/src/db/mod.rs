@@ -2,6 +2,7 @@ pub mod library;
 pub(crate) mod migrations;
 pub mod playlist;
 pub mod queue;
+pub mod search_history;
 pub mod tracks;
 
 use parking_lot::Mutex;

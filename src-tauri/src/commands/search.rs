@@ -1,6 +1,7 @@
+use serde::Serialize;
 use tauri::State;
 
-use crate::db::{track_count, tracks};
+use crate::db::{search_history, track_count, tracks};
 use crate::error::{AppError, AppResult};
 use crate::models::{Quality, ResolvedStream, SearchResults, Track};
 use crate::state::AppState;
@@ -29,6 +30,16 @@ pub async fn search(state: State<'_, AppState>, query: String) -> AppResult<Sear
         // Jangan gagalkan pencarian hanya karena penulisan cache gagal — user
         // tetap harus bisa melihat dan memutar hasilnya.
         tracing::warn!(error = %e, "gagal menyimpan metadata hasil pencarian");
+    }
+
+    // Catat ke riwayat. Hanya pencarian yang benar-benar dijalankan yang
+    // dicatat — bukan tiap ketikan — supaya daftar "terakhir dicari" berisi
+    // niat user, bukan setiap huruf yang lewat.
+    if let Err(e) = search_history::catat(&state.db, q) {
+        tracing::warn!(error = %e, "gagal mencatat riwayat pencarian");
+    }
+    if let Err(e) = search_history::pangkas(&state.db, 100) {
+        tracing::warn!(error = %e, "gagal memangkas riwayat pencarian");
     }
 
     Ok(results)
@@ -88,6 +99,46 @@ pub async fn resolve_stream(
         .resolver()
         .resolve(&video_id, quality.unwrap_or(Quality::High))
         .await
+}
+
+/// Satu entri riwayat pencarian untuk UI.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHistoryRow {
+    pub query: String,
+    pub hits: i64,
+    pub last_used_at: i64,
+}
+
+/// Riwayat pencarian terbaru, terbaru dulu.
+#[tauri::command]
+pub async fn search_history_list(
+    state: State<'_, AppState>,
+    limit: Option<i64>,
+) -> AppResult<Vec<SearchHistoryRow>> {
+    Ok(search_history::daftar(&state.db, limit.unwrap_or(10))?
+        .into_iter()
+        .map(|i| SearchHistoryRow {
+            query: i.query,
+            hits: i.hits,
+            last_used_at: i.last_used_at,
+        })
+        .collect())
+}
+
+/// Hapus satu entri riwayat. `true` = ada yang terhapus.
+#[tauri::command]
+pub async fn search_history_remove(
+    state: State<'_, AppState>,
+    query: String,
+) -> AppResult<bool> {
+    search_history::hapus(&state.db, &query)
+}
+
+/// Kosongkan seluruh riwayat pencarian. Mengembalikan jumlah yang dihapus.
+#[tauri::command]
+pub async fn search_history_clear(state: State<'_, AppState>) -> AppResult<i64> {
+    search_history::kosongkan(&state.db)
 }
 
 /// Berapa lagu yang sudah dikenal database. Dipakai Settings dan test manual

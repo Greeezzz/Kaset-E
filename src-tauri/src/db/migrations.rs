@@ -18,6 +18,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "0002",
         sql: include_str!("../../migrations/0002_covers.sql"),
     },
+    Migration {
+        version: "0003",
+        sql: include_str!("../../migrations/0003_search_history.sql"),
+    },
 ];
 
 pub fn run(db: &Db) -> AppResult<()> {

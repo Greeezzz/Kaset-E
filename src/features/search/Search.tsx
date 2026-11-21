@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "../../lib/tauri";
 import type { SearchResults, Track } from "../../types";
 import { TrackRow } from "../../components/TrackRow";
 import { EmptyState } from "../../components/EmptyState";
+import { SuggestionPanel } from "./SuggestionPanel";
+import { useSearchSuggestions } from "./useSearchSuggestions";
 
 export function Search({
   onPlay,
@@ -28,14 +30,40 @@ export function Search({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function runSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const [panelTerbuka, setPanelTerbuka] = useState(false);
+  const [sorot, setSorot] = useState(-1);
+  const bungkusRef = useRef<HTMLDivElement | null>(null);
+
+  const saran = useSearchSuggestions(query, panelTerbuka);
+
+  // Klik di luar kotak menutup panel. Tanpa ini panel menutupi hasil pencarian
+  // dan tidak ada cara menutupnya selain memilih saran.
+  useEffect(() => {
+    if (!panelTerbuka) return;
+    const onDown = (e: MouseEvent) => {
+      if (bungkusRef.current && !bungkusRef.current.contains(e.target as Node)) {
+        setPanelTerbuka(false);
+        setSorot(-1);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [panelTerbuka]);
+
+  /** Jalankan pencarian untuk kata kunci tertentu (dipakai form & saran). */
+  async function cari(q: string) {
+    const bersih = q.trim();
+    if (!bersih) return;
+    setPanelTerbuka(false);
+    setSorot(-1);
     setLoading(true);
     setError(null);
     try {
-      const r = await invoke<SearchResults>("search", { query });
+      const r = await invoke<SearchResults>("search", { query: bersih });
       setResults(r);
+      // Riwayat berubah setelah pencarian; muat ulang supaya entri baru muncul
+      // saat panel dibuka berikutnya.
+      void saran.muatRiwayat();
     } catch (err) {
       // Pesan untuk user singkat; detail teknis nanti masuk log (AGENTS.md).
       setError(err instanceof Error ? err.message : "Pencarian gagal");
@@ -45,37 +73,104 @@ export function Search({
     }
   }
 
+  async function runSearch(e: React.FormEvent) {
+    e.preventDefault();
+    await cari(query);
+  }
+
+  function pilihSaran(q: string) {
+    setQuery(q);
+    void cari(q);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!panelTerbuka) {
+      // Panah bawah saat panel tertutup = buka panel tanpa harus mengetik.
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPanelTerbuka(true);
+        setSorot(saran.items.length > 0 ? 0 : -1);
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSorot((i) => (saran.items.length === 0 ? -1 : (i + 1) % saran.items.length));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSorot((i) => (saran.items.length === 0 ? -1 : i <= 0 ? saran.items.length - 1 : i - 1));
+    } else if (e.key === "Enter") {
+      const item = sorot >= 0 ? saran.items[sorot] : null;
+      if (item) {
+        e.preventDefault();
+        pilihSaran(item.query);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setPanelTerbuka(false);
+      setSorot(-1);
+    }
+  }
+
+  const tampilkanPanel = panelTerbuka && (saran.items.length > 0 || saran.memuat);
+
   return (
     <section style={{ padding: "var(--s-4) var(--s-4) var(--s-8)", maxWidth: 900 }}>
       <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>Search</h1>
 
       <form onSubmit={runSearch} style={{ display: "flex", gap: "var(--s-2)" }}>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari lagu, artis, atau album"
-          aria-label="Kata kunci pencarian"
-          style={{
-            flex: 1,
-            minHeight: 44,
-            padding: "0 var(--s-3)",
-            borderRadius: "var(--r-sm)",
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            color: "var(--text)",
-            font: "inherit",
-          }}
-        />
+        <div ref={bungkusRef} style={{ position: "relative", flex: 1 }}>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPanelTerbuka(true);
+              setSorot(-1);
+            }}
+            onFocus={() => setPanelTerbuka(true)}
+            onKeyDown={onKeyDown}
+            placeholder="Cari lagu, artis, atau album"
+            aria-label="Kata kunci pencarian"
+            aria-autocomplete="list"
+            aria-expanded={tampilkanPanel}
+            aria-controls="panel-saran-pencarian"
+            autoComplete="off"
+            style={{
+              width: "100%",
+              minHeight: 44,
+              padding: "0 var(--s-3)",
+              border: "1px solid var(--line-strong)",
+              background: "var(--panel)",
+              color: "var(--ink)",
+              font: "inherit",
+            }}
+          />
+
+          {tampilkanPanel ? (
+            <div id="panel-saran-pencarian">
+              <SuggestionPanel
+                items={saran.items}
+                sorot={sorot}
+                memuat={saran.memuat}
+                onPilih={pilihSaran}
+                onHapus={(q) => void saran.hapusRiwayat(q)}
+                onKosongkan={() => void saran.kosongkanRiwayat()}
+                onSorot={setSorot}
+              />
+            </div>
+          ) : null}
+        </div>
         <button
           type="submit"
           style={{
             minHeight: 44,
             padding: "0 var(--s-4)",
-            borderRadius: "var(--r-sm)",
             background: "var(--accent)",
             color: "var(--accent-ink)",
             fontWeight: 600,
+            cursor: "pointer",
           }}
         >
           Cari
@@ -111,7 +206,7 @@ export function Search({
         {!results && !loading && !error && (
           <EmptyState
             title="Mulai dari sini"
-            hint="Ketik judul lagu atau nama artis, lalu tekan Cari."
+            hint="Ketik judul lagu atau nama artis, lalu tekan Cari. Panah bawah membuka riwayat."
           />
         )}
       </div>

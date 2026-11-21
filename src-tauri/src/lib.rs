@@ -65,6 +65,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::search,
             commands::search_suggestions,
+            commands::search_history_list,
+            commands::search_history_remove,
+            commands::search_history_clear,
             commands::track,
             commands::catalog_status,
             commands::resolver_status,
@@ -124,6 +127,7 @@ mod tests {
             "queue_items",
             "settings",
             "covers",
+            "search_history",
         ] {
             assert!(
                 tables.iter().any(|t| t == expected),
@@ -147,7 +151,7 @@ mod tests {
     fn versi_skema_terakhir_tercatat() {
         let db = Db::open_in_memory().expect("buka db in-memory");
         let v = db.schema_version().expect("versi");
-        assert_eq!(v.as_deref(), Some("0002"));
+        assert_eq!(v.as_deref(), Some("0003"));
     }
 
     #[test]
