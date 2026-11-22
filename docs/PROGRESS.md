@@ -42,10 +42,9 @@ Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
-## Redesign layout — 8 dari 10 langkah selesai
+## Redesign layout — 10 dari 10 langkah selesai
 
-Mengikuti `DESIGN-LAYOUT.md` §10. Delapan langkah pertama sudah ter-commit dan
-terverifikasi di aplikasi; dua sisanya belum.
+Mengikuti `DESIGN-LAYOUT.md` §10. Seluruh sepuluh langkah sudah selesai dikerjakan.
 
 | Langkah | Isi | Commit | Status |
 |---|---|---|---|
@@ -57,8 +56,8 @@ terverifikasi di aplikasi; dua sisanya belum.
 | 6 | Player bar control deck, progress bersegmen 10 bagian | `2cbc50a` | selesai |
 | 7 | Dialog Nama & Detail + cover kustom | `2dd1ad7` | selesai |
 | 8 | Set ikon garis 1.5px | `5c7d35a` | selesai |
-| 9 | Responsif (§8) | — | belum |
-| 10 | Pembersihan string dan bahasa | — | belum |
+| 9 | Responsif (§8) | `865bf6e` | selesai |
+| 10 | Pembersihan string dan bahasa | — | selesai |
 
 **Langkah 7 selesai, termasuk pelajaran yang tertinggal di versi sebelumnya.**
 Sempat berstatus "separuh" dengan alasan yang layak dicatat: migrasi `0004` dan

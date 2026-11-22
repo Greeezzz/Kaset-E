@@ -1,6 +1,7 @@
 import type { Track } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
 import { IkonPlay, IkonPause } from "../../components/icons";
+import { T } from "../../lib/strings";
 
 interface Props {
   track: Track | null;
@@ -25,13 +26,13 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: Props) {
       <button
         type="button"
         onClick={onOpen}
-        aria-label="Buka pemutar penuh"
+        aria-label={T.bukaPemutarPenuh}
         style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", flex: 1, minWidth: 0 }}
       >
         {track ? (
-          <CoverArt coverKey={track.coverKey} title={track.title} size={36} />
+          <CoverArt coverKey={track.coverKey} title={track.title} size={36} radius={0} />
         ) : (
-          <CoverArt coverKey={null} title="Kaset" size={36} />
+          <CoverArt coverKey={null} title="Kaset" size={36} radius={0} />
         )}
         <span style={{ minWidth: 0, textAlign: "left" }}>
           <span
@@ -43,7 +44,7 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: Props) {
               whiteSpace: "nowrap",
             }}
           >
-            {track?.title ?? "Belum ada lagu"}
+            {track?.title ?? T.belumAdaLagu}
           </span>
           <span className="muted" style={{ display: "block", fontSize: 12 }}>
             {track?.artist ?? "—"}
@@ -53,7 +54,7 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: Props) {
       <button
         type="button"
         onClick={onToggle}
-        aria-label={playing ? "Jeda" : "Putar"}
+        aria-label={playing ? T.jeda : T.putar}
         style={{
           width: 44,
           height: 44,

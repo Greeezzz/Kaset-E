@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Playlist } from "../../hooks/useLibrary";
 import { IkonTutup } from "../../components/icons";
+import { T } from "../../lib/strings";
 import type { Track } from "../../types";
 
 interface Props {
@@ -47,7 +48,7 @@ export function PlaylistPicker({ track, playlists, onClose, onPick, onCreate }: 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Tambahkan ke playlist"
+        aria-label={T.tambahKePlaylist}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(420px, calc(100vw - 32px))",
@@ -68,12 +69,12 @@ export function PlaylistPicker({ track, playlists, onClose, onPick, onCreate }: 
             borderBottom: "1px solid var(--line)",
           }}
         >
-          <span className="label">TAMBAH KE PLAYLIST</span>
+          <span className="label">{T.tambahKePlaylistCaps}</span>
           <span style={{ flex: 1, borderTop: "1px solid var(--line)" }} aria-hidden="true" />
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup"
+            aria-label={T.tutup}
             style={{ width: 32, height: 32, color: "var(--ink-muted)" }}
           >
             <IkonTutup size={16} />
@@ -95,7 +96,7 @@ export function PlaylistPicker({ track, playlists, onClose, onPick, onCreate }: 
         <div style={{ overflowY: "auto", flex: 1, padding: "0 var(--s-2) var(--s-2)" }}>
           {playlists.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, padding: "var(--s-2)" }}>
-              Belum ada playlist. Buat satu di kolom bawah.
+              {T.belumAdaPlaylistPicker}
             </p>
           ) : (
             playlists.map((p) => (
@@ -149,8 +150,8 @@ export function PlaylistPicker({ track, playlists, onClose, onPick, onCreate }: 
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Playlist baru…"
-            aria-label="Nama playlist baru"
+            placeholder={T.playlistBaruPlaceholder}
+            aria-label={T.namaPlaylistBaru}
             style={{
               flex: 1,
               minHeight: 36,
@@ -174,7 +175,7 @@ export function PlaylistPicker({ track, playlists, onClose, onPick, onCreate }: 
               letterSpacing: "0.08em",
             }}
           >
-            BUAT
+            {T.buat}
           </button>
         </form>
       </div>

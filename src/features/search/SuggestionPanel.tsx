@@ -1,5 +1,6 @@
 import type { ItemSaran } from "./useSearchSuggestions";
 import { IkonRiwayat, IkonCari, IkonTutup } from "../../components/icons";
+import { T } from "../../lib/strings";
 
 interface Props {
   items: ItemSaran[];
@@ -35,7 +36,7 @@ export function SuggestionPanel({
   return (
     <ul
       role="listbox"
-      aria-label="Saran pencarian"
+      aria-label={T.saranPencarian}
       style={{
         position: "absolute",
         top: "calc(100% + 4px)",
@@ -94,15 +95,15 @@ export function SuggestionPanel({
               {item.query}
             </span>
             {item.jenis === "riwayat" && item.hits && item.hits > 1 ? (
-              <span className="mono muted" style={{ fontSize: 11 }} title="Berapa kali dicari">
+              <span className="mono muted" style={{ fontSize: 11 }} title={T.berapaKaliDicari}>
                 ×{item.hits}
               </span>
             ) : null}
             {item.jenis === "riwayat" ? (
               <button
                 type="button"
-                aria-label={`Hapus riwayat ${item.query}`}
-                title="Hapus dari riwayat"
+                aria-label={T.hapusRiwayat(item.query)}
+                title={T.hapusDariRiwayat}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -129,7 +130,7 @@ export function SuggestionPanel({
 
       {memuat ? (
         <li aria-hidden="true" className="muted" style={{ padding: "6px 10px", fontSize: 12 }}>
-          mencari saran…
+          {T.mencariSaran}
         </li>
       ) : null}
 
@@ -152,7 +153,7 @@ export function SuggestionPanel({
               fontSize: 12,
             }}
           >
-            Hapus semua riwayat
+            {T.hapusSemuaRiwayat}
           </button>
         </li>
       ) : null}

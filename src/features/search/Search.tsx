@@ -69,7 +69,7 @@ export function Search({
       void saran.muatRiwayat();
     } catch (err) {
       // Pesan untuk user singkat; detail teknis nanti masuk log (AGENTS.md).
-      setError(err instanceof Error ? err.message : "Pencarian gagal");
+      setError(err instanceof Error ? err.message : T.pencarianGagal);
       setResults(null);
     } finally {
       setLoading(false);
@@ -211,7 +211,7 @@ export function Search({
         )}
 
         {!results && !loading && !error && (
-          <EmptyState title="MULAI DARI SINI" hint={T.mulaiHint} />
+          <EmptyState title={T.mulaiDariSini} hint={T.mulaiHint} />
         )}
       </div>
     </section>

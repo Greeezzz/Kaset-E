@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke, runningInTauri } from "../../lib/tauri";
 import { currentTheme, setTheme, type Theme } from "../../lib/theme";
+import { T } from "../../lib/strings";
 
 /**
  * Settings. Fase 1: menampilkan status katalog (nyata vs mock) supaya user tahu
@@ -73,55 +74,57 @@ export function Settings() {
   }, []);
 
   const statusText =
-    catalogLive === null ? "Memeriksa…" : catalogLive ? "YouTube Music (aktif)" : "Mock (contoh)";
+    catalogLive === null ? T.memeriksa : catalogLive ? T.katalogAktif : T.katalogMock;
 
   return (
-    <section style={{ padding: "var(--s-4)", maxWidth: 720 }}>
-      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>Settings</h1>
+    <section style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", maxWidth: 720 }}>
+      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>{T.pengaturan}</h1>
 
       <dl
         style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--s-2) var(--s-4)" }}
       >
-        <dt className="muted">Shell</dt>
-        <dd style={{ margin: 0 }}>{runningInTauri ? "Tauri (desktop)" : "Browser (mock)"}</dd>
+        <dt className="muted">{T.pengaturanShell}</dt>
+        <dd style={{ margin: 0 }}>{runningInTauri ? T.shellDesktop : T.shellBrowser}</dd>
 
-        <dt className="muted">Katalog</dt>
+        <dt className="muted">{T.pengaturanKatalog}</dt>
         <dd style={{ margin: 0 }}>
           {statusText}
           {catalogLive === false && (
             <span className="muted" style={{ display: "block", fontSize: 13 }}>
-              Pencarian masih memakai data contoh. Biasanya karena belum ada koneksi.
+              {T.katalogMockHint}
             </span>
           )}
         </dd>
 
-        <dt className="muted">Lagu tersimpan</dt>
+        <dt className="muted">{T.pengaturanLaguTersimpan}</dt>
         <dd style={{ margin: 0 }}>
-          {trackCount === null ? "—" : `${trackCount} lagu`}
+          {trackCount === null ? "—" : `${trackCount} ${T.lagu.toLowerCase()}`}
           <span className="muted" style={{ display: "block", fontSize: 13 }}>
-            Metadata lagu yang sudah dikenal database. Wajib ada sebelum lagu bisa difavoritkan,
-            masuk playlist, atau disimpan di queue.
+            {T.laguTersimpanHint}
           </span>
         </dd>
 
-        <dt className="muted">Pemutaran</dt>
+        <dt className="muted">{T.pengaturanPemutaran}</dt>
         <dd style={{ margin: 0 }}>
           {resolverLive === null
-            ? "Memeriksa…"
+            ? T.memeriksa
             : resolverLive
-              ? "Aktif (yt-dlp)"
-              : "Belum tersedia"}
+              ? T.pemutaranAktif
+              : T.pemutaranBelumTersedia}
           {resolverLive === false && (
             <span className="muted" style={{ display: "block", fontSize: 13 }}>
-              Kaset mengunduh yt-dlp otomatis sekali saat pertama jalan. Kalau ini tetap begini,
-              sambungkan internet lalu buka ulang aplikasi.
+              {T.pemutaranHint}
             </span>
           )}
         </dd>
 
-        <dt className="muted">Tema</dt>
+        <dt className="muted">{T.pengaturanTema}</dt>
         <dd style={{ margin: 0 }}>
-          <div role="radiogroup" aria-label="Tema" style={{ display: "flex", gap: "var(--s-2)" }}>
+          <div
+            role="radiogroup"
+            aria-label={T.pengaturanTema}
+            style={{ display: "flex", gap: "var(--s-2)" }}
+          >
             {(["light", "dark"] as const).map((t) => (
               <button
                 key={t}
@@ -144,18 +147,18 @@ export function Settings() {
                   textTransform: "uppercase",
                 }}
               >
-                {t === "light" ? "Terminal Kertas" : "Terminal Malam"}
+                {t === "light" ? T.temaTerang : T.temaGelap}
               </button>
             ))}
           </div>
         </dd>
 
-        <dt className="muted">Data</dt>
-        <dd style={{ margin: 0 }}>Lokal saja — tanpa server, tanpa telemetri.</dd>
+        <dt className="muted">{T.pengaturanData}</dt>
+        <dd style={{ margin: 0 }}>{T.dataLokal}</dd>
       </dl>
 
       <p className="muted" style={{ marginTop: "var(--s-6)", fontSize: 13 }}>
-        Kaset adalah proyek pribadi/edukasi dan tidak berafiliasi dengan Google atau YouTube.
+        {T.disclaimer}
       </p>
     </section>
   );

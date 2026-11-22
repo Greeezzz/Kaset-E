@@ -2,7 +2,9 @@ import type { PlayerState, QueueItem } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
 import { EmptyState } from "../../components/EmptyState";
 import { TrackRow } from "../../components/TrackRow";
+import { IkonTutup } from "../../components/icons";
 import { formatDuration } from "../../lib/format";
+import { T } from "../../lib/strings";
 
 /**
  * Layar pemutar penuh (mobile). Slide-up dari mini player — DESIGN.md §3/§4.
@@ -31,14 +33,20 @@ export function FullPlayer({
       }}
     >
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h1 style={{ fontSize: 16 }}>Sedang Diputar</h1>
+        <h1 style={{ fontSize: 16 }}>{T.sedangDiputar}</h1>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Tutup pemutar penuh"
-          style={{ width: 44, height: 44, color: "var(--text-muted)" }}
+          aria-label={T.tutupPemutarPenuh}
+          style={{
+            width: 44,
+            height: 44,
+            display: "grid",
+            placeItems: "center",
+            color: "var(--ink-muted)",
+          }}
         >
-          ⌄
+          <IkonTutup size={18} />
         </button>
       </header>
 
@@ -49,7 +57,7 @@ export function FullPlayer({
               coverKey={state.track.coverKey}
               title={state.track.title}
               size={220}
-              radius={20}
+              radius={0}
             />
             <div style={{ textAlign: "center" }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 20 }}>
@@ -59,20 +67,16 @@ export function FullPlayer({
             </div>
           </>
         ) : (
-          <EmptyState title="Belum ada lagu" hint="Pilih lagu dari Search." />
+          <EmptyState title={T.belumAdaLagu} hint={T.pilihLaguDariCari} />
         )}
       </div>
 
-      <div
-        aria-hidden="true"
-        style={{ height: 4, background: "var(--panel-2)", borderRadius: 999 }}
-      >
+      <div aria-hidden="true" style={{ height: 4, background: "var(--panel-2)" }}>
         <div
           style={{
             height: "100%",
             width: `${progress * 100}%`,
             background: "var(--accent)",
-            borderRadius: 999,
           }}
         />
       </div>
@@ -84,9 +88,9 @@ export function FullPlayer({
         <span>{formatDuration(state.durationMs)}</span>
       </div>
 
-      <h2 style={{ fontSize: 15 }}>Antrean</h2>
+      <h2 style={{ fontSize: 15 }}>{T.antrean}</h2>
       {queue.length === 0 ? (
-        <EmptyState title="Antrean kosong" hint="Lagu yang kamu putar akan muncul di sini." />
+        <EmptyState title={T.antreanKosong} hint={T.antreanKosongFullHint} />
       ) : (
         <div style={{ display: "grid", gap: 2 }}>
           {queue.map((it) => (

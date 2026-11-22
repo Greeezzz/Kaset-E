@@ -4,6 +4,7 @@ import { invoke } from "../../lib/tauri";
 import { PlaylistArt } from "../../components/PlaylistArt";
 import { CoverArt } from "../../components/CoverArt";
 import { IkonTutup } from "../../components/icons";
+import { T } from "../../lib/strings";
 import type { Playlist } from "../../hooks/useLibrary";
 
 type ModeCover = "auto" | "custom" | "generative";
@@ -68,7 +69,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
       // tapi ini juga menangani kasus nama sama.
       setPreviewKey((n) => n + 1);
     } catch (e) {
-      setError(pesanError(e, "Gambar gagal diproses. Coba file lain."));
+      setError(pesanError(e, T.errGambarGagal));
     } finally {
       setBusy(false);
     }
@@ -82,7 +83,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
       setCoverUrl(null);
       setMode("auto");
     } catch (e) {
-      setError(pesanError(e, "Cover gagal dihapus."));
+      setError(pesanError(e, T.errCoverGagalHapus));
     } finally {
       setBusy(false);
     }
@@ -91,7 +92,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
   async function simpan() {
     const n = nama.trim();
     if (!n) {
-      setError("Nama playlist tidak boleh kosong.");
+      setError(T.errNamaPlaylistKosong);
       return;
     }
     setBusy(true);
@@ -106,7 +107,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
       onSaved();
       onClose();
     } catch (e) {
-      setError(pesanError(e, "Gagal menyimpan."));
+      setError(pesanError(e, T.errGagalSimpan));
     } finally {
       setBusy(false);
     }
@@ -133,7 +134,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={baru ? "Playlist baru" : "Detail playlist"}
+        aria-label={baru ? T.baruPlaylist : T.detailPlaylist}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(520px, calc(100vw - 32px))",
@@ -153,12 +154,12 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
             borderBottom: "1px solid var(--line)",
           }}
         >
-          <span className="label">{baru ? "PLAYLIST BARU" : "DETAIL PLAYLIST"}</span>
+          <span className="label">{baru ? T.playlistBaruCaps : T.detailPlaylistCaps}</span>
           <span style={{ flex: 1, borderTop: "1px solid var(--line)" }} aria-hidden="true" />
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup"
+            aria-label={T.tutup}
             style={{ width: 32, height: 32, color: "var(--ink-muted)" }}
           >
             <IkonTutup size={16} />
@@ -183,7 +184,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
           >
             <label style={{ display: "block" }}>
               <span className="label" style={{ display: "block", marginBottom: 4 }}>
-                NAMA
+                {T.labelNama}
               </span>
               <input
                 value={nama}
@@ -198,7 +199,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
 
             <label style={{ display: "block" }}>
               <span className="label" style={{ display: "block", marginBottom: 4 }}>
-                DESKRIPSI <span className="muted">(opsional)</span>
+                {T.labelDeskripsi} <span className="muted">{T.opsional}</span>
               </span>
               <textarea
                 value={deskripsi}
@@ -215,23 +216,19 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
 
         <div style={{ padding: "0 var(--s-3) var(--s-3)" }}>
           <span className="label" style={{ display: "block", marginBottom: "var(--s-2)" }}>
-            COVER
+            {T.labelCover}
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <OpsiCover
               aktif={mode === "auto"}
-              judul="OTOMATIS"
-              ket="Mosaik 4 cover lagu pertama"
+              judul={T.coverOtomatis}
+              ket={T.coverOtomatisKet}
               onClick={() => setMode("auto")}
             />
             <OpsiCover
               aktif={mode === "custom"}
-              judul="UPLOAD"
-              ket={
-                coverUrl
-                  ? "Gambar sudah diunggah — pilih untuk mengganti"
-                  : "Pilih gambar dari disk (PNG/JPG/WebP)"
-              }
+              judul={T.coverUpload}
+              ket={coverUrl ? T.coverUploadGantiKet : T.coverUploadPilihKet}
               onClick={() => {
                 setMode("custom");
                 fileRef.current?.click();
@@ -239,8 +236,8 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
             />
             <OpsiCover
               aktif={mode === "generative"}
-              judul="GENERATIF"
-              ket="Pola dari inisial judul"
+              judul={T.coverGeneratif}
+              ket={T.coverGeneratifKet}
               onClick={() => setMode("generative")}
             />
           </div>
@@ -262,7 +259,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
                 cursor: "pointer",
               }}
             >
-              HAPUS COVER
+              {T.hapusCover}
             </button>
           )}
 
@@ -287,7 +284,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
             style={{
               margin: "0 var(--s-3) var(--s-2)",
               padding: "8px 10px",
-              borderLeft: "3px solid var(--danger, #c0392b)",
+              borderLeft: "3px solid var(--danger)",
               background: "var(--panel-2)",
               fontSize: 12,
             }}
@@ -319,7 +316,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
               cursor: "pointer",
             }}
           >
-            BATAL
+            {T.batal}
           </button>
           <button
             type="button"
@@ -338,7 +335,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
               cursor: bisaSimpan ? "pointer" : "not-allowed",
             }}
           >
-            {busy ? "MENYIMPAN…" : "SIMPAN"}
+            {busy ? T.menyimpan : T.simpan}
           </button>
         </footer>
       </div>
@@ -451,7 +448,7 @@ function Penghitung({ n, batas }: { n: number; batas: number }) {
         fontSize: 10,
         letterSpacing: "0.06em",
         marginTop: 2,
-        color: lewat ? "var(--danger, #c0392b)" : "var(--ink-muted)",
+        color: lewat ? "var(--danger)" : "var(--ink-muted)",
       }}
     >
       {n}/{batas}
@@ -464,7 +461,7 @@ function inputStyle(invalid: boolean): React.CSSProperties {
     width: "100%",
     padding: "8px 10px",
     background: "var(--panel-2)",
-    border: `1px solid ${invalid ? "var(--danger, #c0392b)" : "var(--line)"}`,
+    border: `1px solid ${invalid ? "var(--danger)" : "var(--line)"}`,
     color: "var(--ink)",
     fontFamily: "inherit",
     fontSize: 13,
