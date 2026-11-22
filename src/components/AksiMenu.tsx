@@ -35,6 +35,13 @@ interface Props {
  */
 export function AksiMenu({ aksi, onClose, anchor }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Elemen yang punya fokus SEBELUM menu dibuka. `anchor` sering berupa <div>
+  // pembungkus (tidak bisa difokus), jadi mengandalkan `anchor.focus()` membuat
+  // fokus jatuh ke <body> — Tab berikutnya lalu mulai dari awal halaman.
+  // Menyimpan activeElement saat mount selalu benar, apa pun bentuk anchor-nya.
+  const fokusSebelum = useRef<HTMLElement | null>(
+    typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null,
+  );
 
   // Tutup saat klik di luar, Escape, atau halaman di-scroll/di-resize —
   // menu fixed yang tertinggal di tempat lama terlihat seperti bug.
@@ -45,7 +52,35 @@ export function AksiMenu({ aksi, onClose, anchor }: Props) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
-        anchor?.focus();
+        // Kembalikan fokus ke pemicu; kalau itu bukan elemen yang bisa
+        // difokus, pakai anchor sebagai cadangan.
+        const target = fokusSebelum.current;
+        if (target && document.contains(target)) target.focus();
+        else anchor?.focus();
+        return;
+      }
+
+      // `role="menu"` mewajibkan navigasi panah. Tanpa ini menu hanya bisa
+      // dijelajahi Tab, dan pembaca layar mengumumkan peran menu yang
+      // perilakunya tidak cocok dengan perannya.
+      const item = Array.from(
+        ref.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [],
+      );
+      if (item.length === 0) return;
+      const idx = item.indexOf(document.activeElement as HTMLButtonElement);
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const arah = e.key === "ArrowDown" ? 1 : -1;
+        // Membungkus di ujung: menu pendek lebih enak dipakai begitu.
+        const berikut = (idx + arah + item.length) % item.length;
+        item[berikut]?.focus();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        item[0]?.focus();
+      } else if (e.key === "End") {
+        e.preventDefault();
+        item[item.length - 1]?.focus();
       }
     };
     const onScroll = () => onClose();
