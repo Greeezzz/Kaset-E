@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `2cbc50a`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `2dd1ad7`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -17,11 +17,11 @@ Terakhir diperbarui: commit `2cbc50a`, branch `main`, repo `github.com/Greeezzz/
 | Fase 6 — Login + Sync | 0/3 |
 | **Total** | **40/67 item (60%)** |
 
-Ukuran kode: **5.499 baris Rust + 7.043 baris TypeScript/TSX**. **89 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 33 commit.
+Ukuran kode: **5.765 baris Rust + 7.757 baris TypeScript/TSX**. **101 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 35 commit.
 
-Catatan: `src-tauri/src/playlist_cover.rs` berisi 9 unit test lagi, tapi file itu
-belum didaftarkan sebagai modul dan crate `image` belum ada di `Cargo.toml` —
-jadi 9 tes tersebut belum ikut berjalan. Angka 89 belum termasuk mereka.
+Kenapa naik dari 89 ke 101: `playlist_cover.rs` akhirnya masuk kompilasi (+9 tes:
+validasi magic bytes, batas ukuran, crop tengah, PNG transparan, tulis/hapus
+berkas, nama file aman), dan tiga tes regresi antrean untuk bug cursor.
 
 Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 10 tabel + `schema_migrations` (skema versi `0004`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
 
@@ -42,10 +42,10 @@ Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
-## Redesign layout — 6 dari 10 langkah selesai
+## Redesign layout — 7 dari 10 langkah selesai
 
-Mengikuti `DESIGN-LAYOUT.md` §10. Enam langkah pertama sudah ter-commit dan
-terverifikasi di aplikasi; empat sisanya belum.
+Mengikuti `DESIGN-LAYOUT.md` §10. Tujuh langkah pertama sudah ter-commit dan
+terverifikasi di aplikasi; tiga sisanya belum.
 
 | Langkah | Isi | Commit | Status |
 |---|---|---|---|
@@ -55,31 +55,53 @@ terverifikasi di aplikasi; empat sisanya belum.
 | 4 | Halaman playlist: header, aksi, tabel bervirtualisasi | `8c475f5` | selesai |
 | 5 | Panel kanan dua tab: `SEDANG DIPUTAR` + `ANTREAN` | `6b7338b` | selesai |
 | 6 | Player bar control deck, progress bersegmen 10 bagian | `2cbc50a` | selesai |
-| 7 | Dialog Nama & Detail + cover kustom | — | **separuh** |
+| 7 | Dialog Nama & Detail + cover kustom | `2dd1ad7` | selesai |
 | 8 | Set ikon garis 1.5px | — | belum |
 | 9 | Responsif (§8) | — | belum |
 | 10 | Pembersihan string dan bahasa | — | belum |
 
-**Langkah 7 separuh, dan ini yang paling mudah disalahpahami.** Yang sudah ada:
-migrasi `0004_playlist_details.sql` (sudah diterapkan ke database — kolom
-`description`, `cover_mode`, `cover_path` benar-benar ada di tabel `playlists`),
-dan `src-tauri/src/playlist_cover.rs` berisi service gambar lengkap dengan 9 unit
-test (validasi magic bytes, batas 10 MB, batas dimensi 8192 untuk mencegah
-decompression bomb, crop tengah 1:1 → 512×512 JPEG kualitas 86, nama file aman,
-penghapusan berkas).
+**Langkah 7 selesai, termasuk pelajaran yang tertinggal di versi sebelumnya.**
+Sempat berstatus "separuh" dengan alasan yang layak dicatat: migrasi `0004` dan
+service gambar `playlist_cover.rs` sudah lengkap dengan 9 unit test, tapi modul
+itu belum didaftarkan di `lib.rs` dan crate `image` belum ada di `Cargo.toml` —
+jadi seluruh file itu tidak ikut dikompilasi dan 9 tesnya tidak pernah berjalan.
+Kode yang tidak dikompilasi tidak boleh dihitung selesai.
 
-Yang membuatnya belum jadi: **modul itu belum didaftarkan di `lib.rs`, dan crate
-`image` belum ditambahkan ke `Cargo.toml`.** Artinya seluruh file itu — termasuk
-9 tesnya — tidak ikut dikompilasi. Kode yang tidak dikompilasi tidak dihitung
-selesai. Sisa pekerjaan: daftarkan modul + dependensi, command Tauri
-(`playlist_cover_set`/`_clear`/`_get`), kolom baru di `db::playlist`, dan UI
-dialog Nama & Detail dengan pemilih cover tiga opsi.
+Sekarang modul terdaftar, `image` 0.25 masuk dengan fitur terbatas
+(jpeg/png/webp), dan 9 tesnya berjalan hijau. Command Tauri:
+`playlist_update_details`, `playlist_cover_set`, `playlist_cover_clear`,
+`playlist_cover_path`. Dialog punya tiga mode cover dengan pratinjau dan
+penghitung karakter; `PlaylistArt` memilih sumber gambar sesuai mode.
+
+Diverifikasi di aplikasi: PNG 800×600 diunggah lewat command → menghasilkan
+**JPEG 512×512 seberat 10,7 KB** di `playlist_covers/`, tampil 512×512 di sidebar
+(44px) dan header halaman (188px), bertahan setelah restart. Ganti nama,
+deskripsi, dan mode generatif juga tersimpan.
+
+## Bug antrean yang ditemukan lewat pemakaian
+
+**Gejala:** memutar lagu baru saat antrean sudah berisi lagu lain membuat panel
+antrean tetap menulis lagu lama sebagai "sedang diputar", sementara player bar
+dan audio sudah memutar lagu baru.
+
+**Sebab:** `QueueManager::add` hanya memindahkan `cursor` kalau antrean tadinya
+kosong. Menambah lagu ke antrean yang sudah berisi tidak menyentuh cursor, jadi
+Rust terus menunjuk lagu lama. UI membaca cursor itu — bukan menebak — sehingga
+panel menampilkan keadaan yang benar menurut Rust tapi salah menurut kenyataan.
+
+**Perbaikan:** method `add_and_play` di Rust yang menambah lagu lalu memindahkan
+cursor ke posisinya, dan command `queue_play_now` yang dipakai `handlePlay`.
+Posisi dicari lewat `order`, bukan diasumsikan "selalu terakhir", karena dengan
+shuffle hidup lagu baru disisipkan acak. Tiga tes regresi mengunci perilaku ini.
+
+Diverifikasi di aplikasi: cursor 0 "Original Me" → klik Let Down → cursor 3
+"Let Down"; player bar dan panel `SEDANG DIPUTAR` sama-sama menampilkan
+LET DOWN / Radiohead / OK COMPUTER.
 
 Terverifikasi di aplikasi 1100×720: sidebar 268px, panel kanan 336px, main
 496 ↔ 832 saat panel dibuka/ditutup, tombol play 52×52 `rgb(255,230,0)` dengan
-ikon hitam, seek bar 10 segmen setinggi 4px, panel `SEDANG DIPUTAR` menampilkan
-lagu yang persis sama dengan player bar ("Original Me" / Sān-Z & HOYO-MiX), dan
-tidak ada scroll horizontal di panel mana pun.
+ikon hitam, seek bar 10 segmen setinggi 4px, dan tidak ada scroll horizontal di
+panel mana pun.
 
 ## Sisa Fase 1 (3 item — semua Desktop polish)
 
