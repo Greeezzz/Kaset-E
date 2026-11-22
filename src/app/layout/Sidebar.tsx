@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Route } from "../routes";
 import { T } from "../../lib/strings";
 import { PlaylistArt } from "../../components/PlaylistArt";
+import { IkonHati, IkonMenu } from "../../components/icons";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
 
@@ -307,7 +308,7 @@ export function Sidebar({
                 fontSize: 18,
               }}
             >
-              ♥
+              <IkonHati size={20} isi />
             </div>
           }
         />
@@ -567,7 +568,7 @@ function BarisLibrary({
               transition: "opacity var(--t-fast) var(--ease)",
             }}
           >
-            {"\u22ef"}
+            <IkonMenu size={18} />
           </button>
 
           {menuBuka && (

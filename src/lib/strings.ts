@@ -101,7 +101,7 @@ export const T = {
   hapusPlaylist: "Hapus playlist",
   noDataStandby: "NO DATA / STANDBY",
   playlistKosongHint: "Belum ada lagu di sini. Cari lagu untuk mulai mengisi.",
-  favoritKosongHint: "Tandai ♥ pada lagu yang kamu suka untuk mengumpulkannya di sini.",
+  favoritKosongHint: "Tandai hati pada lagu yang kamu suka untuk mengumpulkannya di sini.",
   cariLagu: "CARI LAGU",
   riwayatKosong: "RIWAYAT KOSONG",
   riwayatKosongHint: "Lagu yang kamu putar akan tercatat di sini.",

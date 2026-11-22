@@ -4,6 +4,7 @@ import type { Track } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
+import { IkonPlay, IkonPause, IkonMenu, IkonHati } from "../../components/icons";
 
 const ROW_HEIGHT = 56;
 const OVERSCAN = 6;
@@ -292,7 +293,7 @@ function BarisTabel({
               fontSize: 13,
             }}
           >
-            {playing ? "❚❚" : "▶"}
+            {playing ? <IkonPause size={13} /> : <IkonPlay size={13} />}
           </button>
         ) : playing ? (
           <span className="eq-bars" style={{ color: "var(--ink)" }} aria-label={T.sedangDiputar}>
@@ -400,7 +401,7 @@ function BarisTabel({
               fontSize: 14,
             }}
           >
-            {favorite ? "\u2665" : "\u2661"}
+            <IkonHati size={15} isi={favorite} />
           </span>
         </button>
 
@@ -421,7 +422,7 @@ function BarisTabel({
               fontSize: 16,
             }}
           >
-            {"\u22ef"}
+            <IkonMenu size={16} />
           </button>
 
           {menuBuka && (

@@ -5,6 +5,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { QueuePanel } from "./QueuePanel";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
+import { IkonTutup } from "../../components/icons";
 
 export type RightPanelTab = "now" | "queue";
 
@@ -111,7 +112,7 @@ export function RightPanel({
             fontSize: 14,
           }}
         >
-          ✕
+          <IkonTutup size={16} />
         </button>
       </header>
 

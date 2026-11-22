@@ -3,6 +3,7 @@ import { CoverArt } from "../../components/CoverArt";
 import { SeekBar } from "./SeekBar";
 import { VolumeControl } from "./VolumeControl";
 import { T } from "../../lib/strings";
+import { IkonPlay, IkonPause, IkonPrev, IkonNext } from "../../components/icons";
 
 /**
  * Player bar tiga zona ("control deck", DESIGN-LAYOUT §6, DESIGN-ENDFIELD §6).
@@ -170,7 +171,7 @@ export function PlayerBar({
       <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <TombolIkon label={T.laguSebelumnya} onClick={onPrevious} disabled={!ada || !onPrevious}>
-            {"\u23ee"}
+            <IkonPrev size={16} />
           </TombolIkon>
 
           {/* Elemen paling mencolok di bar: blok kuning chamfer, ikon hitam. */}
@@ -195,11 +196,11 @@ export function PlayerBar({
               cursor: ada ? "pointer" : "not-allowed",
             }}
           >
-            {loading ? "\u2026" : playing ? "\u2759\u2759" : "\u25b6"}
+            {loading ? "\u2026" : playing ? <IkonPause size={18} /> : <IkonPlay size={18} />}
           </button>
 
           <TombolIkon label={T.laguBerikutnya} onClick={onNext} disabled={!ada || !onNext}>
-            {"\u23ed"}
+            <IkonNext size={16} />
           </TombolIkon>
         </div>
 

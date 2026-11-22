@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { T } from "../../lib/strings";
+import { IkonVolume } from "../../components/icons";
 
 interface Props {
   volume: number;
@@ -39,10 +40,9 @@ export function VolumeControl({ volume, onChange }: Props) {
           cursor: "pointer",
         }}
       >
-        {/* Glyph teks sementara; akan diganti set ikon garis 1.5px di Langkah 8. */}
-        <span aria-hidden="true" style={{ fontSize: 14 }}>
-          {bisu ? "🔇" : volume < 0.5 ? "🔉" : "🔊"}
-        </span>
+        {/* Tiga tingkat: bisu (silang), rendah, tinggi. Bentuknya sama supaya
+            tombol tidak terasa melompat saat volumenya digeser. */}
+        <IkonVolume size={18} level={bisu ? 0 : volume < 0.5 ? 1 : 2} />
       </button>
 
       <input

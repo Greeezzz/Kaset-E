@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
 import { PlaylistArt } from "../../components/PlaylistArt";
+import { IkonPlay, IkonPause, IkonHati, IkonMenu } from "../../components/icons";
 import { EmptyState } from "../../components/EmptyState";
 import { PlaylistTable } from "./PlaylistTable";
 import { formatTotalDuration } from "../../lib/format";
@@ -186,7 +187,7 @@ export function PlaylistPage({
                 fontSize: 72,
               }}
             >
-              ♥
+              <IkonHati size={40} isi />
             </div>
           )}
         </div>
@@ -363,7 +364,7 @@ export function PlaylistPage({
             cursor: kosong ? "not-allowed" : "pointer",
           }}
         >
-          {isSourcePlaying && isPlaying ? "❚❚" : "▶"}
+          {isSourcePlaying && isPlaying ? <IkonPause size={22} /> : <IkonPlay size={22} />}
         </button>
 
         <button
@@ -403,7 +404,7 @@ export function PlaylistPage({
                 fontSize: 18,
               }}
             >
-              {"\u22ef"}
+              <IkonMenu size={16} />
             </button>
 
             {menuBuka && (

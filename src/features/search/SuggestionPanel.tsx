@@ -1,4 +1,5 @@
 import type { ItemSaran } from "./useSearchSuggestions";
+import { IkonRiwayat, IkonCari, IkonTutup } from "../../components/icons";
 
 interface Props {
   items: ItemSaran[];
@@ -79,7 +80,7 @@ export function SuggestionPanel({
               className="mono muted"
               style={{ fontSize: 11, minWidth: 16, opacity: 0.7 }}
             >
-              {item.jenis === "riwayat" ? "↺" : "⌕"}
+              {item.jenis === "riwayat" ? <IkonRiwayat size={13} /> : <IkonCari size={13} />}
             </span>
             <span
               style={{
@@ -119,7 +120,7 @@ export function SuggestionPanel({
                   fontSize: 12,
                 }}
               >
-                ✕
+                <IkonTutup size={12} />
               </button>
             ) : null}
           </li>

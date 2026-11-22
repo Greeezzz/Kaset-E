@@ -4,6 +4,7 @@ import { CoverArt } from "../../components/CoverArt";
 import type { QueueView } from "../../hooks/useQueue";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
+import { IkonTutup } from "../../components/icons";
 import type { Track } from "../../types";
 
 interface Props {
@@ -344,7 +345,7 @@ export function QueuePanel({
                       fontSize: 12,
                     }}
                   >
-                    ✕
+                    <IkonTutup size={13} />
                   </button>
                 </div>
               ))

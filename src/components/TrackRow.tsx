@@ -4,6 +4,7 @@ import type { Track } from "../types";
 import { CoverArt } from "./CoverArt";
 import { formatDuration } from "../lib/format";
 import { T } from "../lib/strings";
+import { IkonMenu, IkonHati } from "./icons";
 
 interface Props {
   track: Track;
@@ -197,7 +198,7 @@ export function TrackRow({
               fontSize: 15,
             }}
           >
-            {favorite ? "\u2665" : "\u2661"}
+            <IkonHati size={15} isi={favorite} />
           </button>
         )}
 
@@ -222,7 +223,7 @@ export function TrackRow({
                 fontSize: 16,
               }}
             >
-              {"\u22ef"}
+              <IkonMenu size={16} />
             </button>
 
             {menuBuka && (

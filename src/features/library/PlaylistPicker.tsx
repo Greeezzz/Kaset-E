@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Playlist } from "../../hooks/useLibrary";
+import { IkonTutup } from "../../components/icons";
 import type { Track } from "../../types";
 
 interface Props {
@@ -75,7 +76,7 @@ export function PlaylistPicker({ track, playlists, onClose, onPick, onCreate }: 
             aria-label="Tutup"
             style={{ width: 32, height: 32, color: "var(--ink-muted)" }}
           >
-            ✕
+            <IkonTutup size={16} />
           </button>
         </header>
 

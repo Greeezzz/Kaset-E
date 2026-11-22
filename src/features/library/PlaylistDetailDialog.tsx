@@ -3,6 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { invoke } from "../../lib/tauri";
 import { PlaylistArt } from "../../components/PlaylistArt";
 import { CoverArt } from "../../components/CoverArt";
+import { IkonTutup } from "../../components/icons";
 import type { Playlist } from "../../hooks/useLibrary";
 
 type ModeCover = "auto" | "custom" | "generative";
@@ -160,7 +161,7 @@ export function PlaylistDetailDialog({ playlist, onClose, onSaved, baru }: Props
             aria-label="Tutup"
             style={{ width: 32, height: 32, color: "var(--ink-muted)" }}
           >
-            ✕
+            <IkonTutup size={16} />
           </button>
         </header>
 

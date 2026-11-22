@@ -1,5 +1,6 @@
 import type { Track } from "../../types";
 import { CoverArt } from "../../components/CoverArt";
+import { IkonPlay, IkonPause } from "../../components/icons";
 
 interface Props {
   track: Track | null;
@@ -61,7 +62,7 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: Props) {
           color: "var(--ink)",
         }}
       >
-        {playing ? "❙❙" : "▶"}
+        {playing ? <IkonPause size={16} /> : <IkonPlay size={16} />}
       </button>
     </div>
   );
