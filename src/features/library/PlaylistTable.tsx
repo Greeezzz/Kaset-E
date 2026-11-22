@@ -5,6 +5,7 @@ import { CoverArt } from "../../components/CoverArt";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
 import { IkonPlay, IkonPause, IkonMenu, IkonHati } from "../../components/icons";
+import { AksiMenu } from "../../components/AksiMenu";
 
 const ROW_HEIGHT = 56;
 const OVERSCAN = 6;
@@ -19,7 +20,6 @@ interface Props {
   onPlayFromIndex: (index: number) => void;
   onTogglePlay?: () => void;
   onQueue: (track: Track) => void;
-  onPlayNext: (track: Track) => void;
   onFavorite: (track: Track) => void;
   onAddToPlaylist: (track: Track) => void;
   /** Ada hanya untuk playlist pengguna (bukan Lagu Disukai / Riwayat). */
@@ -45,7 +45,6 @@ export function PlaylistTable({
   onPlayFromIndex,
   onTogglePlay,
   onQueue,
-  onPlayNext,
   onFavorite,
   onAddToPlaylist,
   onRemove,
@@ -155,7 +154,6 @@ export function PlaylistTable({
               key={`${track.videoId}-${index}`}
               track={track}
               index={index}
-              total={tracks.length}
               gridCols={gridCols}
               tampilAlbum={tampilAlbum}
               active={active}
@@ -164,7 +162,6 @@ export function PlaylistTable({
               onPlayFromIndex={onPlayFromIndex}
               onTogglePlay={onTogglePlay}
               onQueue={onQueue}
-              onPlayNext={onPlayNext}
               onFavorite={onFavorite}
               onAddToPlaylist={onAddToPlaylist}
               onRemove={onRemove}
@@ -182,7 +179,6 @@ export function PlaylistTable({
 function BarisTabel({
   track,
   index,
-  total,
   gridCols,
   tampilAlbum,
   active,
@@ -191,7 +187,6 @@ function BarisTabel({
   onPlayFromIndex,
   onTogglePlay,
   onQueue,
-  onPlayNext,
   onFavorite,
   onAddToPlaylist,
   onRemove,
@@ -199,7 +194,6 @@ function BarisTabel({
 }: {
   track: Track;
   index: number;
-  total: number;
   gridCols: string;
   tampilAlbum: boolean;
   active: boolean;
@@ -208,7 +202,6 @@ function BarisTabel({
   onPlayFromIndex: (index: number) => void;
   onTogglePlay?: () => void;
   onQueue: (track: Track) => void;
-  onPlayNext: (track: Track) => void;
   onFavorite: (track: Track) => void;
   onAddToPlaylist: (track: Track) => void;
   onRemove?: (track: Track) => void;
@@ -219,25 +212,10 @@ function BarisTabel({
   const [menuBuka, setMenuBuka] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!menuBuka) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuBuka(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuBuka(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuBuka]);
+  // Penutupan menu ditangani `AksiMenu`.
 
   const tampilAksi = hover || fokus || menuBuka;
   const sorot = active || hover;
-  const bukaKeAtas = total >= 4 && index >= total - 3;
 
   function klikPutar() {
     if (active && playing && onTogglePlay) {
@@ -426,74 +404,32 @@ function BarisTabel({
           </button>
 
           {menuBuka && (
-            <div
-              role="menu"
-              style={{
-                position: "absolute",
-                ...(bukaKeAtas ? { bottom: "calc(100% + 2px)" } : { top: "calc(100% + 2px)" }),
-                right: 0,
-                zIndex: 40,
-                minWidth: 204,
-                padding: 4,
-                background: "var(--panel)",
-                border: "1px solid var(--line-strong)",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
-              }}
-            >
-              <MenuBaris onClick={() => jalankan(() => onPlayNext(track))}>
-                {T.putarBerikutnya}
-              </MenuBaris>
-              <MenuBaris onClick={() => jalankan(() => onQueue(track))}>
-                {T.tambahKeAntrean}
-              </MenuBaris>
-              <MenuBaris onClick={() => jalankan(() => onAddToPlaylist(track))}>
-                {T.tambahKePlaylist}
-              </MenuBaris>
-              {onRemove && (
-                <MenuBaris onClick={() => jalankan(() => onRemove(track))} bahaya>
-                  {labelHapus ?? T.hapusDariPlaylist}
-                </MenuBaris>
-              )}
-            </div>
+            <AksiMenu
+              anchor={menuRef.current}
+              onClose={() => setMenuBuka(false)}
+              aksi={[
+                {
+                  label: T.tambahKeAntrean,
+                  onClick: () => jalankan(() => onQueue(track)),
+                },
+                {
+                  label: T.tambahKePlaylist,
+                  onClick: () => jalankan(() => onAddToPlaylist(track)),
+                },
+                ...(onRemove
+                  ? [
+                      {
+                        label: labelHapus ?? T.hapusDariPlaylist,
+                        onClick: () => jalankan(() => onRemove(track)),
+                        bahaya: true,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           )}
         </div>
       </div>
     </div>
-  );
-}
-
-function MenuBaris({
-  children,
-  onClick,
-  bahaya = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  bahaya?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        padding: "10px 12px",
-        minHeight: 44,
-        background: "transparent",
-        color: bahaya ? "var(--danger)" : "var(--ink)",
-        fontSize: 13,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--accent-dim)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {children}
-    </button>
   );
 }

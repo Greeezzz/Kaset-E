@@ -70,6 +70,15 @@ export function App() {
   // videoId yang benar-benar sudah dimuat ke elemen <audio>. Membedakan lagu
   // hasil pemulihan saat start (belum di-resolve) dari lagu yang sedang dijeda.
   const loadedVideoIdRef = useRef<string | null>(null);
+  // Stempel waktu klik putar → event "playing" (MVP.md Fase 1.5: ukur delay).
+  const playStartAtRef = useRef<{ videoId: string; at: number } | null>(null);
+  // videoId yang sudah di-prefetch untuk lagu ini. Reset setiap lagu berganti,
+  // supaya satu lagu hanya memicu satu prefetch (bukan tiap timeupdate).
+  const prefetchRef = useRef<string | null>(null);
+  // Salinan antrean terbaru untuk handler audio. Handler dipasang sekali
+  // (dependency `setPlaying`), jadi membaca `queue.view` langsung dari closure
+  // akan selalu mendapat nilai saat effect pertama jalan — cursor basi.
+  const queueViewRef = useRef(queue.view);
   // Timer penyimpanan volume (debounce 500 ms).
   const simpanVolumeRef = useRef<number | null>(null);
 
@@ -101,11 +110,35 @@ export function App() {
   // dari apa yang benar-benar terjadi pada audio.
   useEffect(() => {
     audioEngine.setEvents({
-      onTime: (positionMs, durationMs) =>
+      onTime: (positionMs, durationMs) => {
         usePlayerStore.setState((s) => ({
           state: { ...s.state, positionMs, durationMs: durationMs || s.state.durationMs },
-        })),
-      onPlaying: () => setPlaying(true),
+        }));
+
+        // Prefetch lagu berikutnya saat lagu ini tinggal ~15 detik
+        // (MVP.md Fase 1.5). Resolve memakan 1-4 detik; tanpa ini ada jeda
+        // hening di antara dua lagu. Ambang 15 detik cukup lebar untuk
+        // resolve lambat, tapi tidak terlalu awal untuk lagu pendek.
+        const sisa = durationMs - positionMs;
+        if (durationMs > 0 && sisa > 0 && sisa < 15_000 && !prefetchRef.current) {
+          const { items, cursor } = queueViewRef.current;
+          const berikut = items[cursor + 1];
+          if (berikut?.track.videoId) {
+            prefetchRef.current = berikut.track.videoId;
+            streamCache.prefetch(berikut.track.videoId);
+          }
+        }
+      },
+      onPlaying: () => {
+        if (playStartAtRef.current) {
+          const { videoId, at } = playStartAtRef.current;
+          playStartAtRef.current = null;
+          console.info(
+            `[perf] klik->playing videoId=${videoId} ms=${Math.round(performance.now() - at)}`,
+          );
+        }
+        setPlaying(true);
+      },
       onPaused: () => setPlaying(false),
       onEnded: () => {
         // Lagu selesai: lanjut otomatis ke antrean berikutnya. Kalau antrean
@@ -118,6 +151,9 @@ export function App() {
     });
     audioEngine.setVolume(usePlayerStore.getState().state.volume);
   }, [setPlaying]);
+
+  // Jaga ref antrean tetap segar untuk handler audio di atas.
+  queueViewRef.current = queue.view;
 
   // Pulihkan preferensi panel kanan.
   useEffect(() => {
@@ -246,6 +282,9 @@ export function App() {
    *  terasa seperti player sungguhan, bukan satu lagu lepas. */
   /** Jalankan audio untuk satu lagu. Tidak menyentuh antrean sama sekali. */
   async function startAudio(t: Track) {
+    playStartAtRef.current = { videoId: t.videoId, at: performance.now() };
+    // Lagu berganti: prefetch berikutnya boleh dijadwalkan lagi.
+    prefetchRef.current = null;
     setTrack(t);
     setStatus("loading");
     // Riwayat dicatat di sini karena inilah titik lagu benar-benar diminta
@@ -568,7 +607,6 @@ export function App() {
             <Search
               onPlay={handlePlay}
               onQueue={(t) => void queue.add(t)}
-              onPlayNext={(t) => void queue.playNext(t)}
               onFavorite={(t) => void lib.toggleFavorite(t)}
               favoriteIds={new Set(lib.favorites.map((f) => f.videoId))}
               onAddToPlaylist={(t) => setPickTarget(t)}
@@ -596,7 +634,6 @@ export function App() {
                 void playTrackList(tracks, startIdx, srcId)
               }
               onQueue={(t) => void queue.add(t)}
-              onPlayNext={(t) => void queue.playNext(t)}
               onPickPlaylist={(t) => setPickTarget(t)}
               onRenamePlaylist={handleRenamePlaylist}
               onDeletePlaylist={handleDeletePlaylist}

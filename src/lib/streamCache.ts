@@ -52,7 +52,10 @@ export class StreamCache {
   async get(videoId: string, force = false): Promise<ResolvedStream> {
     if (!force) {
       const cached = this.entries.get(videoId);
-      if (cached && this.masihLayak(cached)) return cached.stream;
+      if (cached && this.masihLayak(cached)) {
+        console.info(`[perf] resolve_stream videoId=${videoId} source=cache ms=0`);
+        return cached.stream;
+      }
       // Buang entri yang sudah tidak layak supaya tidak menumpuk.
       if (cached) this.entries.delete(videoId);
     }
@@ -75,6 +78,26 @@ export class StreamCache {
     this.entries.delete(videoId);
   }
 
+  /**
+   * Siapkan URL lagu berikutnya di latar belakang (MVP.md Fase 1.5).
+   *
+   * Resolve memanggil yt-dlp dan memakan 1–4 detik. Kalau itu baru dimulai saat
+   * lagu berganti, ada jeda hening di antara dua lagu. Dengan menyiapkannya
+   * lebih awal — saat lagu sekarang tinggal beberapa detik — pergantian terasa
+   * langsung.
+   *
+   * Kegagalan diabaikan sepenuhnya: ini optimisasi, bukan fitur. Kalau gagal,
+   * `get` saat lagu benar-benar diputar akan mencoba lagi lewat jalur normal
+   * dan pesan errornya muncul di sana. Melempar error dari sini hanya akan
+   * memunculkan toast untuk lagu yang belum tentu diputar.
+   */
+  prefetch(videoId: string): void {
+    if (this.entries.has(videoId) || this.inflight.has(videoId)) return;
+    void this.get(videoId).catch((e) => {
+      console.info(`[perf] prefetch gagal videoId=${videoId}: ${String(e)}`);
+    });
+  }
+
   clear() {
     this.entries.clear();
   }
@@ -95,7 +118,10 @@ export class StreamCache {
   }
 
   private async resolve(videoId: string): Promise<ResolvedStream> {
+    const t0 = performance.now();
     const stream = await invoke<ResolvedStream>("resolve_stream", { videoId });
+    const ms = Math.round(performance.now() - t0);
+    console.info(`[perf] resolve_stream videoId=${videoId} source=network ms=${ms}`);
     // Jangan menyimpan URL yang sudah kedaluwarsa sejak lahir — itu akan
     // membuat setiap pemutaran berikutnya gagal juga.
     if (this.masihLayak({ stream, fetchedAt: Date.now() })) {

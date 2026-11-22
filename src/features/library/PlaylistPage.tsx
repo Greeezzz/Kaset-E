@@ -4,6 +4,7 @@ import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
 import { PlaylistArt } from "../../components/PlaylistArt";
 import { IkonPlay, IkonPause, IkonHati, IkonMenu } from "../../components/icons";
+import { AksiMenu } from "../../components/AksiMenu";
 import { EmptyState } from "../../components/EmptyState";
 import { PlaylistTable } from "./PlaylistTable";
 import { formatTotalDuration } from "../../lib/format";
@@ -35,7 +36,6 @@ interface Props {
   /** Ganti antrean dengan daftar lagu (dalam urutan tampil) mulai dari `index`. */
   onPlayTracks: (tracks: Track[], startIndex: number) => void;
   onQueue: (track: Track) => void;
-  onPlayNext: (track: Track) => void;
   onFavorite: (track: Track) => void;
   onAddToPlaylist: (track: Track) => void;
   onRemoveFromPlaylist?: (track: Track) => void;
@@ -67,7 +67,6 @@ export function PlaylistPage({
   onTogglePlay,
   onPlayTracks,
   onQueue,
-  onPlayNext,
   onFavorite,
   onAddToPlaylist,
   onRemoveFromPlaylist,
@@ -90,22 +89,6 @@ export function PlaylistPage({
     setRenameVal("");
     setSort("asli");
   }, [playlistId]);
-
-  useEffect(() => {
-    if (!menuBuka) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuBuka(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuBuka(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuBuka]);
 
   const sortedTracks = useMemo(() => {
     if (sort === "asli") return tracks;
@@ -408,74 +391,26 @@ export function PlaylistPage({
             </button>
 
             {menuBuka && (
-              <div
-                role="menu"
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 4px)",
-                  left: 0,
-                  zIndex: 30,
-                  minWidth: 180,
-                  padding: 4,
-                  background: "var(--panel)",
-                  border: "1px solid var(--line-strong)",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
-                }}
-              >
-                {onRenamePlaylist && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={mulaiRename}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "10px 12px",
-                      minHeight: 44,
-                      color: "var(--ink)",
-                      fontSize: 13,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--accent-dim)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    {T.gantiNama}
-                  </button>
-                )}
-                {onDeletePlaylist && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuBuka(false);
-                      if (confirm(T.konfirmasiHapusPlaylist(playlist.name))) {
-                        void onDeletePlaylist(playlist.id);
-                      }
-                    }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "10px 12px",
-                      minHeight: 44,
-                      color: "var(--danger)",
-                      fontSize: 13,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--accent-dim)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    {T.hapusPlaylist}
-                  </button>
-                )}
-              </div>
+              <AksiMenu
+                anchor={menuRef.current}
+                onClose={() => setMenuBuka(false)}
+                aksi={[
+                  ...(onRenamePlaylist ? [{ label: T.gantiNama, onClick: mulaiRename }] : []),
+                  ...(onDeletePlaylist
+                    ? [
+                        {
+                          label: T.hapusPlaylist,
+                          bahaya: true,
+                          onClick: () => {
+                            if (confirm(T.konfirmasiHapusPlaylist(playlist.name))) {
+                              void onDeletePlaylist(playlist.id);
+                            }
+                          },
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             )}
           </div>
         )}
@@ -567,7 +502,6 @@ export function PlaylistPage({
           onPlayFromIndex={(idx) => onPlayTracks(sortedTracks, idx)}
           onTogglePlay={onTogglePlay}
           onQueue={onQueue}
-          onPlayNext={onPlayNext}
           onFavorite={onFavorite}
           onAddToPlaylist={onAddToPlaylist}
           onRemove={onRemoveFromPlaylist}

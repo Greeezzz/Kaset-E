@@ -89,16 +89,34 @@ pub async fn resolve_stream(
     // Sekalian jamin lagunya ada di `tracks`: resolve bisa dipanggil tanpa
     // lewat pencarian (mis. queue dipulihkan saat app dibuka), dan penulisan
     // metadata YouTube yang berubah saat resolve adalah perilaku yang benar.
+    let mulai = std::time::Instant::now();
     if let Ok(t) = state.catalog().track(&video_id).await {
         if let Err(e) = crate::db::ensure_track(&state.db, &t) {
             tracing::warn!(error = %e, video_id, "gagal menyimpan metadata lagu");
         }
     }
+    let catalog_ms = mulai.elapsed().as_millis();
 
-    state
+    let mulai_resolve = std::time::Instant::now();
+    let res = state
         .resolver()
         .resolve(&video_id, quality.unwrap_or(Quality::High))
-        .await
+        .await;
+    let resolve_ms = mulai_resolve.elapsed().as_millis();
+    let total_ms = mulai.elapsed().as_millis();
+
+    // Ukur delay (MVP.md Fase 1.5): catat durasi tanpa pernah mencatat URL stream
+    // penuh (RESILIENCE.md §6).
+    tracing::info!(
+        video_id,
+        catalog_ms,
+        resolve_ms,
+        total_ms,
+        ok = res.is_ok(),
+        "resolve_stream selesai"
+    );
+
+    res
 }
 
 /// Satu entri riwayat pencarian untuk UI.

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import type { Track } from "../types";
 import { CoverArt } from "./CoverArt";
 import { formatDuration } from "../lib/format";
 import { T } from "../lib/strings";
 import { IkonMenu, IkonHati } from "./icons";
+import { AksiMenu } from "./AksiMenu";
 
 interface Props {
   track: Track;
@@ -12,8 +13,6 @@ interface Props {
   onPlay?: (track: Track) => void;
   /** Antrekan lagu ini di akhir antrean. */
   onQueue?: (track: Track) => void;
-  /** Putar lagu ini berikutnya. */
-  onPlayNext?: (track: Track) => void;
   /** Path cover lokal, diisi setelah event cover://ready (Fase 1). */
   coverPath?: string | null;
   /** Indeks urut untuk label teknis mono (opsional). */
@@ -47,7 +46,6 @@ export function TrackRow({
   active = false,
   onPlay,
   onQueue,
-  onPlayNext,
   coverPath,
   index,
   onFavorite,
@@ -61,24 +59,11 @@ export function TrackRow({
   const [fokus, setFokus] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const adaMenu = Boolean(onPlayNext ?? onQueue ?? onAddToPlaylist ?? onRemove);
+  const adaMenu = Boolean(onQueue ?? onAddToPlaylist ?? onRemove);
 
-  // Tutup menu saat klik di luar atau Escape.
-  useEffect(() => {
-    if (!menuBuka) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuBuka(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuBuka(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuBuka]);
+  // Penutupan menu (klik luar, Escape, scroll) ditangani `AksiMenu` sendiri —
+  // menduplikasinya di sini berarti dua listener bersaing menutup menu yang
+  // sama.
 
   const tampilAksi = hover || fokus || menuBuka;
 
@@ -227,83 +212,41 @@ export function TrackRow({
             </button>
 
             {menuBuka && (
-              <div
-                role="menu"
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 2px)",
-                  right: 0,
-                  zIndex: 30,
-                  minWidth: 200,
-                  padding: 4,
-                  background: "var(--panel)",
-                  border: "1px solid var(--line-strong)",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-                }}
-              >
-                {onPlayNext && (
-                  <MenuItem onClick={() => jalankan(() => onPlayNext(track))}>
-                    {T.putarBerikutnya}
-                  </MenuItem>
-                )}
-                {onQueue && (
-                  <MenuItem onClick={() => jalankan(() => onQueue(track))}>
-                    {T.tambahKeAntrean}
-                  </MenuItem>
-                )}
-                {onAddToPlaylist && (
-                  <MenuItem onClick={() => jalankan(() => onAddToPlaylist(track))}>
-                    {T.tambahKePlaylist}
-                  </MenuItem>
-                )}
-                {onRemove && (
-                  <MenuItem onClick={() => jalankan(() => onRemove(track))} bahaya>
-                    {labelHapus ?? T.hapus}
-                  </MenuItem>
-                )}
-              </div>
+              <AksiMenu
+                anchor={menuRef.current}
+                onClose={() => setMenuBuka(false)}
+                aksi={[
+                  ...(onQueue
+                    ? [
+                        {
+                          label: T.tambahKeAntrean,
+                          onClick: () => jalankan(() => onQueue(track)),
+                        },
+                      ]
+                    : []),
+                  ...(onAddToPlaylist
+                    ? [
+                        {
+                          label: T.tambahKePlaylist,
+                          onClick: () => jalankan(() => onAddToPlaylist(track)),
+                        },
+                      ]
+                    : []),
+                  ...(onRemove
+                    ? [
+                        {
+                          label: labelHapus ?? T.hapus,
+                          onClick: () => jalankan(() => onRemove(track)),
+                          bahaya: true,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             )}
           </div>
         )}
       </span>
     </div>
-  );
-}
-
-function MenuItem({
-  children,
-  onClick,
-  bahaya = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  bahaya?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        padding: "10px 12px",
-        minHeight: 40,
-        background: "transparent",
-        border: "none",
-        cursor: "pointer",
-        color: bahaya ? "var(--danger)" : "var(--ink)",
-        fontSize: 13,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--accent-dim)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {children}
-    </button>
   );
 }

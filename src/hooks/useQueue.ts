@@ -63,7 +63,6 @@ export function useQueue() {
     add: (track: Track) => run("queue_add", { track }),
     /** Tambah lagu dan langsung jadikan aktif (cursor pindah ke lagu itu). */
     playNow: (track: Track) => run("queue_play_now", { track }),
-    playNext: (track: Track) => run("queue_play_next", { track }),
     remove: (position: number) => run("queue_remove", { position }),
     move: (from: number, to: number) => run("queue_move", { from, to }),
     clear: () => run("queue_clear"),

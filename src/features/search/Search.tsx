@@ -10,7 +10,6 @@ import { useSearchSuggestions } from "./useSearchSuggestions";
 export function Search({
   onPlay,
   onQueue,
-  onPlayNext,
   onFavorite,
   favoriteIds,
   onAddToPlaylist,
@@ -20,7 +19,6 @@ export function Search({
 }: {
   onPlay: (t: Track) => void;
   onQueue: (t: Track) => void;
-  onPlayNext: (t: Track) => void;
   onFavorite: (t: Track) => void;
   /** videoId yang sudah difavoritkan, supaya hati terisi dengan benar. */
   favoriteIds: Set<string>;
@@ -197,7 +195,6 @@ export function Search({
                 active={activeVideoId === t.videoId}
                 onPlay={onPlay}
                 onQueue={onQueue}
-                onPlayNext={onPlayNext}
                 onFavorite={onFavorite}
                 favorite={favoriteIds.has(t.videoId)}
                 onAddToPlaylist={onAddToPlaylist}

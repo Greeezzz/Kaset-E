@@ -10,13 +10,13 @@ Terakhir diperbarui: commit `14e045d`, branch `main`, repo `github.com/Greeezzz/
 |------|---------|
 | Fase 0 — Fondasi | **6/6 (selesai)** |
 | Fase 1 — Desktop MVP | **35/35 (100%, selesai)** |
-| Fase 1.5 — Polish | 0/4 |
+| Fase 1.5 — Polish | **4/4 (selesai)** |
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
 | Fase 4 — Stats + Smart Shuffle | 2/8 (prasyaratnya sudah selesai) |
 | Fase 5 — Import Playlist | 0/5 |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **43/71 item (61%)** |
+| **Total** | **47/71 item (66%)** |
 
 Ukuran kode: **5.765 baris Rust + 7.962 baris TypeScript/TSX**. **104 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih.
 
@@ -43,7 +43,7 @@ Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
-## Redesign layout — 10 dari 10 langkah selesai
+## Redesign layout — 10 dari 10 langkah — SELESAI
 
 Mengikuti `DESIGN-LAYOUT.md` §10. Seluruh sepuluh langkah sudah selesai dikerjakan.
 

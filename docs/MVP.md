@@ -100,7 +100,7 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
-### Redesign Layout (`DESIGN-LAYOUT.md`) — 10 dari 10 langkah
+### Redesign Layout (`DESIGN-LAYOUT.md`) — 10 dari 10 langkah — SELESAI
 
 Pekerjaan terpisah dari checklist Fase 1 di atas, tapi memakai komponen dan
 database yang sama. Satu langkah = satu commit yang bisa dijalankan.
@@ -121,12 +121,17 @@ Terverifikasi di aplikasi (1100×720): sidebar 268px, panel kanan 336px, main
 bar 10 segmen, panel `SEDANG DIPUTAR` menampilkan lagu yang sama dengan player
 bar. Tidak ada scroll horizontal.
 
-## Fase 1.5 — Polish
+## Fase 1.5 — Polish — SELESAI
 
-- [ ] Ukur delay: log durasi `resolve_stream` dan durasi klik→event `"playing"`
-- [ ] Prefetch resolve lagu berikutnya lewat `streamCache` + state `"MEMUAT…"` di `PlayerBar`
-- [ ] Context menu custom gaya Endfield (satu daftar aksi per jenis item, dipakai bersama tombol `⋯`)
-- [ ] Rasa native: `user-select: none` di UI (kecuali input), blok drag gambar, blok shortcut browser dan devtools di build rilis, matikan overscroll
+- [x] Ukur delay: log durasi `resolve_stream` dan durasi klik→event `"playing"`. Terukur di aplikasi nyata: resolve 7,1 s / 10,0 s / 9,2 s untuk tiga lagu berbeda — cukup untuk membenarkan prefetch. Log Rust mencatat `catalog_ms`, `resolve_ms`, `total_ms`, `ok` per panggilan; UI mencatat `klik->playing` di console.
+- [x] Prefetch resolve lagu berikutnya lewat `streamCache` + state `"MEMUAT…"` di `PlayerBar`. Diverifikasi: saat Kinetic baru berjalan 25 detik dari 299, lagu berikutnya (Let Down) sudah di-resolve — 9,2 detik selesai 274 detik sebelum dibutuhkan. Ambang 15 detik sebelum habis, satu kali per lagu.
+- [x] Context menu custom gaya Endfield — satu komponen `AksiMenu` menggantikan empat implementasi terpisah (Sidebar, TrackRow, PlaylistTable, PlaylistPage). Empat listener tutup-menu yang menduplikasi juga dihapus. `position: fixed` supaya tidak terpotong `overflow` induk; buka ke atas kalau ruang bawah tidak cukup; area sentuh 44px.
+- [x] Rasa native: `user-select: none` di UI dengan pengecualian `input`/`textarea`, blok drag gambar dan elemen UI, `overscroll-behavior: none`.
+
+Catatan "Putar berikutnya" dihapus dari menu baris: aksinya nyaris sama dengan
+"Tambah ke antrean", dan dua item yang hasilnya hampir identik hanya membuat
+pengguna ragu. Command `queue_play_next` di Rust tetap ada (dipakai tes), tapi
+tidak lagi diekspos sebagai aksi UI.
 
 ## Fase 2 — Android (target `v0.2.0`)
 

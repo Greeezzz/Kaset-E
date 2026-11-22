@@ -85,7 +85,6 @@ export const T = {
   repeatOne: "REPEAT ONE",
 
   // Aksi per baris lagu
-  putarBerikutnya: "Putar berikutnya",
   tambahKeAntrean: "Tambah ke antrean",
   tambahKePlaylist: "Tambah ke playlist",
   favoritkan: "Favoritkan",

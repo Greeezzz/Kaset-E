@@ -31,7 +31,6 @@ interface Props {
     sourceId: number | "favorites" | null,
   ) => void;
   onQueue: (t: Track) => void;
-  onPlayNext: (t: Track) => void;
   onPickPlaylist: (t: Track) => void;
   onRenamePlaylist: (id: number, name: string) => Promise<void>;
   onDeletePlaylist: (id: number) => Promise<void>;
@@ -62,7 +61,6 @@ export function Library({
   onTogglePlay,
   onPlayTracks,
   onQueue,
-  onPlayNext,
   onPickPlaylist,
   onRenamePlaylist,
   onDeletePlaylist,
@@ -206,7 +204,6 @@ export function Library({
             onPlayFromIndex={(idx) => onPlayTracks(lib.history, idx, null)}
             onTogglePlay={onTogglePlay}
             onQueue={onQueue}
-            onPlayNext={onPlayNext}
             onFavorite={(t) => void lib.toggleFavorite(t)}
             onAddToPlaylist={onPickPlaylist}
           />
@@ -254,7 +251,6 @@ export function Library({
         onTogglePlay={onTogglePlay}
         onPlayTracks={(list, idx) => onPlayTracks(list, idx, sourceId)}
         onQueue={onQueue}
-        onPlayNext={onPlayNext}
         onFavorite={(t) => void lib.toggleFavorite(t)}
         onAddToPlaylist={onPickPlaylist}
         onRemoveFromPlaylist={

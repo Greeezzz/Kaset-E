@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { Route } from "../routes";
 import { T } from "../../lib/strings";
 import { PlaylistArt } from "../../components/PlaylistArt";
 import { IkonHati, IkonMenu, IkonCari, IkonPengaturan, IkonTambah } from "../../components/icons";
+import { AksiMenu } from "../../components/AksiMenu";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
 
@@ -484,24 +485,6 @@ function BarisLibrary({
 
   const adaMenu = Boolean(onToggleMenu && (onRename || onDelete));
 
-  useEffect(() => {
-    if (!menuBuka || !onToggleMenu) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onToggleMenu(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onToggleMenu(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuBuka, onToggleMenu]);
-
   const tampilMenuBtn = adaMenu && (hover || fokus || menuBuka);
 
   return (
@@ -616,93 +599,15 @@ function BarisLibrary({
           </button>
 
           {menuBuka && (
-            <div
-              role="menu"
-              style={{
-                position: "absolute",
-                top: "calc(100% - 2px)",
-                right: 4,
-                zIndex: 30,
-                minWidth: 160,
-                padding: 4,
-                background: "var(--panel)",
-                border: "1px solid var(--line-strong)",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              }}
-            >
-              {onEdit && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={onEdit}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    minHeight: 44,
-                    color: "var(--ink)",
-                    fontSize: 13,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--accent-dim)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  {T.detailCover}
-                </button>
-              )}
-              {onRename && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={onRename}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    minHeight: 44,
-                    color: "var(--ink)",
-                    fontSize: 13,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--accent-dim)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  {T.gantiNama}
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={onDelete}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    minHeight: 44,
-                    color: "var(--danger)",
-                    fontSize: 13,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--accent-dim)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  {T.hapus}
-                </button>
-              )}
-            </div>
+            <AksiMenu
+              anchor={menuRef.current?.querySelector("button") ?? null}
+              onClose={() => onToggleMenu?.(false)}
+              aksi={[
+                ...(onEdit ? [{ label: T.detailCover, onClick: onEdit }] : []),
+                ...(onRename ? [{ label: T.gantiNama, onClick: onRename }] : []),
+                ...(onDelete ? [{ label: T.hapus, onClick: onDelete, bahaya: true }] : []),
+              ]}
+            />
           )}
         </div>
       )}

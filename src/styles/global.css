@@ -24,9 +24,36 @@ body {
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  /* Desktop: UI tidak untuk di-select seperti dokumen */
+  /* Desktop: UI tidak untuk di-select seperti dokumen (MVP.md Fase 1.5). */
   user-select: none;
+  /* Matikan pantulan/geser berlebih ala halaman web. Area scroll tetap
+     berfungsi; yang hilang hanya efek "kenyal" dan gesture back/forward. */
+  overscroll-behavior: none;
   color-scheme: light dark;
+}
+
+/* Input tetap bisa di-select dan di-drag teksnya — aturan di atas hanya untuk
+   permukaan UI. Tanpa pengecualian ini, menyeleksi teks di kotak pencarian
+   jadi mustahil. */
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Gambar/cover tidak boleh ikut ter-drag seperti file: menyeret cover saat
+   ingin menggeser slider terasa seperti bug, bukan fitur. */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Seret mulai dari elemen UI tidak boleh memicu drag hantu. */
+button,
+label,
+a {
+  -webkit-user-drag: none;
 }
 
 button {
