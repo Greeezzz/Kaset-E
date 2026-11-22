@@ -51,9 +51,20 @@ export function QueuePanel({
   const currentItem = items[cursor] ?? null;
   const currentTrack = currentItem?.track ?? activeTrack;
 
-  // Baris yang sedang diputar SUDAH tampil di blok SEDANG DIPUTAR di atas.
-  // Melewati `cursor` memastikan lagu aktif tidak tampil dobel di kedua blok.
-  const berikutnya = items.map((it, pos) => ({ it, pos })).filter(({ pos }) => pos !== cursor);
+  // Hanya tampilkan lagu yang BENAR-BENAR akan diputar berikutnya (`pos > cursor`).
+  // Sebelumnya filter `pos !== cursor` ikut menampilkan lagu yang sudah lewat
+  // (`pos < cursor`) di bawah BERIKUTNYA, sehingga lagu lama muncul lagi saat
+  // di-skip dan tombol Next tampak macet di lagu terakhir.
+  // Saat `repeat === "all"`, lagu sebelum cursor ikut masuk di belakang sesuai
+  // urutan pemutaran berikutnya.
+  const setelahCursor = items.map((it, pos) => ({ it, pos })).filter(({ pos }) => pos > cursor);
+  const berikutnya =
+    repeat === "all"
+      ? [
+          ...setelahCursor,
+          ...items.map((it, pos) => ({ it, pos })).filter(({ pos }) => pos < cursor),
+        ]
+      : setelahCursor;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
@@ -241,7 +252,7 @@ export function QueuePanel({
                 {T.tidakAdaBerikutnya}
               </p>
             ) : (
-              berikutnya.map(({ it, pos }) => (
+              berikutnya.map(({ it, pos }, idx) => (
                 <div
                   key={`${pos}-${it.track.videoId}`}
                   draggable
@@ -282,7 +293,7 @@ export function QueuePanel({
                     style={{ fontSize: 10, textAlign: "right" }}
                     aria-hidden="true"
                   >
-                    {String(pos + 1).padStart(2, "0")}
+                    {String(idx + 1).padStart(2, "0")}
                   </span>
 
                   <CoverArt
