@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `5c7d35a`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `14e045d`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -10,14 +10,15 @@ Terakhir diperbarui: commit `5c7d35a`, branch `main`, repo `github.com/Greeezzz/
 |------|---------|
 | Fase 0 — Fondasi | **6/6 (selesai)** |
 | Fase 1 — Desktop MVP | **35/35 (100%, selesai)** |
+| Fase 1.5 — Polish | 0/4 |
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
 | Fase 4 — Stats + Smart Shuffle | 2/8 (prasyaratnya sudah selesai) |
 | Fase 5 — Import Playlist | 0/5 |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **43/67 item (64%)** |
+| **Total** | **43/71 item (61%)** |
 
-Ukuran kode: **5.765 baris Rust + 7.962 baris TypeScript/TSX**. **101 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 37 commit.
+Ukuran kode: **5.765 baris Rust + 7.962 baris TypeScript/TSX**. **104 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih.
 
 Kenapa naik dari 89 ke 101: `playlist_cover.rs` akhirnya masuk kompilasi (+9 tes:
 validasi magic bytes, batas ukuran, crop tengah, PNG transparan, tulis/hapus
@@ -57,7 +58,7 @@ Mengikuti `DESIGN-LAYOUT.md` §10. Seluruh sepuluh langkah sudah selesai dikerja
 | 7 | Dialog Nama & Detail + cover kustom | `2dd1ad7` | selesai |
 | 8 | Set ikon garis 1.5px | `5c7d35a` | selesai |
 | 9 | Responsif (§8) | `865bf6e` | selesai |
-| 10 | Pembersihan string dan bahasa | — | selesai |
+| 10 | Pembersihan string dan bahasa | `36af3de` | selesai |
 
 **Langkah 7 selesai, termasuk pelajaran yang tertinggal di versi sebelumnya.**
 Sempat berstatus "separuh" dengan alasan yang layak dicatat: migrasi `0004` dan

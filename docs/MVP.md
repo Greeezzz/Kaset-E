@@ -100,7 +100,7 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
-### Redesign Layout (`DESIGN-LAYOUT.md`) — 8 dari 10 langkah
+### Redesign Layout (`DESIGN-LAYOUT.md`) — 10 dari 10 langkah
 
 Pekerjaan terpisah dari checklist Fase 1 di atas, tapi memakai komponen dan
 database yang sama. Satu langkah = satu commit yang bisa dijalankan.
@@ -113,13 +113,20 @@ database yang sama. Satu langkah = satu commit yang bisa dijalankan.
 - [x] **Langkah 6** — player bar control deck: tombol play blok kuning 52px, progress bersegmen 10 bagian + tick tiap 10%. Commit `2cbc50a`.
 - [x] **Langkah 7** — dialog Nama & Detail + cover kustom. Migrasi `0004` (kolom `description`, `cover_mode`, `cover_path`), service gambar di Rust (validasi magic bytes, batas 10 MB, batas dimensi 8192, crop tengah 1:1 → 512×512 JPEG), 4 command Tauri, dialog dengan pemilih tiga mode (otomatis/upload/generatif) + pratinjau + penghitung karakter. Diverifikasi: PNG 800×600 → JPEG 512×512 10,7 KB, tampil di sidebar dan header. Commit `2dd1ad7`.
 - [x] **Langkah 8** — set ikon garis 1.5px di `src/components/icons.tsx` menggantikan semua glyph teks (`▶ ❙❙ ✕ ⏮ ⏭ 🔊 ⋯ ♥ ↺`). viewBox 24, stroke 1.5, `currentColor`, `aria-hidden`. Terverifikasi: ikon play/pause tetap 18×18 dan tombol 48×44 di kedua keadaan — glyph lama berubah ukuran saat dijeda. Commit `5c7d35a`.
-- [ ] **Langkah 9** — responsif sesuai breakpoint §8.
-- [ ] **Langkah 10** — pembersihan string dan penyeragaman bahasa.
+- [x] **Langkah 9** — responsif sesuai breakpoint §8 (4 tingkat lebar: ≥1200 tiga kolom, 900–1199 panel overlay, 600–899 sidebar rel ikon, <600 BottomNav + MiniPlayer + bottom sheet). Commit `865bf6e`.
+- [x] **Langkah 10** — pembersihan string ke `src/lib/strings.ts` dan penyeragaman bahasa Indonesia. Commit `36af3de`.
 
 Terverifikasi di aplikasi (1100×720): sidebar 268px, panel kanan 336px, main
 496 ↔ 832 saat panel dibuka/ditutup, tombol play 52×52 `rgb(255,230,0)`, seek
 bar 10 segmen, panel `SEDANG DIPUTAR` menampilkan lagu yang sama dengan player
 bar. Tidak ada scroll horizontal.
+
+## Fase 1.5 — Polish
+
+- [ ] Ukur delay: log durasi `resolve_stream` dan durasi klik→event `"playing"`
+- [ ] Prefetch resolve lagu berikutnya lewat `streamCache` + state `"MEMUAT…"` di `PlayerBar`
+- [ ] Context menu custom gaya Endfield (satu daftar aksi per jenis item, dipakai bersama tombol `⋯`)
+- [ ] Rasa native: `user-select: none` di UI (kecuali input), blok drag gambar, blok shortcut browser dan devtools di build rilis, matikan overscroll
 
 ## Fase 2 — Android (target `v0.2.0`)
 
