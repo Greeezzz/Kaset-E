@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `2dd1ad7`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `5c7d35a`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -17,7 +17,7 @@ Terakhir diperbarui: commit `2dd1ad7`, branch `main`, repo `github.com/Greeezzz/
 | Fase 6 — Login + Sync | 0/3 |
 | **Total** | **40/67 item (60%)** |
 
-Ukuran kode: **5.765 baris Rust + 7.757 baris TypeScript/TSX**. **101 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 35 commit.
+Ukuran kode: **5.765 baris Rust + 7.962 baris TypeScript/TSX**. **101 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 37 commit.
 
 Kenapa naik dari 89 ke 101: `playlist_cover.rs` akhirnya masuk kompilasi (+9 tes:
 validasi magic bytes, batas ukuran, crop tengah, PNG transparan, tulis/hapus
@@ -42,10 +42,10 @@ Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
-## Redesign layout — 7 dari 10 langkah selesai
+## Redesign layout — 8 dari 10 langkah selesai
 
-Mengikuti `DESIGN-LAYOUT.md` §10. Tujuh langkah pertama sudah ter-commit dan
-terverifikasi di aplikasi; tiga sisanya belum.
+Mengikuti `DESIGN-LAYOUT.md` §10. Delapan langkah pertama sudah ter-commit dan
+terverifikasi di aplikasi; dua sisanya belum.
 
 | Langkah | Isi | Commit | Status |
 |---|---|---|---|
@@ -56,7 +56,7 @@ terverifikasi di aplikasi; tiga sisanya belum.
 | 5 | Panel kanan dua tab: `SEDANG DIPUTAR` + `ANTREAN` | `6b7338b` | selesai |
 | 6 | Player bar control deck, progress bersegmen 10 bagian | `2cbc50a` | selesai |
 | 7 | Dialog Nama & Detail + cover kustom | `2dd1ad7` | selesai |
-| 8 | Set ikon garis 1.5px | — | belum |
+| 8 | Set ikon garis 1.5px | `5c7d35a` | selesai |
 | 9 | Responsif (§8) | — | belum |
 | 10 | Pembersihan string dan bahasa | — | belum |
 
@@ -117,7 +117,7 @@ Setelah 3 item ini, Fase 1 selesai dan `v0.1.0` bisa ditandai.
 
 - **`tracks` untuk lagu yang dipulihkan** — antrean tersimpan merujuk `video_id`; kalau barisnya hilang dari `tracks`, pemulihan gagal diam-diam dan antrean mulai kosong. Sudah ditangani sebagai warning, belum diuji dengan sengaja menghapus baris.
 - **CSP masih mengizinkan `https://*.ytimg.com`** di `img-src`. Cover sekarang selalu lewat Rust, jadi ini sisa yang bisa dihapus setelah dipastikan tidak ada jalur lain yang memakainya.
-- **Ikon masih glyph teks** — `▶ ❙❙ ✕` belum diganti set ikon garis 1.5px (langkah 8). Progress bar sudah bersegmen sejak langkah 6, jadi catatan lama soal "masih progress tipis" sudah tidak berlaku.
+- **Ikon sudah SVG, bukan glyph** — set ikon garis 1.5px di `src/components/icons.tsx` (langkah 8). Tidak ada lagi glyph teks di JSX, jadi ukuran tombol tidak berubah saat state berubah dan warna ikon mengikuti `currentColor` di kedua tema.
 
 ## Yang sudah diputuskan (jangan ditanyakan lagi)
 

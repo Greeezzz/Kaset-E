@@ -100,7 +100,7 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
-### Redesign Layout (`DESIGN-LAYOUT.md`) — 7 dari 10 langkah
+### Redesign Layout (`DESIGN-LAYOUT.md`) — 8 dari 10 langkah
 
 Pekerjaan terpisah dari checklist Fase 1 di atas, tapi memakai komponen dan
 database yang sama. Satu langkah = satu commit yang bisa dijalankan.
@@ -112,7 +112,7 @@ database yang sama. Satu langkah = satu commit yang bisa dijalankan.
 - [x] **Langkah 5** — panel kanan dua tab, `SEDANG DIPUTAR` dan `ANTREAN`. Commit `6b7338b`.
 - [x] **Langkah 6** — player bar control deck: tombol play blok kuning 52px, progress bersegmen 10 bagian + tick tiap 10%. Commit `2cbc50a`.
 - [x] **Langkah 7** — dialog Nama & Detail + cover kustom. Migrasi `0004` (kolom `description`, `cover_mode`, `cover_path`), service gambar di Rust (validasi magic bytes, batas 10 MB, batas dimensi 8192, crop tengah 1:1 → 512×512 JPEG), 4 command Tauri, dialog dengan pemilih tiga mode (otomatis/upload/generatif) + pratinjau + penghitung karakter. Diverifikasi: PNG 800×600 → JPEG 512×512 10,7 KB, tampil di sidebar dan header. Commit `2dd1ad7`.
-- [ ] **Langkah 8** — set ikon garis 1.5px menggantikan glyph `▶ ❙❙ ✕`.
+- [x] **Langkah 8** — set ikon garis 1.5px di `src/components/icons.tsx` menggantikan semua glyph teks (`▶ ❙❙ ✕ ⏮ ⏭ 🔊 ⋯ ♥ ↺`). viewBox 24, stroke 1.5, `currentColor`, `aria-hidden`. Terverifikasi: ikon play/pause tetap 18×18 dan tombol 48×44 di kedua keadaan — glyph lama berubah ukuran saat dijeda. Commit `5c7d35a`.
 - [ ] **Langkah 9** — responsif sesuai breakpoint §8.
 - [ ] **Langkah 10** — pembersihan string dan penyeragaman bahasa.
 
