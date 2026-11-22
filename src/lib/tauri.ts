@@ -101,6 +101,8 @@ const mockLib = {
     coverPath: string | null;
   }[],
   items: new Map<number, Track[]>(),
+  listenTotalMs: 0,
+  listenVids: [] as string[],
   seq: 0,
 };
 
@@ -173,6 +175,22 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       mockLib.history = [t, ...mockLib.history.filter((h) => h.videoId !== t.videoId)];
       return undefined as T;
     }
+    case "listen_record": {
+      // Mock mencatat total saja — cukup untuk menguji UI di browser tanpa Rust.
+      const d = Number(args?.deltaMs ?? 0);
+      if (d > 0) mockLib.listenTotalMs += d;
+      return undefined as T;
+    }
+    case "listen_summary":
+      return {
+        totalMs: mockLib.listenTotalMs,
+        jumlahLaguUnik: new Set(mockLib.listenVids).size,
+        jumlahPutar: mockLib.listenVids.length,
+      } as T;
+    case "listen_clear":
+      mockLib.listenTotalMs = 0;
+      mockLib.listenVids = [];
+      return 0 as T;
     case "list_history":
       return mockLib.history.slice(0, Number(args?.limit ?? 100)) as T;
     case "clear_history":

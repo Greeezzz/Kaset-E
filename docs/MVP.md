@@ -153,6 +153,10 @@ tidak lagi diekspos sebagai aksi UI.
 
 ## Fase 4 — Listen Stats + Smart Shuffle (target `v0.4.0`)
 
+Dikerjakan dalam dua tahap. **4a lebih dulu** supaya data mulai terkumpul dari
+hari pertama dipakai — layar Stats dan smart shuffle tidak ada artinya kalau
+tidak ada data untuk ditampilkan. **4b** menyusul setelah data cukup.
+
 > Detail di `FEATURES-V2.md` §1 dan §2. Mulai hanya setelah Fase 1 (queue, auto-next, re-resolve) selesai.
 
 **Prasyarat keras (blocker, sudah diuji):**
@@ -160,10 +164,28 @@ tidak lagi diekspos sebagai aksi UI.
 - [x] **Upsert lagu ke tabel `tracks` saat diputar/disimpan.** Terverifikasi pada database nyata: setelah satu pencarian, `tracks` naik 0 → 20 lagu, dan `favorites`/`history`/`queue_items`/`playlist_tracks`/`listen_events` semua lolos FK. Implementasi di `db::tracks::ensure_track*`, dipanggil dari command `search` dan `resolve_stream`.
 - [x] **Keputusan timezone.** `started_at` disimpan sebagai epoch ms (UTC); heatmap 24 jam dan streak dihitung dalam zona waktu perangkat. WIB UTC+7: mendengar 06:00 tetap masuk hari yang benar. Lihat `REVIEW-V2.md` §2.
 
-- [ ] Migrasi `0003_listen_events` + repository
-- [ ] Pencatat listen (akumulasi delta, bukan selesai-mulai) + tes
+### 4a — pencatat (SELESAI)
+
+- [x] Migrasi `0005_listen_events` + repo `db::listen`. Nomor `0005`, bukan `0003` — `0003` sudah dipakai `search_history` dan `0004` dipakai `playlist_details`. Tabel + dua indeks (`started_at`, `video_id+started_at`).
+- [x] Pencatat listen berbasis **delta**, bukan selesai-mulai. `Akumulator` murni di `db/listen.rs` (7 tes) dan kembarannya di `lib/listen.ts` untuk sisi UI — keduanya memakai kontrak yang sama: ambang seek 2 detik, flush tiap 5 detik.
+- [x] Command `listen_record`, `listen_summary`, `listen_clear` + mock browser.
+
+Diverifikasi di aplikasi nyata dengan database sungguhan, bukan mock:
+
+| Yang diuji | Hasil |
+|---|---|
+| Putar lagu 30 detik | 6 potongan, 30,3 detik tercatat |
+| Seek lompat 189 detik | total hanya naik 19,7 detik (waktu nyata sebelum seek) — seek TIDAK dihitung |
+| Pause 15 detik | 100,65 → 100,65 detik, nol bertambah |
+| Ganti lagu | 2 lagu unik tercatat, sisa lagu lama tidak hilang |
+
+Aturan yang dipegang: hanya perubahan posisi yang wajar (≤2 detik per event)
+yang dihitung. Ini yang membedakan "mendengar" dari "lagu sedang terbuka".
+
+### 4b — tampilan (belum)
+
 - [ ] Layar Stats (total waktu, top lagu/artis, play count, streak, heatmap jam)
-- [ ] Pengaturan: hapus data statistik, matikan pencatatan
+- [ ] Pengaturan: hapus data statistik, matikan pencatatan (backend `listen_stats` sudah siap)
 - [ ] Smart shuffle lokal berbobot (modul murni + tes dengan seed)
 - [ ] Toggle Shuffle biasa / Shuffle pintar
 

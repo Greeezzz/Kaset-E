@@ -36,6 +36,43 @@ pub async fn record_play(state: State<'_, AppState>, track: Track) -> AppResult<
     library::record_play(&state.db, &track)
 }
 
+/// Catat potongan waktu mendengar (Fase 4a).
+///
+/// UI mengirim delta yang sudah dihitung `Akumulator` di sisi frontend; di sini
+/// tinggal menulis. `deltaMs` <= 0 diabaikan, dan pencatatan dihormati kalau
+/// pengguna mematikannya.
+#[tauri::command]
+pub async fn listen_record(
+    state: State<'_, AppState>,
+    video_id: String,
+    delta_ms: i64,
+    started_at: i64,
+) -> AppResult<()> {
+    if !crate::db::listen::aktif(&state.db) {
+        return Ok(());
+    }
+    // FK ke `tracks`: pastikan lagunya dikenal sebelum menulis, kalau tidak
+    // insert akan gagal dan delta itu hilang diam-diam.
+    if !crate::db::tracks::track_exists(&state.db, &video_id)? {
+        return Ok(());
+    }
+    crate::db::listen::catat_delta(&state.db, &video_id, delta_ms, started_at)
+}
+
+/// Ringkasan statistik mendengar. Dipakai layar Stats (Fase 4b).
+#[tauri::command]
+pub async fn listen_summary(
+    state: State<'_, AppState>,
+) -> AppResult<crate::db::listen::Ringkasan> {
+    crate::db::listen::ringkasan(&state.db)
+}
+
+/// Hapus seluruh data statistik mendengar.
+#[tauri::command]
+pub async fn listen_clear(state: State<'_, AppState>) -> AppResult<usize> {
+    crate::db::listen::hapus_semua(&state.db)
+}
+
 #[tauri::command]
 pub async fn list_history(
     state: State<'_, AppState>,

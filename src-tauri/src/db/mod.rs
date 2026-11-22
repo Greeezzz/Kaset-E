@@ -2,6 +2,7 @@ pub mod export;
 pub mod library;
 pub(crate) mod migrations;
 pub mod playlist;
+pub mod listen;
 pub mod queue;
 pub mod search_history;
 pub mod tracks;

@@ -22,6 +22,7 @@ import {
 import { audioEngine } from "../lib/audio";
 import { useQueue, type QueueView } from "../hooks/useQueue";
 import { streamCache, bisaDipulihkan } from "../lib/streamCache";
+import { pencatatMendengar } from "../lib/listen";
 import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
 import { PlaylistDetailDialog } from "../features/library/PlaylistDetailDialog";
@@ -114,6 +115,10 @@ export function App() {
         usePlayerStore.setState((s) => ({
           state: { ...s.state, positionMs, durationMs: durationMs || s.state.durationMs },
         }));
+
+        // Catat waktu mendengar (Fase 4a). Akumulator yang memutuskan kapan
+        // menulis; di sini cuma meneruskan posisi.
+        pencatatMendengar.catat(positionMs);
 
         // Prefetch lagu berikutnya saat lagu ini tinggal ~15 detik
         // (MVP.md Fase 1.5). Resolve memakan 1-4 detik; tanpa ini ada jeda
@@ -285,6 +290,8 @@ export function App() {
     playStartAtRef.current = { videoId: t.videoId, at: performance.now() };
     // Lagu berganti: prefetch berikutnya boleh dijadwalkan lagi.
     prefetchRef.current = null;
+    // Sisa waktu lagu sebelumnya dikirim dulu supaya tidak hilang saat skip.
+    pencatatMendengar.gantiLagu(t.videoId);
     setTrack(t);
     setStatus("loading");
     // Riwayat dicatat di sini karena inilah titik lagu benar-benar diminta

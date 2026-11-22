@@ -111,6 +111,9 @@ pub fn run() {
             commands::list_favorites,
             commands::is_favorite,
             commands::record_play,
+            commands::listen_record,
+            commands::listen_summary,
+            commands::listen_clear,
             commands::list_history,
             commands::clear_history,
             commands::history_count,
@@ -174,7 +177,7 @@ mod tests {
     fn versi_skema_terakhir_tercatat() {
         let db = Db::open_in_memory().expect("buka db in-memory");
         let v = db.schema_version().expect("versi");
-        assert_eq!(v.as_deref(), Some("0004"));
+        assert_eq!(v.as_deref(), Some("0005"));
     }
 
     #[test]
