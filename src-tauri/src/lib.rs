@@ -9,6 +9,8 @@ pub mod queue;
 pub mod resolver;
 pub mod state;
 #[cfg(desktop)]
+pub mod media_keys;
+#[cfg(desktop)]
 pub mod tray;
 
 use tauri::Manager;
@@ -23,8 +25,11 @@ pub fn run() {
         )
         .init();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+
+    builder
         .setup(|app| {
             let data_dir = app
                 .path()
@@ -43,6 +48,8 @@ pub fn run() {
             if let Err(e) = tray::setup(&handle) {
                 tracing::warn!(error = %e, "gagal memasang menu tray");
             }
+            #[cfg(desktop)]
+            media_keys::setup(&handle);
 
             // Upgrade katalog dan resolver di background: jendela tidak menunggu
             // jaringan. Kalau gagal, aplikasi tetap jalan dengan mock.
