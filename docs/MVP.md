@@ -100,6 +100,27 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 
+### Redesign Layout (`DESIGN-LAYOUT.md`) — 6 dari 10 langkah
+
+Pekerjaan terpisah dari checklist Fase 1 di atas, tapi memakai komponen dan
+database yang sama. Satu langkah = satu commit yang bisa dijalankan.
+
+- [x] **Langkah 1** — bug layout yang diketahui: status `idle` tidak bocor ke layar, lagu aktif tidak dobel di daftar BERIKUTNYA, satu ikon hati + satu menu `⋯` per baris, label UI pindah ke `strings.ts`. Commit `d3dea86`.
+- [x] **Langkah 2** — kerangka grid tiga kolom dengan tiga area scroll independen; player bar tiga zona. Halaman tidak scroll sama sekali. Commit `97962f4`.
+- [x] **Langkah 3** — sidebar library: daftar playlist + Lagu Disukai + `+ BARU`, item aktif blok kuning. Commit `25e5545`.
+- [x] **Langkah 4** — halaman playlist: header, baris aksi, tabel lagu bervirtualisasi (hover, menu `⋯`, lagu aktif). Commit `8c475f5`.
+- [x] **Langkah 5** — panel kanan dua tab, `SEDANG DIPUTAR` dan `ANTREAN`. Commit `6b7338b`.
+- [x] **Langkah 6** — player bar control deck: tombol play blok kuning 52px, progress bersegmen 10 bagian + tick tiap 10%. Commit `2cbc50a`.
+- [ ] **Langkah 7** — dialog Nama & Detail + cover kustom. **SEPARUH:** migrasi `0004_playlist_details.sql` sudah dibuat dan sudah diterapkan ke database (kolom `description`, `cover_mode`, `cover_path`), service gambar `playlist_cover.rs` sudah ditulis lengkap dengan 9 unit test (validasi magic bytes, batas 10 MB, crop tengah 1:1 → 512px JPEG, nama file aman, hapus berkas) — **tapi modul itu belum didaftarkan di `lib.rs` dan crate `image` belum ada di `Cargo.toml`, jadi belum ikut dikompilasi**. Yang belum: command Tauri, UI dialog, pemilih cover.
+- [ ] **Langkah 8** — set ikon garis 1.5px menggantikan glyph `▶ ❙❙ ✕`.
+- [ ] **Langkah 9** — responsif sesuai breakpoint §8.
+- [ ] **Langkah 10** — pembersihan string dan penyeragaman bahasa.
+
+Terverifikasi di aplikasi (1100×720): sidebar 268px, panel kanan 336px, main
+496 ↔ 832 saat panel dibuka/ditutup, tombol play 52×52 `rgb(255,230,0)`, seek
+bar 10 segmen, panel `SEDANG DIPUTAR` menampilkan lagu yang sama dengan player
+bar. Tidak ada scroll horizontal.
+
 ## Fase 2 — Android (target `v0.2.0`)
 
 - [ ] Tauri Android build jalan

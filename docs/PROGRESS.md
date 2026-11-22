@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `efab204`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `2cbc50a`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -17,9 +17,13 @@ Terakhir diperbarui: commit `efab204`, branch `main`, repo `github.com/Greeezzz/
 | Fase 6 — Login + Sync | 0/3 |
 | **Total** | **40/67 item (60%)** |
 
-Ukuran kode: **4.787 baris Rust + 3.462 baris TypeScript/TSX**. **85 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 23 commit.
+Ukuran kode: **5.499 baris Rust + 7.043 baris TypeScript/TSX**. **89 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 33 commit.
 
-Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 10 tabel + `schema_migrations` (skema versi `0003`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
+Catatan: `src-tauri/src/playlist_cover.rs` berisi 9 unit test lagi, tapi file itu
+belum didaftarkan sebagai modul dan crate `image` belum ada di `Cargo.toml` —
+jadi 9 tes tersebut belum ikut berjalan. Angka 89 belum termasuk mereka.
+
+Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 10 tabel + `schema_migrations` (skema versi `0004`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
 
 ## Yang sudah benar-benar jalan (terverifikasi di aplikasi, bukan mock)
 
@@ -38,6 +42,45 @@ Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
+## Redesign layout — 6 dari 10 langkah selesai
+
+Mengikuti `DESIGN-LAYOUT.md` §10. Enam langkah pertama sudah ter-commit dan
+terverifikasi di aplikasi; empat sisanya belum.
+
+| Langkah | Isi | Commit | Status |
+|---|---|---|---|
+| 1 | Bersihkan bug layout yang diketahui, string ke `strings.ts` | `d3dea86` | selesai |
+| 2 | Kerangka grid 3 kolom, 3 area scroll independen, player bar 3 zona | `97962f4` | selesai |
+| 3 | Sidebar library: playlist + Lagu Disukai + `+ BARU` | `25e5545` | selesai |
+| 4 | Halaman playlist: header, aksi, tabel bervirtualisasi | `8c475f5` | selesai |
+| 5 | Panel kanan dua tab: `SEDANG DIPUTAR` + `ANTREAN` | `6b7338b` | selesai |
+| 6 | Player bar control deck, progress bersegmen 10 bagian | `2cbc50a` | selesai |
+| 7 | Dialog Nama & Detail + cover kustom | — | **separuh** |
+| 8 | Set ikon garis 1.5px | — | belum |
+| 9 | Responsif (§8) | — | belum |
+| 10 | Pembersihan string dan bahasa | — | belum |
+
+**Langkah 7 separuh, dan ini yang paling mudah disalahpahami.** Yang sudah ada:
+migrasi `0004_playlist_details.sql` (sudah diterapkan ke database — kolom
+`description`, `cover_mode`, `cover_path` benar-benar ada di tabel `playlists`),
+dan `src-tauri/src/playlist_cover.rs` berisi service gambar lengkap dengan 9 unit
+test (validasi magic bytes, batas 10 MB, batas dimensi 8192 untuk mencegah
+decompression bomb, crop tengah 1:1 → 512×512 JPEG kualitas 86, nama file aman,
+penghapusan berkas).
+
+Yang membuatnya belum jadi: **modul itu belum didaftarkan di `lib.rs`, dan crate
+`image` belum ditambahkan ke `Cargo.toml`.** Artinya seluruh file itu — termasuk
+9 tesnya — tidak ikut dikompilasi. Kode yang tidak dikompilasi tidak dihitung
+selesai. Sisa pekerjaan: daftarkan modul + dependensi, command Tauri
+(`playlist_cover_set`/`_clear`/`_get`), kolom baru di `db::playlist`, dan UI
+dialog Nama & Detail dengan pemilih cover tiga opsi.
+
+Terverifikasi di aplikasi 1100×720: sidebar 268px, panel kanan 336px, main
+496 ↔ 832 saat panel dibuka/ditutup, tombol play 52×52 `rgb(255,230,0)` dengan
+ikon hitam, seek bar 10 segmen setinggi 4px, panel `SEDANG DIPUTAR` menampilkan
+lagu yang persis sama dengan player bar ("Original Me" / Sān-Z & HOYO-MiX), dan
+tidak ada scroll horizontal di panel mana pun.
+
 ## Sisa Fase 1 (3 item — semua Desktop polish)
 
 Ini dikerjakan bersama redesign UI, jadi sengaja ditunda.
@@ -52,7 +95,7 @@ Setelah 3 item ini, Fase 1 selesai dan `v0.1.0` bisa ditandai.
 
 - **`tracks` untuk lagu yang dipulihkan** — antrean tersimpan merujuk `video_id`; kalau barisnya hilang dari `tracks`, pemulihan gagal diam-diam dan antrean mulai kosong. Sudah ditangani sebagai warning, belum diuji dengan sengaja menghapus baris.
 - **CSP masih mengizinkan `https://*.ytimg.com`** di `img-src`. Cover sekarang selalu lewat Rust, jadi ini sisa yang bisa dihapus setelah dipastikan tidak ada jalur lain yang memakainya.
-- **Desain lanjutan** — UI masih memakai glyph teks `▶ ❙❙ ✕`, belum set ikon garis 1.5px; PlayerBar masih progress tipis, belum "control deck" bersegmen.
+- **Ikon masih glyph teks** — `▶ ❙❙ ✕` belum diganti set ikon garis 1.5px (langkah 8). Progress bar sudah bersegmen sejak langkah 6, jadi catatan lama soal "masih progress tipis" sudah tidak berlaku.
 
 ## Yang sudah diputuskan (jangan ditanyakan lagi)
 

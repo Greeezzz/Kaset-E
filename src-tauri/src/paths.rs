@@ -24,3 +24,8 @@ pub fn data_dir() -> Option<PathBuf> {
 pub fn covers_dir() -> Option<PathBuf> {
     data_dir().map(|d| d.join("covers"))
 }
+
+/// Folder cover playlist kustom (upload): `<data_dir>/playlist_covers`.
+pub fn playlist_covers_dir() -> Option<PathBuf> {
+    data_dir().map(|d| d.join("playlist_covers"))
+}
