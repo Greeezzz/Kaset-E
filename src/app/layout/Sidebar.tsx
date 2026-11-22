@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { Route } from "../routes";
 import { T } from "../../lib/strings";
 import { PlaylistArt } from "../../components/PlaylistArt";
-import { IkonHati, IkonMenu } from "../../components/icons";
+import { IkonHati, IkonMenu, IkonCari, IkonPengaturan, IkonTambah } from "../../components/icons";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
 
-const NAV: { id: Route; label: string }[] = [
+const NAV: { id: Route; label: string; ikon: React.ReactNode }[] = [
   // Satu bahasa untuk semua label UI (DESIGN-LAYOUT bagian 7).
-  { id: "search", label: T.navCari },
-  { id: "settings", label: T.navPengaturan },
+  { id: "search", label: T.navCari, ikon: <IkonCari size={18} /> },
+  { id: "settings", label: T.navPengaturan, ikon: <IkonPengaturan size={18} /> },
 ];
 
 interface Props {
@@ -27,6 +27,12 @@ interface Props {
   onEditPlaylist: (id: number) => void;
   onRenamePlaylist: (id: number, name: string) => Promise<void>;
   onDeletePlaylist: (id: number) => Promise<void>;
+  /**
+   * Rel ikon sempit (600–899px, DESIGN-LAYOUT §8): hanya cover + ikon, tanpa
+   * judul dan metadata. Label tetap ada di `aria-label`/`title` supaya
+   * pembaca layar dan tooltip tidak kehilangan konteks.
+   */
+  rel?: boolean;
 }
 
 /**
@@ -52,6 +58,7 @@ export function Sidebar({
   onRenamePlaylist,
   onEditPlaylist,
   onDeletePlaylist,
+  rel = false,
 }: Props) {
   const diLibrary = route === "library";
 
@@ -109,27 +116,40 @@ export function Sidebar({
           flex: "0 0 auto",
         }}
       >
-        <span
-          className="mono muted"
-          style={{ fontSize: 11, letterSpacing: "0.14em" }}
-          aria-hidden="true"
-        >
-          01 /
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 18,
-            fontWeight: 600,
-            letterSpacing: "0.04em",
-            flex: 1,
-          }}
-        >
-          {T.navLibrary}
-        </span>
-        <span className="mono muted" style={{ fontSize: 11 }} aria-hidden="true">
-          {playlists.length}
-        </span>
+        {rel ? (
+          // Rel ikon: nomor bab saja, judul tidak muat dan akan terpotong.
+          <span
+            className="mono muted"
+            style={{ fontSize: 11, letterSpacing: "0.14em", margin: "0 auto" }}
+            aria-hidden="true"
+          >
+            01
+          </span>
+        ) : (
+          <>
+            <span
+              className="mono muted"
+              style={{ fontSize: 11, letterSpacing: "0.14em" }}
+              aria-hidden="true"
+            >
+              01 /
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 18,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                flex: 1,
+              }}
+            >
+              {T.navLibrary}
+            </span>
+            <span className="mono muted" style={{ fontSize: 11 }} aria-hidden="true">
+              {playlists.length}
+            </span>
+          </>
+        )}
       </div>
 
       <div
@@ -149,9 +169,14 @@ export function Sidebar({
               type="button"
               aria-current={aktif ? "page" : undefined}
               onClick={() => onNavigate(it.id)}
+              aria-label={it.label}
+              title={rel ? it.label : undefined}
               style={{
-                padding: "10px var(--s-3)",
+                padding: rel ? 0 : "10px var(--s-3)",
                 minHeight: 44,
+                minWidth: 44,
+                display: rel ? "grid" : "block",
+                placeItems: rel ? "center" : undefined,
                 textAlign: "left",
                 background: aktif ? "var(--accent)" : "transparent",
                 color: aktif ? "var(--accent-ink)" : "var(--ink)",
@@ -164,7 +189,7 @@ export function Sidebar({
                 fontWeight: aktif ? 600 : 400,
               }}
             >
-              {it.label}
+              {rel ? it.ikon : it.label}
             </button>
           );
         })}
@@ -174,14 +199,25 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => {
+            // Di rel ikon, form inline selebar 72px tidak terbaca. Langsung
+            // buat playlist lalu buka dialog Nama & Detail yang punya ruang.
+            if (rel) {
+              void onCreatePlaylist("Playlist baru");
+              return;
+            }
             setBuatBuka((b) => !b);
             setNamaBaru("");
           }}
           aria-expanded={buatBuka}
+          aria-label={T.baruPlaylist}
+          title={rel ? T.baruPlaylist : undefined}
           style={{
             marginTop: "var(--s-2)",
-            padding: "10px var(--s-3)",
+            padding: rel ? 0 : "10px var(--s-3)",
             minHeight: 44,
+            minWidth: 44,
+            display: rel ? "grid" : "block",
+            placeItems: rel ? "center" : undefined,
             textAlign: "left",
             background: "transparent",
             color: "var(--ink)",
@@ -192,10 +228,10 @@ export function Sidebar({
             cursor: "pointer",
           }}
         >
-          {T.baru}
+          {rel ? <IkonTambah size={18} /> : T.baru}
         </button>
 
-        {buatBuka && (
+        {buatBuka && !rel && (
           <form
             onSubmit={(e) => void kirimBuat(e)}
             style={{
@@ -288,6 +324,7 @@ export function Sidebar({
       >
         {/* LAGU DISUKAI: dipin di atas, cover khusus (hati), tidak bisa dihapus. */}
         <BarisLibrary
+          rel={rel}
           aktif={favoritAktif}
           judul={T.laguDisukai}
           meta={`${favorites.length} ${T.lagu}`}
@@ -379,6 +416,7 @@ export function Sidebar({
             ) : (
               <BarisLibrary
                 key={p.id}
+                rel={rel}
                 aktif={diLibrary && selectedPlaylistId === p.id}
                 sedangDiputar={playingPlaylistId === p.id}
                 judul={p.name}
@@ -417,6 +455,7 @@ function BarisLibrary({
   judul,
   meta,
   aktif,
+  rel = false,
   sedangDiputar = false,
   onClick,
   menuBuka = false,
@@ -431,6 +470,8 @@ function BarisLibrary({
   aktif: boolean;
   sedangDiputar?: boolean;
   onClick: () => void;
+  /** Rel ikon: cover saja tanpa judul/metadata (DESIGN-LAYOUT §8). */
+  rel?: boolean;
   menuBuka?: boolean;
   onToggleMenu?: (buka: boolean) => void;
   onRename?: () => void;
@@ -489,11 +530,14 @@ function BarisLibrary({
         type="button"
         onClick={onClick}
         aria-current={aktif ? "page" : undefined}
+        aria-label={rel ? judul : undefined}
+        title={rel ? judul : undefined}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "var(--s-2)",
-          padding: "6px 8px",
+          justifyContent: rel ? "center" : undefined,
+          gap: rel ? 0 : "var(--s-2)",
+          padding: rel ? 4 : "6px 8px",
           minHeight: 56,
           minWidth: 0,
           flex: 1,
@@ -505,7 +549,7 @@ function BarisLibrary({
         }}
       >
         {cover}
-        <span style={{ minWidth: 0, flex: 1 }}>
+        <span style={{ minWidth: 0, flex: 1, display: rel ? "none" : undefined }}>
           <span
             style={{
               display: "block",

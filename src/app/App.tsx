@@ -12,7 +12,13 @@ import { Search } from "../features/search/Search";
 import { Library } from "../features/library/Library";
 import { Settings } from "../features/settings/Settings";
 import { usePlayerStore } from "../stores/playerStore";
-import { useMediaQuery } from "../hooks/useMediaQuery";
+import {
+  useBreakpoint,
+  adaSidebar,
+  panelOverlay,
+  panelSheet,
+  adaPlayerBar,
+} from "../hooks/useBreakpoint";
 import { audioEngine } from "../lib/audio";
 import { useQueue, type QueueView } from "../hooks/useQueue";
 import { streamCache, bisaDipulihkan } from "../lib/streamCache";
@@ -70,7 +76,14 @@ export function App() {
   // Handler pemulihan, sama seperti onEnded: disimpan di ref supaya effect
   // audio tidak dipasang ulang setiap render.
   const onAudioErrorRef = useRef<(msg: string, code: number | null) => void>(() => {});
-  const isWide = useMediaQuery("(min-width: 900px)");
+  // Empat tingkat lebar (DESIGN-LAYOUT §8). `isWide` dipertahankan sebagai
+  // turunan supaya kode lama yang memakainya tidak perlu diubah semua — tapi
+  // keputusan baru harus membaca `bp`.
+  const bp = useBreakpoint();
+  const isWide = adaSidebar(bp);
+  const sidebarRel = bp === "rel";
+  const overlayPanel = panelOverlay(bp);
+  const sheetPanel = panelSheet(bp);
 
   function notifyError(message: string) {
     setToast(message);
@@ -486,9 +499,15 @@ export function App() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: isWide
-            ? `var(--sidebar-w) minmax(0, 1fr)${queueOpen ? " var(--queue-w)" : ""}`
-            : "minmax(0, 1fr)",
+          // Panel kanan hanya jadi KOLOM di layar ≥1200px. Di bawah itu ia
+          // menimpa (overlay) — menyempitkan tengahnya membuat daftar lagu
+          // terlalu sempit untuk dibaca (DESIGN-LAYOUT §8).
+          gridTemplateColumns: !isWide
+            ? "minmax(0, 1fr)"
+            : `var(${sidebarRel ? "--sidebar-rel-w" : "--sidebar-w"}) minmax(0, 1fr)${
+                queueOpen && !overlayPanel ? " var(--queue-w)" : ""
+              }`,
+          position: overlayPanel ? "relative" : undefined,
           flex: 1,
           minHeight: 0,
           overflow: "hidden",
@@ -496,6 +515,7 @@ export function App() {
       >
         {isWide && (
           <Sidebar
+            rel={sidebarRel}
             route={route}
             onNavigate={setRoute}
             playlists={lib.playlists}
@@ -568,30 +588,81 @@ export function App() {
           )}
         </main>
 
-        {isWide && queueOpen && (
-          <RightPanel
-            tab={rightTab}
-            onTabChange={setRightTab}
-            onClose={closeRightPanel}
-            playerState={state}
-            view={queue.view}
-            onPlayIndex={(pos) => void playQueueIndex(pos)}
-            onRemove={(pos) => void queue.remove(pos)}
-            onMove={(from, to) => void queue.move(from, to)}
-            onClear={() => {
-              audioEngine.pause();
-              loadedVideoIdRef.current = null;
-              setTrack(null);
-              setPlayingSourceId(null);
-              void queue.clear();
-            }}
-            onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
-            onCycleRepeat={cycleRepeat}
-          />
+        {queueOpen && (isWide || sheetPanel) && (
+          <>
+            {/* Bottom sheet (<600px): latar gelap menutup panel saat diketuk. */}
+            {sheetPanel && (
+              <div
+                onClick={closeRightPanel}
+                aria-hidden="true"
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.5)",
+                  zIndex: 44,
+                }}
+              />
+            )}
+            {/* Panel kanan: kolom grid di ≥1200px; overlay di 600–1199px;
+                bottom sheet di <600px (DESIGN-LAYOUT §8). Pembungkus ini
+                memastikan panel overlay tidak menjadi item grid implisit. */}
+            <div
+              style={
+                sheetPanel
+                  ? {
+                      position: "fixed",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: "70vh",
+                      zIndex: 45,
+                      display: "flex",
+                      flexDirection: "column",
+                      minHeight: 0,
+                      borderTop: "1px solid var(--line-strong)",
+                    }
+                  : overlayPanel
+                    ? {
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: "var(--queue-w)",
+                        maxWidth: "100%",
+                        zIndex: 25,
+                        display: "flex",
+                        flexDirection: "column",
+                        minHeight: 0,
+                        boxShadow: "-8px 0 24px rgba(0,0,0,0.25)",
+                      }
+                    : { display: "flex", flexDirection: "column", minHeight: 0 }
+              }
+            >
+              <RightPanel
+                tab={rightTab}
+                onTabChange={setRightTab}
+                onClose={closeRightPanel}
+                playerState={state}
+                view={queue.view}
+                onPlayIndex={(pos) => void playQueueIndex(pos)}
+                onRemove={(pos) => void queue.remove(pos)}
+                onMove={(from, to) => void queue.move(from, to)}
+                onClear={() => {
+                  audioEngine.pause();
+                  loadedVideoIdRef.current = null;
+                  setTrack(null);
+                  setPlayingSourceId(null);
+                  void queue.clear();
+                }}
+                onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
+                onCycleRepeat={cycleRepeat}
+              />
+            </div>
+          </>
         )}
       </div>
 
-      {isWide ? (
+      {adaPlayerBar(bp) ? (
         <PlayerBar
           state={state}
           onToggle={togglePlay}
@@ -611,7 +682,7 @@ export function App() {
           onOpen={() => setRoute("queue")}
         />
       )}
-      {!isWide && <BottomNav route={route} onNavigate={setRoute} />}
+      {!adaPlayerBar(bp) && <BottomNav route={route} onNavigate={setRoute} />}
 
       {/* Toast untuk error ringan (DESIGN.md §5): tidak memblokir UI. */}
       {detailId !== null &&

@@ -23,6 +23,7 @@ export const T = {
   gantiNama: "GANTI NAMA",
   detailCover: "DETAIL & COVER",
   baru: "+ BARU",
+  baruPlaylist: "Playlist baru",
   memuat: "MEMUAT…",
   gagal: "GAGAL",
   standby: "STANDBY",

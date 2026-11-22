@@ -95,6 +95,8 @@
 
   /* Layout (DESIGN-LAYOUT bagian 1) */
   --sidebar-w: 268px;
+  /* 600-899px: sidebar menyempit jadi rel ikon (DESIGN-LAYOUT §8). */
+  --sidebar-rel-w: 72px;
   --queue-w: 336px;
   --playerbar-h: 88px;
   --bottomnav-h: 56px;
