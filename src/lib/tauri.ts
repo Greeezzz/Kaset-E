@@ -422,6 +422,69 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     case "setting_set":
       mockSettings.set(String(args?.key), String(args?.value));
       return undefined as T;
+    case "export_library": {
+      const backup = {
+        version: 1,
+        exportedAt: Date.now(),
+        favorites: mockLib.favorites,
+        playlists: mockLib.playlists.map((p) => ({
+          name: p.name,
+          description: p.description,
+          tracks: mockLib.items.get(p.id) ?? [],
+        })),
+      };
+      return JSON.stringify(backup, null, 2) as T;
+    }
+    case "import_library": {
+      const raw = String(args?.json ?? "");
+      const parsed = JSON.parse(raw) as {
+        version?: number;
+        favorites?: Track[];
+        playlists?: { name: string; description?: string | null; tracks?: Track[] }[];
+      };
+      if (parsed.version !== 1) throw new Error("versi cadangan tidak didukung");
+      let favoritesAdded = 0;
+      let playlistsCreated = 0;
+      let tracksAdded = 0;
+      for (const f of parsed.favorites ?? []) {
+        if (!mockLib.favorites.some((x) => x.videoId === f.videoId)) {
+          mockLib.favorites.push(f);
+          favoritesAdded++;
+        }
+      }
+      for (const ep of parsed.playlists ?? []) {
+        const name = ep.name?.trim();
+        if (!name) continue;
+        let pl = mockLib.playlists.find((p) => p.name === name);
+        if (!pl) {
+          pl = {
+            id: ++mockLib.seq,
+            name,
+            trackCount: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            coverKeys: [],
+            description: ep.description ?? null,
+            coverMode: "auto",
+            coverPath: null,
+          };
+          mockLib.playlists.unshift(pl);
+          mockLib.items.set(pl.id, []);
+          playlistsCreated++;
+        }
+        const list = mockLib.items.get(pl.id) ?? [];
+        for (const t of ep.tracks ?? []) {
+          if (!list.some((x) => x.videoId === t.videoId)) {
+            list.push(t);
+            tracksAdded++;
+          }
+        }
+        mockLib.items.set(pl.id, list);
+        pl.trackCount = list.length;
+        pl.coverKeys = list.slice(0, 4).map((x) => x.coverKey);
+      }
+      return { favoritesAdded, playlistsCreated, tracksAdded } as T;
+    }
     default:
       return null as T;
   }

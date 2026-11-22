@@ -1,3 +1,4 @@
+pub mod export;
 pub mod library;
 pub(crate) mod migrations;
 pub mod playlist;

@@ -1,17 +1,69 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke, runningInTauri } from "../../lib/tauri";
 import { currentTheme, setTheme, type Theme } from "../../lib/theme";
 import { T } from "../../lib/strings";
 
+interface ImportReport {
+  favoritesAdded: number;
+  playlistsCreated: number;
+  tracksAdded: number;
+}
+
 /**
  * Settings. Fase 1: menampilkan status katalog (nyata vs mock) supaya user tahu
- * apakah pencarian sudah mengambil data sungguhan atau masih contoh.
+ * apakah pencarian sudah mengambil data sungguhan atau masih contoh, serta
+ * ekspor/impor JSON library.
  */
-export function Settings() {
+export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }) {
   const [catalogLive, setCatalogLive] = useState<boolean | null>(null);
   const [trackCount, setTrackCount] = useState<number | null>(null);
   const [theme, setThemeState] = useState<Theme>(() => currentTheme());
   const [resolverLive, setResolverLive] = useState<boolean | null>(null);
+  const [backupMsg, setBackupMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function ekspor() {
+    setBackupBusy(true);
+    setBackupMsg(null);
+    try {
+      const json = await invoke<string>("export_library");
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const tanggal = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `kaset-library-${tanggal}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setBackupMsg({ text: T.eksporBerhasil });
+    } catch {
+      setBackupMsg({ text: T.eksporGagal, error: true });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function impor(file: File) {
+    setBackupBusy(true);
+    setBackupMsg(null);
+    try {
+      const json = await file.text();
+      const rep = await invoke<ImportReport>("import_library", { json });
+      setBackupMsg({
+        text: T.imporHasil(rep.favoritesAdded, rep.playlistsCreated, rep.tracksAdded),
+      });
+      onLibraryChanged?.();
+    } catch (err) {
+      const msg =
+        err && typeof err === "object" && "message" in err && typeof err.message === "string"
+          ? err.message
+          : T.imporGagal;
+      setBackupMsg({ text: msg, error: true });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!runningInTauri) {
@@ -155,6 +207,72 @@ export function Settings() {
 
         <dt className="muted">{T.pengaturanData}</dt>
         <dd style={{ margin: 0 }}>{T.dataLokal}</dd>
+
+        <dt className="muted">{T.pengaturanCadangan}</dt>
+        <dd style={{ margin: 0 }}>
+          <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={backupBusy}
+              onClick={() => void ekspor()}
+              style={{
+                minHeight: 44,
+                padding: "0 var(--s-3)",
+                border: "1px solid var(--line-strong)",
+                background: "transparent",
+                color: "var(--ink)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+              }}
+            >
+              {T.eksporJson}
+            </button>
+            <button
+              type="button"
+              disabled={backupBusy}
+              onClick={() => importInputRef.current?.click()}
+              style={{
+                minHeight: 44,
+                padding: "0 var(--s-3)",
+                border: "1px solid var(--line-strong)",
+                background: "transparent",
+                color: "var(--ink)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+              }}
+            >
+              {T.imporJson}
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void impor(f);
+              }}
+            />
+          </div>
+          <span className="muted" style={{ display: "block", fontSize: 13, marginTop: 6 }}>
+            {T.cadanganHint}
+          </span>
+          {backupMsg && (
+            <p
+              role={backupMsg.error ? "alert" : "status"}
+              style={{
+                margin: "6px 0 0",
+                fontSize: 13,
+                color: backupMsg.error ? "var(--danger)" : "var(--ok)",
+              }}
+            >
+              {backupMsg.text}
+            </p>
+          )}
+        </dd>
       </dl>
 
       <p className="muted" style={{ marginTop: "var(--s-6)", fontSize: 13 }}>

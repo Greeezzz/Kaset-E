@@ -9,13 +9,13 @@ Terakhir diperbarui: commit `5c7d35a`, branch `main`, repo `github.com/Greeezzz/
 | Fase | Selesai |
 |------|---------|
 | Fase 0 — Fondasi | **6/6 (selesai)** |
-| Fase 1 — Desktop MVP | **32/35 (91%, sedang dikerjakan)** |
+| Fase 1 — Desktop MVP | **35/35 (100%, selesai)** |
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
 | Fase 4 — Stats + Smart Shuffle | 2/8 (prasyaratnya sudah selesai) |
 | Fase 5 — Import Playlist | 0/5 |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **40/67 item (60%)** |
+| **Total** | **43/67 item (64%)** |
 
 Ukuran kode: **5.765 baris Rust + 7.962 baris TypeScript/TSX**. **101 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 37 commit.
 

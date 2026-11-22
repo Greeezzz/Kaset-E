@@ -603,7 +603,7 @@ export function App() {
               onGoSearch={() => setRoute("search")}
             />
           )}
-          {route === "settings" && <Settings />}
+          {route === "settings" && <Settings onLibraryChanged={() => void lib.refreshAll()} />}
           {/* Mobile: tap mini player membuka layar penuh (DESIGN.md §3).
               Tanpa cabang ini, route 'queue' akan merender layar kosong. */}
           {route === "queue" && (

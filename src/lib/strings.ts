@@ -177,6 +177,16 @@ export const T = {
   temaGelap: "Terminal Malam",
   pengaturanData: "Data",
   dataLokal: "Lokal saja — tanpa server, tanpa telemetri.",
+  pengaturanCadangan: "Cadangan",
+  eksporJson: "EKSPOR JSON",
+  imporJson: "IMPOR JSON",
+  eksporBerhasil: "Cadangan JSON berhasil diunduh.",
+  eksporGagal: "Gagal mengekspor library.",
+  imporGagal: "Gagal mengimpor berkas JSON.",
+  imporHasil: (fav: number, pl: number, tr: number) =>
+    `Impor selesai: ${fav} favorit baru, ${pl} playlist baru, ${tr} lagu ditambahkan.`,
+  cadanganHint:
+    "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",
   disclaimer:
     "Kaset adalah proyek pribadi/edukasi dan tidak berafiliasi dengan Google atau YouTube.",
 } as const;

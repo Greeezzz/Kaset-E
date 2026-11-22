@@ -90,13 +90,13 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 - [x] History (catat + tampilkan daftar)
 
 **Desktop polish**
-- [ ] Media key lewat plugin global-shortcut — plugin belum terpasang
-- [ ] Tray icon (monokrom) + menu dasar — `trayIcon` ada di `tauri.conf.json` dan fitur `tray-icon` aktif, tapi belum ada menu/handler di Rust
-- [ ] Export/import JSON library
+- [x] Media key lewat plugin `tauri-plugin-global-shortcut` (`MediaPlayPause`, `MediaTrackNext`, `MediaTrackPrevious`, khusus `#[cfg(desktop)]`)
+- [x] Tray icon (monokrom) + menu dasar (`Buka Kaset`, `Putar / Jeda`, `Berikutnya`, `Sebelumnya`, `Keluar`, klik kiri fokus jendela)
+- [x] Export/import JSON library (`export_library`, `import_library` non-destruktif + UI di Pengaturan)
 
 **Kriteria selesai Fase 1:** bisa dipakai seharian di desktop tanpa iklan, queue dan playlist tersimpan setelah app ditutup.
 
-**Status Fase 1: 32/35 item (91%).** Sisa 3 item, semuanya Desktop polish: media key, tray menu, export/import JSON.
+**Status Fase 1: 35/35 item (100% — SELESAI).** Target `v0.1.0` siap ditandai.
 
 **Desain Endfield sudah jalan** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam). Ini tidak masuk checklist di atas karena `DESIGN-ENDFIELD.md` menggantikan arah visual lama; dicatat di sini supaya tidak dikira belum dikerjakan.
 

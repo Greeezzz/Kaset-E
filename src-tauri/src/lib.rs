@@ -126,6 +126,8 @@ pub fn run() {
             commands::add_to_playlist,
             commands::remove_from_playlist,
             commands::play_playlist,
+            commands::export_library,
+            commands::import_library,
         ])
         .run(tauri::generate_context!())
         .expect("gagal menjalankan Kaset");

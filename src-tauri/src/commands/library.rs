@@ -252,3 +252,16 @@ pub async fn play_playlist(
         crate::commands::queue::view(q)
     }))
 }
+
+#[tauri::command]
+pub async fn export_library(state: State<'_, AppState>) -> AppResult<String> {
+    crate::db::export::export_json(&state.db)
+}
+
+#[tauri::command]
+pub async fn import_library(
+    state: State<'_, AppState>,
+    json: String,
+) -> AppResult<crate::db::export::ImportReport> {
+    crate::db::export::import_json(&state.db, &json)
+}
