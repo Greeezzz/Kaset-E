@@ -21,6 +21,7 @@ export const T = {
   simpan: "SIMPAN",
   hapus: "HAPUS",
   gantiNama: "GANTI NAMA",
+  detailCover: "DETAIL & COVER",
   baru: "+ BARU",
   memuat: "MEMUAT…",
   gagal: "GAGAL",

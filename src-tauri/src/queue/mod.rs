@@ -182,6 +182,25 @@ impl QueueManager {
         item_idx
     }
 
+    /// Tambah lagu ke akhir antrean **dan langsung jadikan lagu aktif**.
+    ///
+    /// Ini yang dipakai saat pengguna mengklik lagu di Search. `add` saja tidak
+    /// cukup: cursor tetap menunjuk lagu sebelumnya, sehingga panel antrean
+    /// menampilkan lagu lama sebagai "sedang diputar" padahal yang berbunyi
+    /// sudah lagu baru. Itu bug nyata — dua tempat membaca keadaan berbeda.
+    pub fn add_and_play(&mut self, track: Track) -> usize {
+        self.add(track);
+        let item_idx = self.items.len() - 1;
+        // `add` menaruh lagu baru di akhir saat shuffle mati, tapi menyisipkannya
+        // acak saat shuffle hidup — jadi posisinya dicari, bukan diasumsikan
+        // "selalu terakhir". `add` selalu memasukkan item ke `order`, jadi
+        // pencarian ini tidak pernah gagal.
+        if let Some(pos) = self.order.iter().position(|&i| i == item_idx) {
+            self.cursor = pos;
+        }
+        item_idx
+    }
+
     /// Sisipkan segera setelah lagu yang sedang diputar.
     ///
     /// Kalau antrean kosong, perilakunya sama dengan `add`.
@@ -489,6 +508,49 @@ mod tests {
         q.play_next(track("solo"));
         assert_eq!(ids(&q), vec!["solo"]);
         assert_eq!(q.current().unwrap().track.video_id, "solo");
+    }
+
+    /// Regresi: mengklik lagu baru saat antrean sudah berisi lagu lain harus
+    /// memindahkan lagu aktif, bukan hanya menambah di belakang.
+    ///
+    /// Bug aslinya: `add` hanya menyetel cursor kalau antrean tadinya kosong.
+    /// Akibatnya memutar "Let Down" saat "Original Me" ada di antrean membuat
+    /// panel antrean tetap menulis "Original Me" sebagai sedang diputar padahal
+    /// yang berbunyi sudah "Let Down".
+    #[test]
+    fn add_and_play_memindahkan_lagu_aktif() {
+        let mut q = QueueManager::new(1);
+        q.add(track("original"));
+        q.add_and_play(track("letdown"));
+
+        assert_eq!(ids(&q), vec!["original", "letdown"]);
+        assert_eq!(q.current().unwrap().track.video_id, "letdown");
+    }
+
+    /// Saat antrean masih kosong, `add_and_play` sama hasilnya dengan `add`.
+    #[test]
+    fn add_and_play_pada_antrean_kosong_menunjuk_lagu_pertama() {
+        let mut q = QueueManager::new(1);
+        q.add_and_play(track("solo"));
+        assert_eq!(ids(&q), vec!["solo"]);
+        assert_eq!(q.current().unwrap().track.video_id, "solo");
+    }
+
+    /// Dengan shuffle hidup, lagu baru disisipkan acak — bukan di akhir. Cursor
+    /// tetap harus menunjuk lagu itu, karena posisinya tidak bisa diasumsikan.
+    #[test]
+    fn add_and_play_dengan_shuffle_tetap_menunjuk_lagu_baru() {
+        let mut q = QueueManager::new(7);
+        for i in 0..6 {
+            q.add(track(&format!("l{i}")));
+        }
+        q.set_shuffle(true);
+        q.add_and_play(track("baru"));
+
+        assert_eq!(q.current().unwrap().track.video_id, "baru");
+        // Dan cursor menunjuk posisi yang benar di urutan pemutaran.
+        let urut = ids(&q);
+        assert_eq!(urut[q.cursor()], "baru");
     }
 
     #[test]

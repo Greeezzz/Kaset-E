@@ -93,6 +93,9 @@ const mockLib = {
     createdAt: number;
     updatedAt: number;
     coverKeys: string[];
+    description: string | null;
+    coverMode: "auto" | "custom" | "generative";
+    coverPath: string | null;
   }[],
   items: new Map<number, Track[]>(),
   seq: 0,
@@ -184,6 +187,9 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         createdAt: Date.now(),
         updatedAt: Date.now(),
         coverKeys: [] as string[],
+        description: null as string | null,
+        coverMode: "auto" as const,
+        coverPath: null as string | null,
       };
       mockLib.playlists.unshift(p);
       mockLib.items.set(p.id, []);
@@ -196,6 +202,41 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         p.updatedAt = Date.now();
       }
       return p as T;
+    }
+    case "playlist_update_details": {
+      const p = mockLib.playlists.find((x) => x.id === Number(args?.id));
+      if (p) {
+        if (args?.name !== undefined) p.name = String(args.name);
+        if (args?.description !== undefined)
+          p.description = args.description === null ? null : String(args.description);
+        if (args?.coverMode !== undefined) p.coverMode = args.coverMode as typeof p.coverMode;
+        p.updatedAt = Date.now();
+      }
+      return p as T;
+    }
+    case "playlist_cover_set": {
+      // Mock tidak memproses gambar: cukup tandai mode custom supaya UI bisa
+      // diuji alurnya di browser tanpa Rust.
+      const p = mockLib.playlists.find((x) => x.id === Number(args?.id));
+      if (p) {
+        p.coverMode = "custom";
+        p.coverPath = `mock-${p.id}.jpg`;
+        p.updatedAt = Date.now();
+      }
+      return p as T;
+    }
+    case "playlist_cover_clear": {
+      const p = mockLib.playlists.find((x) => x.id === Number(args?.id));
+      if (p) {
+        p.coverMode = "auto";
+        p.coverPath = null;
+        p.updatedAt = Date.now();
+      }
+      return p as T;
+    }
+    case "playlist_cover_path": {
+      const p = mockLib.playlists.find((x) => x.id === Number(args?.id));
+      return (p?.coverPath ?? null) as T;
     }
     case "delete_playlist": {
       const id = Number(args?.id);
@@ -248,6 +289,17 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         track: t,
         originalOrder: mockQueue.items.length,
       });
+      return mockQueue.view() as T;
+    }
+    case "queue_play_now": {
+      // Sama seperti Rust: tambah, lalu pindahkan cursor ke lagu itu.
+      const t = args?.track as Track;
+      mockQueue.items.push({
+        position: mockQueue.items.length,
+        track: t,
+        originalOrder: mockQueue.items.length,
+      });
+      mockQueue.cursor = mockQueue.items.length - 1;
       return mockQueue.view() as T;
     }
     case "queue_play_next": {

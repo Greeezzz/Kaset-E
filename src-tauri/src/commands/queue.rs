@@ -55,6 +55,22 @@ pub async fn queue_add(state: State<'_, AppState>, track: Track) -> AppResult<Qu
     }))
 }
 
+/// Tambah lagu **dan langsung jadikan aktif** — dipakai saat pengguna mengklik
+/// lagu dari Search atau daftar mana pun.
+///
+/// Bedanya dengan `queue_add`: `add` tidak memindahkan cursor kecuali antrean
+/// tadinya kosong. Akibatnya panel antrean tetap menampilkan lagu lama sebagai
+/// "sedang diputar" padahal audio sudah memutar lagu baru. Command ini menutup
+/// celah itu di sisi Rust, bukan dengan menambal state di UI.
+#[tauri::command]
+pub async fn queue_play_now(state: State<'_, AppState>, track: Track) -> AppResult<QueueView> {
+    ensure(&state, &track)?;
+    Ok(state.with_queue(|q| {
+        q.add_and_play(track);
+        view(q)
+    }))
+}
+
 /// Sisipkan lagu tepat setelah lagu yang sedang diputar.
 #[tauri::command]
 pub async fn queue_play_next(state: State<'_, AppState>, track: Track) -> AppResult<QueueView> {

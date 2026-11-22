@@ -18,6 +18,7 @@ import { useQueue, type QueueView } from "../hooks/useQueue";
 import { streamCache, bisaDipulihkan } from "../lib/streamCache";
 import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
+import { PlaylistDetailDialog } from "../features/library/PlaylistDetailDialog";
 
 /** Ambil pesan ramah dari error Tauri (yang datang sebagai objek {message, permanent}). */
 function errMessage(err: unknown, fallback: string): string {
@@ -50,6 +51,10 @@ export function App() {
   const lib = useLibrary();
   // Lagu yang sedang dipilih untuk dimasukkan ke playlist (null = dialog tutup).
   const [pickTarget, setPickTarget] = useState<Track | null>(null);
+  // Dialog Nama & Detail: null = tertutup, angka = playlist yang diedit.
+  // `true` di state kedua menandai playlist baru (judul dialog berbeda).
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [detailBaru, setDetailBaru] = useState(false);
   // Handler "lagu habis" disimpan di ref supaya effect audio tidak perlu
   // dipasang ulang setiap render (dan tidak menangkap state basi).
   const onEndedRef = useRef<() => void>(() => {});
@@ -274,7 +279,11 @@ export function App() {
     if (pos >= 0) {
       if (pos !== queue.view.cursor) await queue.jump(pos);
     } else {
-      await queue.add(t);
+      // Lagu belum ada di antrean: tambahkan SEKALIGUS jadikan aktif.
+      // `queue.add` saja tidak memindahkan cursor, jadi panel antrean akan
+      // tetap menampilkan lagu lama sebagai "sedang diputar" sementara audio
+      // sudah memutar lagu baru.
+      await queue.playNow(t);
     }
     setPlayingSourceId(null);
     await startAudio(t);
@@ -369,12 +378,21 @@ export function App() {
     setRoute("library");
   }
 
-  async function handleCreatePlaylist(name: string) {
+  /**
+   * Buat playlist lalu langsung buka dialog detailnya.
+   *
+   * Playlist baru dibuat dengan nama sementara karena dialog bisa dibatalkan —
+   * kalau batal dan playlist dibuang, pengguna tidak melihat playlist kosong
+   * bernama "Playlist baru" menumpuk di sidebar.
+   */
+  async function handleCreatePlaylist() {
     try {
-      const p = await lib.createPlaylist(name);
+      const p = await lib.createPlaylist("Playlist baru");
       setSelectedPlaylistId(p.id);
       setLibTab("Playlist");
       setRoute("library");
+      setDetailBaru(true);
+      setDetailId(p.id);
     } catch (err) {
       notifyError(errMessage(err, "Gagal membuat playlist"));
     }
@@ -492,6 +510,10 @@ export function App() {
             onSelectFavorites={handleSelectFavorites}
             onCreatePlaylist={handleCreatePlaylist}
             onRenamePlaylist={handleRenamePlaylist}
+            onEditPlaylist={(id) => {
+              setDetailBaru(false);
+              setDetailId(id);
+            }}
             onDeletePlaylist={handleDeletePlaylist}
           />
         )}
@@ -592,6 +614,23 @@ export function App() {
       {!isWide && <BottomNav route={route} onNavigate={setRoute} />}
 
       {/* Toast untuk error ringan (DESIGN.md §5): tidak memblokir UI. */}
+      {detailId !== null &&
+        (() => {
+          const pl = lib.playlists.find((p) => p.id === detailId);
+          if (!pl) return null;
+          return (
+            <PlaylistDetailDialog
+              playlist={pl}
+              baru={detailBaru}
+              onClose={() => {
+                setDetailId(null);
+                setDetailBaru(false);
+              }}
+              onSaved={() => void lib.refreshPlaylists()}
+            />
+          );
+        })()}
+
       {pickTarget && (
         <PlaylistPicker
           track={pickTarget}

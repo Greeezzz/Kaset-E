@@ -31,6 +31,12 @@ pub struct Playlist {
     /// dengan 30 playlist berarti 30 query tambahan sebelum sidebar selesai
     /// dirender.
     pub cover_keys: Vec<String>,
+    /// Deskripsi bebas (maks 200 karakter di UI). NULL = tidak ada deskripsi.
+    pub description: Option<String>,
+    /// `auto` (mosaik), `custom` (upload), atau `generative` (placeholder).
+    pub cover_mode: String,
+    /// Nama file relatif di `<data_dir>/playlist_covers/`, bukan path absolut.
+    pub cover_path: Option<String>,
 }
 
 pub fn create(db: &crate::db::Db, name: &str) -> AppResult<Playlist> {
@@ -48,6 +54,9 @@ pub fn create(db: &crate::db::Db, name: &str) -> AppResult<Playlist> {
             created_at: now,
             updated_at: now,
             cover_keys: Vec::new(),
+            description: None,
+            cover_mode: "auto".to_string(),
+            cover_path: None,
         })
     })
 }
@@ -81,6 +90,49 @@ pub fn delete(db: &crate::db::Db, id: i64) -> AppResult<()> {
     })
 }
 
+/// Perbarui nama, deskripsi, mode cover, dan/atau nama file cover.
+///
+/// Semua argumen opsional: `None` berarti "jangan ubah". Ini menghindari UI
+/// harus mengirim ulang semua field hanya untuk mengganti satu.
+///
+/// `cover_path` sengaja menerima `Option<Option<String>>` supaya bisa
+/// membedakan "jangan sentuh" (`None`) dari "kosongkan" (`Some(None)`).
+pub fn update_details(
+    db: &crate::db::Db,
+    id: i64,
+    name: Option<&str>,
+    description: Option<Option<&str>>,
+    cover_mode: Option<&str>,
+    cover_path: Option<Option<&str>>,
+) -> AppResult<()> {
+    let now = now_ms();
+    db.with(|c| {
+        let n = c.execute(
+            "UPDATE playlists SET
+                name        = COALESCE(?1, name),
+                description = CASE WHEN ?2 THEN ?3 ELSE description END,
+                cover_mode  = COALESCE(?4, cover_mode),
+                cover_path  = CASE WHEN ?5 THEN ?6 ELSE cover_path END,
+                updated_at  = ?7
+             WHERE id = ?8",
+            params![
+                name,
+                description.is_some(),
+                description.flatten(),
+                cover_mode,
+                cover_path.is_some(),
+                cover_path.flatten(),
+                now,
+                id
+            ],
+        )?;
+        if n == 0 {
+            return Err(AppError::NotFound(format!("playlist {id} tidak ada")));
+        }
+        Ok(())
+    })
+}
+
 fn cover_keys_for(c: &rusqlite::Connection, playlist_id: i64) -> rusqlite::Result<Vec<String>> {
     let mut stmt = c.prepare(
         "SELECT video_id FROM playlist_tracks
@@ -103,7 +155,8 @@ pub fn get(db: &crate::db::Db, id: i64) -> AppResult<Playlist> {
         let mut pl = {
             let mut stmt = c.prepare(
                 "SELECT p.id, p.name, p.created_at, p.updated_at,
-                        (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id)
+                        (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id),
+                        p.description, p.cover_mode, p.cover_path
                  FROM playlists p WHERE p.id = ?1",
             )?;
             let mut rows = stmt.query([id])?;
@@ -115,6 +168,9 @@ pub fn get(db: &crate::db::Db, id: i64) -> AppResult<Playlist> {
                     updated_at: r.get(3)?,
                     track_count: r.get(4)?,
                     cover_keys: Vec::new(),
+                    description: r.get(5)?,
+                    cover_mode: r.get(6)?,
+                    cover_path: r.get(7)?,
                 },
                 None => return Err(AppError::NotFound(format!("playlist {id} tidak ada"))),
             }
@@ -128,7 +184,8 @@ pub fn list(db: &crate::db::Db) -> AppResult<Vec<Playlist>> {
     db.with(|c| {
         let mut stmt = c.prepare(
             "SELECT p.id, p.name, p.created_at, p.updated_at,
-                    (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id)
+                    (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id),
+                    p.description, p.cover_mode, p.cover_path
              FROM playlists p ORDER BY p.updated_at DESC, p.id DESC",
         )?;
         let rows = stmt.query_map([], |r| {
@@ -139,6 +196,9 @@ pub fn list(db: &crate::db::Db) -> AppResult<Vec<Playlist>> {
                 updated_at: r.get(3)?,
                 track_count: r.get(4)?,
                 cover_keys: Vec::new(),
+                description: r.get(5)?,
+                cover_mode: r.get(6)?,
+                cover_path: r.get(7)?,
             })
         })?;
         let mut out = Vec::new();

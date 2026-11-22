@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Route } from "../routes";
 import { T } from "../../lib/strings";
-import { PlaylistCover } from "../../components/PlaylistCover";
+import { PlaylistArt } from "../../components/PlaylistArt";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
 
@@ -22,6 +22,8 @@ interface Props {
   onSelectPlaylist: (id: number) => void;
   onSelectFavorites: () => void;
   onCreatePlaylist: (name: string) => Promise<void>;
+  /** Buka dialog Nama & Detail untuk playlist ini. */
+  onEditPlaylist: (id: number) => void;
   onRenamePlaylist: (id: number, name: string) => Promise<void>;
   onDeletePlaylist: (id: number) => Promise<void>;
 }
@@ -47,6 +49,7 @@ export function Sidebar({
   onSelectFavorites,
   onCreatePlaylist,
   onRenamePlaylist,
+  onEditPlaylist,
   onDeletePlaylist,
 }: Props) {
   const diLibrary = route === "library";
@@ -380,13 +383,17 @@ export function Sidebar({
                 judul={p.name}
                 meta={`${T.playlist} · ${p.trackCount} ${T.lagu}`}
                 onClick={() => onSelectPlaylist(p.id)}
-                cover={<PlaylistCover coverKeys={p.coverKeys} title={p.name} size={44} />}
+                cover={<PlaylistArt playlist={p} size={44} />}
                 menuBuka={menuId === p.id}
                 onToggleMenu={(buka) => setMenuId(buka ? p.id : null)}
                 onRename={() => {
                   setMenuId(null);
                   setRenameId(p.id);
                   setRenameVal(p.name);
+                }}
+                onEdit={() => {
+                  setMenuId(null);
+                  onEditPlaylist(p.id);
                 }}
                 onDelete={() => {
                   setMenuId(null);
@@ -414,6 +421,7 @@ function BarisLibrary({
   menuBuka = false,
   onToggleMenu,
   onRename,
+  onEdit,
   onDelete,
 }: {
   cover: React.ReactNode;
@@ -425,6 +433,7 @@ function BarisLibrary({
   menuBuka?: boolean;
   onToggleMenu?: (buka: boolean) => void;
   onRename?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const [hover, setHover] = useState(false);
@@ -576,6 +585,30 @@ function BarisLibrary({
                 boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
               }}
             >
+              {onEdit && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={onEdit}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    minHeight: 44,
+                    color: "var(--ink)",
+                    fontSize: 13,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--accent-dim)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {T.detailCover}
+                </button>
+              )}
               {onRename && (
                 <button
                   type="button"

@@ -12,6 +12,12 @@ export interface Playlist {
   updatedAt: number;
   /** Kunci cover 4 lagu pertama, untuk mosaik di sidebar. */
   coverKeys: string[];
+  /** Deskripsi bebas, maks 200 karakter. */
+  description: string | null;
+  /** `auto` (mosaik) | `custom` (upload) | `generative` (placeholder). */
+  coverMode: "auto" | "custom" | "generative";
+  /** Nama file relatif di folder playlist_covers, bukan path absolut. */
+  coverPath: string | null;
 }
 
 /**

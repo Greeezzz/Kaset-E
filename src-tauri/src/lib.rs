@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod models;
 pub mod paths;
+pub mod playlist_cover;
 pub mod queue;
 pub mod resolver;
 pub mod state;
@@ -81,6 +82,7 @@ pub fn run() {
             commands::setting_set,
             commands::queue_get,
             commands::queue_add,
+            commands::queue_play_now,
             commands::queue_play_next,
             commands::queue_remove,
             commands::queue_move,
@@ -101,6 +103,10 @@ pub fn run() {
             commands::create_playlist,
             commands::rename_playlist,
             commands::delete_playlist,
+            commands::playlist_update_details,
+            commands::playlist_cover_set,
+            commands::playlist_cover_clear,
+            commands::playlist_cover_path,
             commands::list_playlists,
             commands::playlist_tracks,
             commands::add_to_playlist,

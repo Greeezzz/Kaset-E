@@ -34,6 +34,12 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls", "s
 # Catatan: butuh C compiler (MSVC di Windows) — sama seperti kebutuhan Rust itu sendiri.
 rusqlite = { version = "0.43", features = ["bundled"] }
 
+# Pemrosesan cover playlist upload (DESIGN-LAYOUT §5). Fitur dibatasi ke tiga
+# format yang boleh diunggah — default `image` menarik puluhan codec lain
+# (TIFF, AVIF, DDS, ...) yang menambah waktu kompilasi tanpa dipakai.
+# `jpeg`+`png`+`webp` untuk decode; `jpeg` saja yang dipakai saat encode.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+
 tokio = { version = "1", features = ["sync", "time", "macros", "rt-multi-thread", "process", "io-util"] }
 async-trait = "0.1"
 thiserror = "2"

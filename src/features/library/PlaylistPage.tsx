@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
-import { PlaylistCover } from "../../components/PlaylistCover";
+import { PlaylistArt } from "../../components/PlaylistArt";
 import { EmptyState } from "../../components/EmptyState";
 import { PlaylistTable } from "./PlaylistTable";
 import { formatTotalDuration } from "../../lib/format";
@@ -172,7 +172,7 @@ export function PlaylistPage({
           }}
         >
           {playlist ? (
-            <PlaylistCover coverKeys={playlist.coverKeys} title={playlist.name} size={188} />
+            <PlaylistArt playlist={playlist} size={188} />
           ) : (
             <div
               aria-hidden="true"
@@ -305,6 +305,23 @@ export function PlaylistPage({
             >
               {judul}
             </h1>
+          )}
+
+          {playlist?.description && (
+            <p
+              style={{
+                margin: "var(--s-2) 0 0",
+                fontSize: 13,
+                color: "var(--ink-muted)",
+                maxWidth: "62ch",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {playlist.description}
+            </p>
           )}
 
           <p className="mono muted" style={{ margin: "var(--s-3) 0 0", fontSize: 12 }}>

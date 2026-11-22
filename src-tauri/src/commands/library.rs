@@ -85,7 +85,129 @@ pub async fn rename_playlist(
 
 #[tauri::command]
 pub async fn delete_playlist(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    // Hapus berkas cover lebih dulu, sebelum baris DB hilang — kalau urutannya
+    // dibalik, nama file di DB sudah tidak ada dan berkasnya jadi yatim.
+    if let Ok(pl) = crate::db::playlist::get(&state.db, id) {
+        if let Some(name) = pl.cover_path {
+            if let Some(dir) = crate::paths::playlist_covers_dir() {
+                crate::playlist_cover::remove(&dir, &name);
+            }
+        }
+    }
     crate::db::playlist::delete(&state.db, id)
+}
+
+/// Simpan detail playlist (nama, deskripsi, mode cover) tanpa menyentuh berkas.
+///
+/// `coverPath` sengaja tidak diekspos di sini — nama file cover hanya boleh
+/// ditulis oleh `playlist_cover_set` / `playlist_cover_clear`, supaya DB tidak
+/// bisa menunjuk berkas yang tidak pernah dibuat service gambar.
+#[tauri::command]
+pub async fn playlist_update_details(
+    state: State<'_, AppState>,
+    id: i64,
+    name: Option<String>,
+    description: Option<String>,
+    cover_mode: Option<String>,
+) -> AppResult<crate::db::playlist::Playlist> {
+    let nama = name.as_deref().map(validate_name).transpose()?;
+
+    if let Some(d) = description.as_deref() {
+        if d.chars().count() > 200 {
+            return Err(AppError::invalid("deskripsi maksimal 200 karakter"));
+        }
+    }
+    if let Some(m) = cover_mode.as_deref() {
+        if !matches!(m, "auto" | "custom" | "generative") {
+            return Err(AppError::invalid("mode cover tidak dikenal"));
+        }
+    }
+
+    crate::db::playlist::update_details(
+        &state.db,
+        id,
+        nama,
+        description.as_deref().map(Some),
+        cover_mode.as_deref(),
+        None,
+    )?;
+    crate::db::playlist::get(&state.db, id)
+}
+
+/// Unggah cover playlist dari byte gambar.
+///
+/// Pemrosesan seluruhnya di Rust: validasi magic bytes, batas ukuran, decode
+/// dengan batas dimensi, crop tengah 1:1, resize 512, encode JPEG. UI hanya
+/// mengirim byte mentah; tidak ada gambar yang ditulis apa adanya ke disk dan
+/// tidak ada base64 di SQLite.
+///
+/// Kalau playlist sudah punya cover kustom, berkas lama dihapus setelah berkas
+/// baru berhasil ditulis — urutan ini mencegah playlist kehilangan cover kalau
+/// penulisan baru gagal.
+#[tauri::command]
+pub async fn playlist_cover_set(
+    state: State<'_, AppState>,
+    id: i64,
+    bytes: Vec<u8>,
+) -> AppResult<crate::db::playlist::Playlist> {
+    let pl = crate::db::playlist::get(&state.db, id)?;
+    let dir =
+        crate::paths::playlist_covers_dir().ok_or_else(|| AppError::invalid("folder data tidak ada"))?;
+
+    let jpeg = crate::playlist_cover::process(&bytes)?;
+    let name = crate::playlist_cover::file_name_for(id);
+    crate::playlist_cover::write(&dir, &name, &jpeg)?;
+
+    // Berkas lama baru dihapus setelah berkas baru benar-benar ada di disk.
+    if let Some(lama) = pl.cover_path.as_deref() {
+        if lama != name {
+            crate::playlist_cover::remove(&dir, lama);
+        }
+    }
+
+    crate::db::playlist::update_details(
+        &state.db,
+        id,
+        None,
+        None,
+        Some("custom"),
+        Some(Some(&name)),
+    )?;
+    crate::db::playlist::get(&state.db, id)
+}
+
+/// Hapus cover kustom dan kembalikan playlist ke mode otomatis (mosaik).
+#[tauri::command]
+pub async fn playlist_cover_clear(
+    state: State<'_, AppState>,
+    id: i64,
+) -> AppResult<crate::db::playlist::Playlist> {
+    let pl = crate::db::playlist::get(&state.db, id)?;
+    if let Some(name) = pl.cover_path.as_deref() {
+        if let Some(dir) = crate::paths::playlist_covers_dir() {
+            crate::playlist_cover::remove(&dir, name);
+        }
+    }
+    crate::db::playlist::update_details(&state.db, id, None, None, Some("auto"), Some(None))?;
+    crate::db::playlist::get(&state.db, id)
+}
+
+/// Path absolut cover playlist untuk `convertFileSrc` di UI.
+///
+/// UI tidak pernah menyusun path sendiri dari nama file: hanya Rust yang tahu
+/// folder data, dan hanya nama file yang aman yang boleh digabung.
+#[tauri::command]
+pub async fn playlist_cover_path(
+    state: State<'_, AppState>,
+    id: i64,
+) -> AppResult<Option<String>> {
+    let pl = crate::db::playlist::get(&state.db, id)?;
+    let Some(name) = pl.cover_path else {
+        return Ok(None);
+    };
+    let dir =
+        crate::paths::playlist_covers_dir().ok_or_else(|| AppError::invalid("folder data tidak ada"))?;
+    Ok(crate::playlist_cover::resolve(&dir, &name).map(|p| p.to_string_lossy().to_string()))
 }
 
 #[tauri::command]
