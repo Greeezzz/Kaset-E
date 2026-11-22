@@ -17,6 +17,9 @@ type EventMap = {
   "player://error": { message: string; videoId?: string };
   "queue://changed": QueueItem[];
   "cover://ready": { key: string; path: string };
+  "tray://toggle-play": null;
+  "tray://next": null;
+  "tray://previous": null;
 };
 
 const hasTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;

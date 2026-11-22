@@ -76,6 +76,13 @@ export function App() {
   // Handler pemulihan, sama seperti onEnded: disimpan di ref supaya effect
   // audio tidak dipasang ulang setiap render.
   const onAudioErrorRef = useRef<(msg: string, code: number | null) => void>(() => {});
+  // Handler kontrol dari tray / media key disimpan di ref agar listener Tauri
+  // tidak dipasang ulang tiap render.
+  const mediaControlsRef = useRef({
+    toggle: () => {},
+    next: () => {},
+    previous: () => {},
+  });
   // Empat tingkat lebar (DESIGN-LAYOUT §8). `isWide` dipertahankan sebagai
   // turunan supaya kode lama yang memakainya tidak perlu diubah semua — tapi
   // keputusan baru harus membaca `bp`.
@@ -184,11 +191,21 @@ export function App() {
         // (useCallback), jadi aman dipakai di dalam effect.
         void refreshQueue();
       });
+      const offTrayToggle = await listen("tray://toggle-play", () =>
+        mediaControlsRef.current.toggle(),
+      );
+      const offTrayNext = await listen("tray://next", () => mediaControlsRef.current.next());
+      const offTrayPrev = await listen("tray://previous", () =>
+        mediaControlsRef.current.previous(),
+      );
       if (disposed) {
         offState();
         offQueue();
+        offTrayToggle();
+        offTrayNext();
+        offTrayPrev();
       } else {
-        unsubs.push(offState, offQueue);
+        unsubs.push(offState, offQueue, offTrayToggle, offTrayNext, offTrayPrev);
       }
     })();
 
@@ -452,6 +469,12 @@ export function App() {
       setPlaying(true);
     }
   }
+
+  mediaControlsRef.current = {
+    toggle: togglePlay,
+    next: () => void playNextInQueue(),
+    previous: () => void playPreviousInQueue(),
+  };
 
   /**
    * Lompat ke posisi tertentu.

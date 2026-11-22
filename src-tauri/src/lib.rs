@@ -8,6 +8,8 @@ pub mod playlist_cover;
 pub mod queue;
 pub mod resolver;
 pub mod state;
+#[cfg(desktop)]
+pub mod tray;
 
 use tauri::Manager;
 
@@ -36,6 +38,11 @@ pub fn run() {
             tracing::info!(dir = %state.data_dir.display(), "Kaset mulai");
             let handle = app.handle().clone();
             app.manage(state);
+
+            #[cfg(desktop)]
+            if let Err(e) = tray::setup(&handle) {
+                tracing::warn!(error = %e, "gagal memasang menu tray");
+            }
 
             // Upgrade katalog dan resolver di background: jendela tidak menunggu
             // jaringan. Kalau gagal, aplikasi tetap jalan dengan mock.
