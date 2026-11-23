@@ -2,6 +2,7 @@ pub mod catalog;
 pub mod commands;
 pub mod db;
 pub mod error;
+pub mod import;
 pub mod models;
 pub mod paths;
 pub mod playlist_cover;
@@ -110,6 +111,10 @@ pub fn run() {
             commands::toggle_favorite,
             commands::list_favorites,
             commands::is_favorite,
+            commands::import_parse,
+            commands::import_cocokkan,
+            commands::import_batal,
+            commands::import_simpan,
             commands::record_play,
             commands::listen_record,
             commands::listen_summary,

@@ -26,6 +26,7 @@ import { pencatatMendengar } from "../lib/listen";
 import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
 import { PlaylistDetailDialog } from "../features/library/PlaylistDetailDialog";
+import { ImportDialog } from "../features/library/ImportDialog";
 
 /** Ambil pesan ramah dari error Tauri (yang datang sebagai objek {message, permanent}). */
 function errMessage(err: unknown, fallback: string): string {
@@ -62,6 +63,8 @@ export function App() {
   // `true` di state kedua menandai playlist baru (judul dialog berbeda).
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailBaru, setDetailBaru] = useState(false);
+  // Dialog impor playlist dari berkas (Fase 5).
+  const [importBuka, setImportBuka] = useState(false);
   // Handler "lagu habis" disimpan di ref supaya effect audio tidak perlu
   // dipasang ulang setiap render (dan tidak menangkap state basi).
   const onEndedRef = useRef<() => void>(() => {});
@@ -598,6 +601,7 @@ export function App() {
             onSelectPlaylist={handleSelectPlaylist}
             onSelectFavorites={handleSelectFavorites}
             onCreatePlaylist={handleCreatePlaylist}
+            onImportPlaylist={() => setImportBuka(true)}
             onRenamePlaylist={handleRenamePlaylist}
             onEditPlaylist={(id) => {
               setDetailBaru(false);
@@ -768,6 +772,18 @@ export function App() {
             />
           );
         })()}
+
+      {importBuka && (
+        <ImportDialog
+          onClose={() => setImportBuka(false)}
+          onSelesai={(id) => {
+            void lib.refreshPlaylists();
+            setSelectedPlaylistId(id);
+            setLibTab("Playlist");
+            setRoute("library");
+          }}
+        />
+      )}
 
       {pickTarget && (
         <PlaylistPicker

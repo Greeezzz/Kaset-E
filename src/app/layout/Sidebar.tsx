@@ -24,6 +24,8 @@ interface Props {
   onSelectPlaylist: (id: number) => void;
   onSelectFavorites: () => void;
   onCreatePlaylist: (name: string) => Promise<void>;
+  /** Buka dialog impor playlist dari berkas. */
+  onImportPlaylist: () => void;
   /** Buka dialog Nama & Detail untuk playlist ini. */
   onEditPlaylist: (id: number) => void;
   onRenamePlaylist: (id: number, name: string) => Promise<void>;
@@ -56,6 +58,7 @@ export function Sidebar({
   onSelectPlaylist,
   onSelectFavorites,
   onCreatePlaylist,
+  onImportPlaylist,
   onRenamePlaylist,
   onEditPlaylist,
   onDeletePlaylist,
@@ -230,6 +233,30 @@ export function Sidebar({
           }}
         >
           {rel ? <IkonTambah size={18} /> : T.baru}
+        </button>
+
+        <button
+          type="button"
+          onClick={onImportPlaylist}
+          aria-label={T.imporPlaylistBaru}
+          title={rel ? T.imporPlaylistBaru : undefined}
+          style={{
+            padding: rel ? 0 : "10px var(--s-3)",
+            minHeight: 44,
+            minWidth: 44,
+            display: rel ? "grid" : "block",
+            placeItems: rel ? "center" : undefined,
+            textAlign: "left",
+            background: "transparent",
+            color: "var(--ink-muted)",
+            border: "1px solid var(--line)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            cursor: "pointer",
+          }}
+        >
+          {rel ? <IkonTambah size={18} /> : T.imporPlaylistBaru}
         </button>
 
         {buatBuka && !rel && (

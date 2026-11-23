@@ -184,6 +184,35 @@ export const T = {
   imporGagal: "Gagal mengimpor berkas JSON.",
   imporHasil: (fav: number, pl: number, tr: number) =>
     `Impor selesai: ${fav} favorit baru, ${pl} playlist baru, ${tr} lagu ditambahkan.`,
+
+  // Impor playlist dari berkas pihak ketiga (Fase 5)
+  imporJudul: "IMPOR PLAYLIST",
+  imporHint:
+    "Ekspor playlist dari Spotify (Exportify), Apple Music, atau berkas CSV/JSON lain yang punya kolom judul dan artis. Tiap lagu dicocokkan ke YouTube — periksa hasilnya sebelum disimpan.",
+  imporPilihBerkas: "PILIH BERKAS",
+  imporMembaca: "MEMBACA BERKAS…",
+  imporMencocokkan: "MENCOCOKKAN",
+  imporBatalkan: "BATALKAN",
+  imporKosong: "Berkas tidak berisi lagu yang bisa dibaca.",
+  imporTotal: "TOTAL",
+  imporOtomatis: "COCOK",
+  imporReview: "PERLU DIPERIKSA",
+  imporTidakAda: "TIDAK KETEMU",
+  imporSemua: "SEMUA",
+  imporDibatalkan: "Dihentikan — hasil di bawah hanya sebagian.",
+  imporPilihSemuaReview: "PILIH SEMUA REVIEW",
+  imporBatalPilihReview: "LEWATI SEMUA REVIEW",
+  imporTidakKetemu: "tidak ditemukan di YouTube",
+  imporNamaPlaylist: "NAMA PLAYLIST",
+  imporSimpanKePlaylist: (n: number) => `SIMPAN ${n} LAGU`,
+  imporTidakAdaYangDipilih: "Pilih setidaknya satu lagu untuk disimpan.",
+  imporMenyimpan: "MENYIMPAN…",
+  imporHasilSimpan: (a: number, l: number) =>
+    `${a} lagu ditambahkan${l ? `, ${l} dilewati (sudah ada)` : ""}.`,
+  imporPlaylistBaru: "Impor playlist dari berkas",
+  imporPilih: "Pilih",
+  selesai: "SELESAI",
+
   cadanganHint:
     "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",
   disclaimer:
