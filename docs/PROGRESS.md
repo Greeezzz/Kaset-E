@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `342e3d8`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `470183f`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -13,12 +13,12 @@ Terakhir diperbarui: commit `342e3d8`, branch `main`, repo `github.com/Greeezzz/
 | Fase 1.5 — Polish | **4/4 (selesai)** |
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
-| Fase 4 — Stats + Smart Shuffle | 2/8 (prasyaratnya sudah selesai) |
+| Fase 4 — Stats + Smart Shuffle | **8/8 (selesai)** |
 | Fase 5 — Import Playlist | 4/5 |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **51/71 item (72%)** |
+| **Total** | **54/71 item (76%)** |
 
-Ukuran kode: **7.652 baris Rust + 9.200 baris TypeScript/TSX**. **133 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 49 commit.
+Ukuran kode: **7.652 baris Rust + 9.200 baris TypeScript/TSX**. **161 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 49 commit.
 
 Kenapa naik dari 89 ke 101: `playlist_cover.rs` akhirnya masuk kompilasi (+9 tes:
 validasi magic bytes, batas ukuran, crop tengah, PNG transparan, tulis/hapus

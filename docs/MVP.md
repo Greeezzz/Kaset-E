@@ -182,12 +182,18 @@ Diverifikasi di aplikasi nyata dengan database sungguhan, bukan mock:
 Aturan yang dipegang: hanya perubahan posisi yang wajar (≤2 detik per event)
 yang dihitung. Ini yang membedakan "mendengar" dari "lagu sedang terbuka".
 
-### 4b — tampilan (belum)
+### 4b — tampilan (SELESAI)
 
-- [ ] Layar Stats (total waktu, top lagu/artis, play count, streak, heatmap jam)
-- [ ] Pengaturan: hapus data statistik, matikan pencatatan (backend `listen_stats` sudah siap)
-- [ ] Smart shuffle lokal berbobot (modul murni + tes dengan seed)
-- [ ] Toggle Shuffle biasa / Shuffle pintar
+- [x] Layar Stats: total waktu, putaran, lagu/artis unik, streak, heatmap 24 jam, lagu & artis teratas, filter rentang (24 jam/minggu/bulan/tahun/semua).
+- [x] Pengaturan: saklar catat statistik + tombol hapus data.
+- [x] Smart shuffle lokal berbobot — modul murni `queue::smart`, 18 tes dengan seed.
+- [x] Toggle ACAK → PINTAR di panel antrean (hanya muncul saat ACAK menyala).
+
+**Dua hal yang mudah salah di statistik, keduanya sudah ditangani:** satu baris `listen_events` bukan satu putaran (pencatat menulis tiap ~5 detik, jadi potongan digabung jadi sesi dulu), dan `started_at` UTC sementara "jam 21:00" dan streak harian hanya bermakna dalam zona lokal pengguna (offset dikirim frontend, WIB = 420).
+
+**Hasil pengukuran di aplikasi nyata** (40 acakan per jenis, playlist 431 lagu, posisi rata-rata per lagu): lagu yang didengar lama naik — Fallen Petals 228→128, Somewhere Only We Know 213→139. Lagu yang dicoba lalu di-skip turun — Tek It 187→328, The One That Got Away 208→336. Rata-rata gabungan terlihat tidak berubah karena yang naik dan turun saling meniadakan, jadi pengukuran harus per-lagu.
+
+Tiga bug ditemukan karena mengukur pada data nyata, bukan lewat unit test: favorit sempat lebih rendah dari lagu asing, rasio "mendengar biasa" tidak terpakai (hanya 2 dari 16 lagu pernah "selesai"), dan satu skip menghukum penuh karena penyebut rasio skip salah.
 
 ## Fase 5 — Import Playlist (target `v0.5.0`) — SELESAI (4/5)
 
