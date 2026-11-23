@@ -189,15 +189,19 @@ yang dihitung. Ini yang membedakan "mendengar" dari "lagu sedang terbuka".
 - [ ] Smart shuffle lokal berbobot (modul murni + tes dengan seed)
 - [ ] Toggle Shuffle biasa / Shuffle pintar
 
-## Fase 5 — Import Playlist (target `v0.5.0`)
+## Fase 5 — Import Playlist (target `v0.5.0`) — SELESAI (4/5)
 
 > Detail di `FEATURES-V2.md` §3.
 
-- [ ] Parser CSV/JSON + tes
-- [ ] Normalisasi + skor kecocokan + tes
-- [ ] Import dari link playlist YouTube Music (publik)
-- [ ] Layar review + ringkasan + ekspor daftar "tidak ditemukan"
-- [ ] Batalkan/lanjutkan job, patuhi `RESILIENCE.md`
+- [x] Parser CSV/JSON + tes. CSV Exportify + CSV/JSON generik. Menangani BOM UTF-8, tanda kutip bersarang, artis ganda (`;`), judul non-ASCII, dedupe. 13 tes.
+- [x] Normalisasi + skor kecocokan + tes. Modul murni `import/cocok.rs`, 12 tes: judul 65% + artis 35%, bonus/penalti durasi dan penanda versi. Ambang 0,80 otomatis / 0,60 review.
+- [ ] Import dari link playlist YouTube Music (publik) — belum; butuh akses playlist publik, ditunda.
+- [x] Layar review + ringkasan. Dialog 4 tahap (pilih berkas → progress → review dengan filter/filter checkbox → hasil). Baris `review` TIDAK tercentang otomatis.
+- [x] Batalkan/lanjutkan job. Tombol batal memeriksa tanda setiap lagu; job kedua ditolak supaya tidak berebut katalog; timeout 15 detik per pencarian.
+
+**Hasil pada berkas nyata (461 lagu Spotify):** 183,6 detik (~3 menit, 398 ms/lagu) → **419 otomatis (91%), 18 review (4%), 24 tidak ketemu (5%)**. Yang gagal hampir semuanya lagu Jepang — batas katalog YouTube Music, bukan bug parser.
+
+**Ekspor daftar "tidak ditemukan"** belum dibuat sebagai berkas terpisah; untuk sekarang daftarnya terlihat di layar review dengan filter TIDAK KETEMU.
 
 ## Fase 6 — Login + Sync (opsional, `v0.6.0`+)
 

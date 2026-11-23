@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `14e045d`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `342e3d8`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -14,11 +14,11 @@ Terakhir diperbarui: commit `14e045d`, branch `main`, repo `github.com/Greeezzz/
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
 | Fase 4 — Stats + Smart Shuffle | 2/8 (prasyaratnya sudah selesai) |
-| Fase 5 — Import Playlist | 0/5 |
+| Fase 5 — Import Playlist | 4/5 |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **47/71 item (66%)** |
+| **Total** | **51/71 item (72%)** |
 
-Ukuran kode: **5.765 baris Rust + 7.962 baris TypeScript/TSX**. **104 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih.
+Ukuran kode: **7.652 baris Rust + 9.200 baris TypeScript/TSX**. **133 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 49 commit.
 
 Kenapa naik dari 89 ke 101: `playlist_cover.rs` akhirnya masuk kompilasi (+9 tes:
 validasi magic bytes, batas ukuran, crop tengah, PNG transparan, tulis/hapus
@@ -42,6 +42,25 @@ Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Seek dan volume di UI** — bar seek bisa diklik, di-drag, dan dioperasikan keyboard (panah 5 detik, Shift+panah 30 detik, Home/End); volume punya slider + tombol bisu yang mengembalikan angka sebelumnya. Volume tersimpan dan pulih lintas restart. Diverifikasi di aplikasi: klik 60%/20%/90% mendarat 181,6/62,3/271,8 detik dari durasi 299,3; volume 35% → bisu → bunyi lagi 35%; setelah restart tetap 35. Satu bug ketemu: klik pada bar tidak melompat karena handler membaca state drag dari render sebelumnya — sekarang disimpan di ref.
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
+
+## Fase 5 — impor playlist
+
+**Sudah bisa dipakai.** Ekspor CSV dari Spotify lewat Exportify, buka dialog
+**Impor playlist dari berkas** di sidebar, pilih berkasnya. Tiga tahap dengan
+progress dan tombol batal: baca (24 ms untuk 461 lagu) → cocokkan → review →
+simpan ke playlist.
+
+Hasil pada berkas nyata 461 lagu (`chelokebab10k.csv`): **183,6 detik
+(~3 menit), 419 otomatis (91%), 18 perlu diperiksa (4%), 24 tidak ketemu (5%)**.
+
+Yang tidak ketemu hampir semuanya lagu Jepang (`紅蓮`, `メリッサ`,
+`恋愛サーキュレーション`) — batas katalog YouTube Music, bukan bug parser. Satu
+kasus salah cocok juga ketemu: `誰我為` dapat "Tokio" (skor 0,35) dan masuk daftar
+tidak ketemu, bukan diterima diam-diam.
+
+Dua bug yang hanya ketemu lewat pengujian di aplikasi: job kedua tidak bisa
+membatalkan job pertama (tanda batal di-reset di awal), dan tidak ada timeout
+per pencarian sehingga satu pencarian menggantung menahan seluruh job.
 
 ## Redesign layout — 10 dari 10 langkah — SELESAI
 
