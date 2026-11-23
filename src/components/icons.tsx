@@ -187,6 +187,28 @@ export function IkonAcak({ size = 18, ...rest }: IkonProps) {
   );
 }
 
+/** Statistik: batang naik. */
+export function IkonStatistik({ size = 18, ...rest }: IkonProps) {
+  return (
+    <Svg size={size} {...rest}>
+      <path d="M4 20h16" />
+      <path d="M7 20v-6M12 20V8M17 20v-9" />
+    </Svg>
+  );
+}
+
+/** Shuffle pintar: batang acak bertanda bintang. */
+export function IkonAcakPintar({ size = 18, ...rest }: IkonProps) {
+  return (
+    <Svg size={size} {...rest}>
+      <path d="M4 7h3.5l9 10H20" />
+      <path d="M4 17h3.5l9-10H20" />
+      <path d="M17.5 4.5L20 7l-2.5 2.5M17.5 14.5L20 17l-2.5 2.5" />
+      <circle cx="12" cy="12" r="1.4" />
+    </Svg>
+  );
+}
+
 /** Ulangi: dua panah melingkar. `satu` menampilkan angka 1 di tengah. */
 export function IkonRepeat({ size = 18, satu = false, ...rest }: IkonProps & { satu?: boolean }) {
   return (

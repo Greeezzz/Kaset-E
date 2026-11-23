@@ -17,6 +17,8 @@ interface Props {
   onMove: (from: number, to: number) => void;
   onClear: () => void;
   onToggleShuffle: () => void;
+  /** Ganti jenis shuffle. Hanya berarti saat shuffle menyala. */
+  onToggleShufflePintar?: () => void;
   onCycleRepeat: () => void;
 }
 
@@ -42,12 +44,13 @@ export function QueuePanel({
   onMove,
   onClear,
   onToggleShuffle,
+  onToggleShufflePintar,
   onCycleRepeat,
 }: Props) {
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
-  const { items, cursor, shuffle, repeat } = view;
+  const { items, cursor, shuffle, shufflePintar, repeat } = view;
   const currentItem = items[cursor] ?? null;
   const currentTrack = currentItem?.track ?? activeTrack;
 
@@ -119,6 +122,28 @@ export function QueuePanel({
         >
           {T.acak}
         </button>
+        {shuffle && onToggleShufflePintar && (
+          <button
+            type="button"
+            onClick={onToggleShufflePintar}
+            aria-pressed={shufflePintar}
+            title={T.acakPintarHint}
+            style={{
+              flex: 1,
+              minHeight: 36,
+              padding: "0 6px",
+              background: shufflePintar ? "var(--accent)" : "transparent",
+              color: shufflePintar ? "var(--accent-ink)" : "var(--ink-muted)",
+              border: shufflePintar ? "1px solid var(--accent)" : "1px solid var(--line)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              fontWeight: shufflePintar ? 600 : 400,
+            }}
+          >
+            {T.acakPintar}
+          </button>
+        )}
         <button
           type="button"
           onClick={onCycleRepeat}

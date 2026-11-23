@@ -67,6 +67,27 @@ pub async fn listen_summary(
     crate::db::listen::ringkasan(&state.db)
 }
 
+/// Statistik mendengar lengkap untuk layar Stats (Fase 4b).
+///
+/// `tz_offset_min` = menit ke timur UTC (WIB = 420). Dikirim UI karena Rust
+/// tidak punya akses ke zona waktu lokal tanpa dependensi tambahan, dan
+/// "mendengar jam 21:00" hanya bermakna dalam waktu lokal pengguna.
+#[tauri::command]
+pub async fn listen_stats(
+    state: State<'_, AppState>,
+    rentang: crate::db::stats::Rentang,
+    tz_offset_min: i32,
+    limit: Option<usize>,
+) -> AppResult<crate::db::stats::Statistik> {
+    crate::db::stats::hitung(
+        &state.db,
+        rentang,
+        tz_offset_min,
+        crate::db::listen::sekarang_ms(),
+        limit.unwrap_or(20),
+    )
+}
+
 /// Hapus seluruh data statistik mendengar.
 #[tauri::command]
 pub async fn listen_clear(state: State<'_, AppState>) -> AppResult<usize> {

@@ -207,6 +207,95 @@ pub fn ringkasan(db: &crate::db::Db) -> AppResult<Ringkasan> {
     })
 }
 
+/// Riwayat ringkas per lagu untuk smart shuffle.
+///
+/// Memakai penggabungan sesi yang SAMA dengan `db::stats` (potongan berurutan
+/// untuk lagu yang sama digabung bila jedanya < 30 detik). Tanpa itu, satu lagu
+/// 3 menit yang dicatat tiap 5 detik akan terlihat seperti 36 "putaran", dan
+/// semuanya di bawah 30 detik sehingga dianggap skip — kebalikan dari
+/// kenyataan.
+///
+/// Definisi konsisten dengan `FEATURES-V2.md` §1.3:
+/// - **selesai**: sesi mencapai >=90% durasi lagu
+/// - **skip**: sesi berhenti sebelum 30 detik
+/// - di antaranya tidak dihitung ke keduanya: itu mendengar biasa, bukan bukti
+///   suka atau benci, jadi tidak boleh menggeser bobot.
+pub fn riwayat_untuk_shuffle(
+    db: &crate::db::Db,
+) -> AppResult<std::collections::HashMap<String, crate::queue::smart::RiwayatLagu>> {
+    use crate::queue::smart::RiwayatLagu;
+    let mut out: std::collections::HashMap<String, RiwayatLagu> = Default::default();
+    db.with(|c| {
+        // Durasi 0/NULL tidak pernah memenuhi 90%, jadi lagu tanpa durasi tidak
+        // pernah terhitung "selesai". Lebih baik begitu daripada menganggapnya
+        // selesai padahal tidak diketahui.
+        let mut stmt = c.prepare(
+            "WITH potongan AS (
+                SELECT video_id, started_at, delta_ms,
+                       started_at + delta_ms AS berakhir
+                FROM listen_events
+             ),
+             bertanda AS (
+                SELECT video_id, started_at, delta_ms, berakhir,
+                       CASE
+                         WHEN LAG(berakhir) OVER (PARTITION BY video_id ORDER BY started_at) IS NULL
+                           THEN 1
+                         WHEN started_at - LAG(berakhir) OVER (PARTITION BY video_id ORDER BY started_at) > 30000
+                           THEN 1
+                         ELSE 0
+                       END AS sesi_baru
+                FROM potongan
+             ),
+             sesi AS (
+                SELECT video_id,
+                       started_at, delta_ms,
+                       SUM(sesi_baru) OVER (PARTITION BY video_id ORDER BY started_at
+                                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS sesi_id
+                FROM bertanda
+             ),
+             gabung AS (
+                SELECT video_id,
+                       SUM(delta_ms) AS total,
+                       MAX(started_at + delta_ms) AS akhir
+                FROM sesi
+                GROUP BY video_id, sesi_id
+             )
+             SELECT g.video_id,
+                    SUM(CASE WHEN t.duration_ms > 0 AND g.total >= t.duration_ms * 0.9
+                             THEN 1 ELSE 0 END) AS selesai,
+                    SUM(CASE WHEN g.total < 30000 THEN 1 ELSE 0 END) AS skip,
+                    SUM(g.total)  AS total_dengar,
+                    -- Durasi lagu diulang per sesi supaya penyebutnya sepadan
+                    -- dengan `total_dengar` (yang juga menjumlah antar sesi).
+                    SUM(t.duration_ms) AS total_durasi,
+                    COUNT(*)          AS jumlah_sesi,
+                    MAX(g.akhir) AS terakhir
+             FROM gabung g
+             JOIN tracks t ON t.video_id = g.video_id
+             GROUP BY g.video_id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                RiwayatLagu {
+                    selesai: r.get::<_, i64>(1)? as u32,
+                    skip: r.get::<_, i64>(2)? as u32,
+                    total_ms: r.get::<_, i64>(3)?,
+                    durasi_ms: r.get::<_, i64>(4)?,
+                    sesi: r.get::<_, i64>(5)? as u32,
+                    terakhir_ms: r.get::<_, i64>(6)?,
+                },
+            ))
+        })?;
+        for r in rows {
+            let (vid, ri) = r?;
+            out.insert(vid, ri);
+        }
+        Ok(())
+    })?;
+    Ok(out)
+}
+
 /// Waktu sekarang untuk pemanggil yang perlu `started_at`.
 pub fn sekarang_ms() -> i64 {
     now_ms()

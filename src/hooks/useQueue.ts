@@ -7,11 +7,20 @@ export interface QueueView {
   items: QueueItem[];
   cursor: number;
   shuffle: boolean;
+  /** Jenis shuffle: `true` = pintar (berbobot dari riwayat), `false` = rata. */
+  shufflePintar: boolean;
   repeat: RepeatMode;
   current: Track | null;
 }
 
-const EMPTY: QueueView = { items: [], cursor: 0, shuffle: false, repeat: "off", current: null };
+const EMPTY: QueueView = {
+  items: [],
+  cursor: 0,
+  shuffle: false,
+  shufflePintar: false,
+  repeat: "off",
+  current: null,
+};
 
 /**
  * Antrean pemutaran. Rust adalah sumber kebenaran: setiap command mengembalikan
@@ -69,6 +78,11 @@ export function useQueue() {
     replace: (tracks: Track[], startIndex = 0) => run("queue_replace", { tracks, startIndex }),
     jump: (position: number) => run("queue_jump", { position }),
     setShuffle: (enabled: boolean) => run("set_shuffle", { enabled }),
+    /**
+     * Pilih jenis shuffle. Backend membaca ulang riwayat mendengar dari
+     * database saat dipanggil, jadi tidak perlu mengirim statistik dari sini.
+     */
+    setShufflePintar: (enabled: boolean) => run("set_shuffle_pintar", { enabled }),
     setRepeat: (mode: RepeatMode) => run("set_repeat", { mode }),
     /** Maju ke lagu berikutnya. `null` = antrean habis. */
     next: async () => {

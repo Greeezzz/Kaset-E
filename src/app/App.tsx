@@ -11,6 +11,7 @@ import { RightPanel, type RightPanelTab } from "../features/queue/RightPanel";
 import { Search } from "../features/search/Search";
 import { Library } from "../features/library/Library";
 import { Settings } from "../features/settings/Settings";
+import { Stats } from "../features/stats/Stats";
 import { usePlayerStore } from "../stores/playerStore";
 import {
   useBreakpoint,
@@ -651,6 +652,7 @@ export function App() {
               onGoSearch={() => setRoute("search")}
             />
           )}
+          {route === "stats" && <Stats />}
           {route === "settings" && <Settings onLibraryChanged={() => void lib.refreshAll()} />}
           {/* Mobile: tap mini player membuka layar penuh (DESIGN.md §3).
               Tanpa cabang ini, route 'queue' akan merender layar kosong. */}
@@ -726,6 +728,7 @@ export function App() {
                   void queue.clear();
                 }}
                 onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
+                onToggleShufflePintar={() => void queue.setShufflePintar(!queue.view.shufflePintar)}
                 onCycleRepeat={cycleRepeat}
               />
             </div>

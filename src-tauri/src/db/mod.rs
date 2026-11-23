@@ -3,6 +3,7 @@ pub mod library;
 pub(crate) mod migrations;
 pub mod playlist;
 pub mod listen;
+pub mod stats;
 pub mod queue;
 pub mod search_history;
 pub mod tracks;

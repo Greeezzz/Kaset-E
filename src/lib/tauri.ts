@@ -116,12 +116,14 @@ const mockQueue = {
   items: [] as QueueItem[],
   cursor: 0,
   shuffle: false,
+  shufflePintar: false,
   repeat: "off" as "off" | "one" | "all",
   view() {
     return {
       items: this.items.map((it, i) => ({ ...it, position: i })),
       cursor: this.cursor,
       shuffle: this.shuffle,
+      shufflePintar: this.shufflePintar,
       repeat: this.repeat,
       current: this.items[this.cursor]?.track ?? null,
     };
@@ -304,6 +306,21 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       mockQueue.cursor = 0;
       return mockQueue.view() as T;
     }
+    case "listen_stats":
+      return {
+        totalMs: 0,
+        totalPutaran: 0,
+        totalLaguUnik: 0,
+        totalArtisUnik: 0,
+        streakHari: 0,
+        laguTeratas: [],
+        artisTeratas: [],
+        perJam: Array.from({ length: 24 }, (_, jam) => ({ jam, totalMs: 0 })),
+        perHari: [],
+      } as T;
+    case "set_shuffle_pintar":
+      mockQueue.shufflePintar = Boolean(args?.enabled);
+      return mockQueue.view() as T;
     case "queue_get":
       return mockQueue.view() as T;
     case "queue_add": {

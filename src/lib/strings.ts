@@ -13,6 +13,33 @@ export const T = {
   // Navigasi
   navCari: "CARI",
   navLibrary: "LIBRARY",
+  navStats: "STATISTIK",
+  statsJudul: "STATISTIK",
+  statsSubjudul:
+    "Kebiasaan mendengarmu, dihitung dari perangkat ini saja. Tidak ada data yang dikirim ke mana pun.",
+  statsTotalWaktu: "TOTAL WAKTU",
+  statsPutaran: "PUTARAN",
+  statsLaguUnik: "LAGU UNIK",
+  statsArtisUnik: "ARTIS UNIK",
+  statsStreak: "STREAK",
+  statsPerJam: "JAM SIBUK",
+  statsLaguTeratas: "LAGU TERATAS",
+  statsArtisTeratas: "ARTIS TERATAS",
+  statsTidakAdaData: "Belum ada data pada rentang ini.",
+  statsKosong: "Belum ada data mendengar.",
+  statsKosongHint:
+    "Statistik terkumpul otomatis selama kamu memutar lagu. Semakin sering dipakai, semakin akurat.",
+  statsHanyaDesktop: "Statistik hanya tersedia di aplikasi desktop.",
+  statsGagal: (pesan: string) => `Gagal memuat statistik: ${pesan}`,
+  statsPengaturan: "Statistik mendengar",
+  statsCatat: "Catat statistik mendengar",
+  statsCatatHint:
+    "Kalau dimatikan, tidak ada data baru yang dicatat. Data lama tetap ada sampai kamu hapus.",
+  statsHapus: "HAPUS DATA",
+  statsDihapus: (n: number) => `${n} peristiwa dihapus.`,
+  statsHapusGagal: "Gagal menghapus data.",
+  statsCatatanData:
+    "Waktu dihitung dari potongan pemutaran sebenarnya: seek dan jeda tidak menambah waktu. Data disimpan di perangkat, dan bisa dihapus di Pengaturan.",
   navPengaturan: "PENGATURAN",
 
   // Umum
@@ -81,6 +108,9 @@ export const T = {
   dijeda: "DIJEDA",
   belumAdaLaguHint: "Pilih lagu dari pencarian atau playlist untuk mulai memutar.",
   bukaSedangDiputar: "Lihat detail sedang diputar",
+  acakPintar: "PINTAR",
+  acakPintarHint:
+    "Shuffle pintar: lagu yang sering kamu selesaikan lebih sering muncul, yang sering di-skip lebih jarang. Lagu baru tidak dihukum.",
   acak: "ACAK",
   repeat: "REPEAT",
   repeatOff: "REPEAT OFF",

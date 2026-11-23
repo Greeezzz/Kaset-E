@@ -2,7 +2,14 @@ import { useRef, useState } from "react";
 import type { Route } from "../routes";
 import { T } from "../../lib/strings";
 import { PlaylistArt } from "../../components/PlaylistArt";
-import { IkonHati, IkonMenu, IkonCari, IkonPengaturan, IkonTambah } from "../../components/icons";
+import {
+  IkonHati,
+  IkonMenu,
+  IkonCari,
+  IkonPengaturan,
+  IkonTambah,
+  IkonStatistik,
+} from "../../components/icons";
 import { AksiMenu } from "../../components/AksiMenu";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
@@ -10,6 +17,7 @@ import type { Track } from "../../types";
 const NAV: { id: Route; label: string; ikon: React.ReactNode }[] = [
   // Satu bahasa untuk semua label UI (DESIGN-LAYOUT bagian 7).
   { id: "search", label: T.navCari, ikon: <IkonCari size={18} /> },
+  { id: "stats", label: T.navStats, ikon: <IkonStatistik size={18} /> },
   { id: "settings", label: T.navPengaturan, ikon: <IkonPengaturan size={18} /> },
 ];
 

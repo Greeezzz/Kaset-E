@@ -119,6 +119,8 @@ pub fn run() {
             commands::listen_record,
             commands::listen_summary,
             commands::listen_clear,
+            commands::listen_stats,
+            commands::set_shuffle_pintar,
             commands::list_history,
             commands::clear_history,
             commands::history_count,

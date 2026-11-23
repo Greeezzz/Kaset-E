@@ -22,6 +22,9 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
   const [backupMsg, setBackupMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  // Statistik (Fase 4b)
+  const [statsAktif, setStatsAktif] = useState(true);
+  const [statsMsg, setStatsMsg] = useState<string | null>(null);
 
   async function ekspor() {
     setBackupBusy(true);
@@ -124,6 +127,33 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
       clearTimeout(resolverGiveUp);
     };
   }, []);
+
+  useEffect(() => {
+    if (!runningInTauri) return;
+    void invoke<string | null>("setting_get", { key: "listen_stats" })
+      .then((v) => setStatsAktif(v !== "0"))
+      .catch(() => setStatsAktif(true));
+  }, []);
+
+  async function ubahPencatatan(aktif: boolean) {
+    setStatsAktif(aktif);
+    try {
+      await invoke("setting_set", { key: "listen_stats", value: aktif ? "1" : "0" });
+    } catch {
+      // Gagal simpan: kembalikan saklar supaya UI tidak berbohong.
+      setStatsAktif(!aktif);
+    }
+  }
+
+  async function hapusStatistik() {
+    setStatsMsg(null);
+    try {
+      const n = await invoke<number>("listen_clear");
+      setStatsMsg(T.statsDihapus(n));
+    } catch {
+      setStatsMsg(T.statsHapusGagal);
+    }
+  }
 
   const statusText =
     catalogLive === null ? T.memeriksa : catalogLive ? T.katalogAktif : T.katalogMock;
@@ -274,6 +304,41 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
           )}
         </dd>
       </dl>
+
+      <h2 style={{ fontSize: 15, margin: "var(--s-6) 0 var(--s-2)" }}>{T.statsPengaturan}</h2>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={statsAktif}
+            onChange={(e) => void ubahPencatatan(e.target.checked)}
+          />
+          {T.statsCatat}
+        </label>
+        <button
+          type="button"
+          onClick={() => void hapusStatistik()}
+          style={{
+            padding: "6px 12px",
+            border: "1px solid var(--line-strong)",
+            background: "transparent",
+            color: "var(--danger)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.06em",
+          }}
+        >
+          {T.statsHapus}
+        </button>
+        {statsMsg && (
+          <span className="muted" style={{ fontSize: 12 }}>
+            {statsMsg}
+          </span>
+        )}
+      </div>
+      <span className="muted" style={{ display: "block", fontSize: 12, marginTop: 6 }}>
+        {T.statsCatatHint}
+      </span>
 
       <p className="muted" style={{ marginTop: "var(--s-6)", fontSize: 13 }}>
         {T.disclaimer}

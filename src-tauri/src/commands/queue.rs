@@ -17,6 +17,8 @@ pub struct QueueView {
     /// Indeks lagu aktif di dalam `items` (urutan pemutaran).
     pub cursor: usize,
     pub shuffle: bool,
+    /// Jenis shuffle yang aktif: `true` = pintar (berbobot), `false` = rata.
+    pub shuffle_pintar: bool,
     pub repeat: RepeatMode,
     pub current: Option<Track>,
 }
@@ -26,6 +28,7 @@ pub(crate) fn view(q: &QueueManager) -> QueueView {
         items: q.play_order(),
         cursor: q.cursor(),
         shuffle: q.shuffle_enabled(),
+        shuffle_pintar: q.shuffle_pintar(),
         repeat: q.repeat(),
         current: q.current().map(|i| i.track.clone()),
     }
@@ -146,6 +149,24 @@ pub async fn queue_jump(state: State<'_, AppState>, position: usize) -> AppResul
 pub async fn set_shuffle(state: State<'_, AppState>, enabled: bool) -> AppResult<QueueView> {
     Ok(state.with_queue(|q| {
         q.set_shuffle(enabled);
+        view(q)
+    }))
+}
+
+/// Pilih jenis shuffle: `true` = pintar (berbobot dari riwayat), `false` = rata.
+///
+/// Riwayat dibaca ulang dari database setiap kali dipanggil. Itu disengaja:
+/// datanya bertambah terus selama aplikasi dipakai, dan memakai riwayat basi
+/// membuat smart shuffle bereaksi terhadap kebiasaan lama, bukan yang sekarang.
+#[tauri::command]
+pub async fn set_shuffle_pintar(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> AppResult<QueueView> {
+    let riwayat = crate::db::listen::riwayat_untuk_shuffle(&state.db)?;
+    Ok(state.with_queue(|q| {
+        q.set_riwayat(riwayat);
+        q.set_shuffle_pintar(enabled);
         view(q)
     }))
 }

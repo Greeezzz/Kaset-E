@@ -24,6 +24,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::{QueueItem, RepeatMode, Track};
 
+pub mod smart;
+
 /// Pengacak kecil deterministik (xorshift64*).
 ///
 /// Kenapa tidak `rand`? Karena queue harus **deterministik saat diuji**: dengan
@@ -69,6 +71,18 @@ pub struct QueueManager {
     cursor: usize,
     shuffle: bool,
     repeat: RepeatMode,
+    /// Shuffle pintar: urutan disusun dari riwayat mendengar, bukan acak rata.
+    shuffle_pintar: bool,
+    /// Riwayat mendengar per `video_id`, diisi pemanggil dari database.
+    ///
+    /// Disimpan di sini (bukan dibaca `QueueManager` sendiri) supaya modul ini
+    /// tetap murni: tanpa database, tanpa I/O, bisa diuji berdiri sendiri.
+    ///
+    /// `serde(skip)`: riwayat dibangun ulang dari database setiap kali aplikasi
+    /// dibuka. Ikut menyerialisasinya akan menggandakan data yang sudah ada di
+    /// `listen_events` ke dalam state antrean.
+    #[serde(skip)]
+    riwayat: std::collections::HashMap<String, smart::RiwayatLagu>,
     /// Disimpan supaya hasil shuffle bisa direproduksi (dan diuji).
     seed: u64,
     rng: Rng,
@@ -87,6 +101,8 @@ impl QueueManager {
             order: Vec::new(),
             cursor: 0,
             shuffle: false,
+            shuffle_pintar: false,
+            riwayat: std::collections::HashMap::new(),
             repeat: RepeatMode::Off,
             seed,
             rng: Rng::new(seed),
@@ -388,6 +404,43 @@ impl QueueManager {
         }
     }
 
+    /// Isi riwayat mendengar yang dipakai smart shuffle.
+    pub fn set_riwayat(&mut self, riwayat: std::collections::HashMap<String, smart::RiwayatLagu>) {
+        self.riwayat = riwayat;
+    }
+
+    /// Apakah shuffle pintar aktif.
+    pub fn shuffle_pintar(&self) -> bool {
+        self.shuffle_pintar
+    }
+
+    /// Epoch ms sekarang.
+    ///
+    /// Modul `smart` sengaja tidak membaca jam sendiri supaya bisa diuji dengan
+    /// waktu tetap; hanya di sini jam dinding disentuh.
+    fn jam_ms() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0)
+    }
+
+    /// Pilih jenis shuffle. `true` = pintar (berbobot), `false` = acak rata.
+    ///
+    /// Kalau shuffle sedang menyala, urutannya langsung disusun ulang dengan
+    /// aturan baru — tanpa itu, mengganti jenis shuffle tidak berpengaruh apa
+    /// pun sampai pengguna mematikan dan menyalakannya lagi.
+    pub fn set_shuffle_pintar(&mut self, pintar: bool) {
+        if pintar == self.shuffle_pintar {
+            return;
+        }
+        self.shuffle_pintar = pintar;
+        if self.shuffle {
+            let cur = self.current_item_index().unwrap_or(0);
+            self.enable_shuffle_for(cur);
+        }
+    }
+
     /// Nyalakan shuffle memakai lagu aktif saat ini sebagai titik awal.
     ///
     /// Sengaja memanggil `enable_shuffle_for` supaya HANYA ADA SATU aturan
@@ -511,6 +564,31 @@ impl QueueManager {
         }
         // Lagu yang ditambahkan lebih dulu diputar lebih dulu.
         prioritas.sort_by_key(|&i| self.items[i].prioritas_urut);
+
+        if self.shuffle_pintar && biasa.len() > 1 {
+            // Susun sisa lagu menurut riwayat. Prioritas tetap di depan dan
+            // tidak ikut disusun: pilihan pengguna tidak boleh "dipintarkan".
+            let ids: Vec<String> = biasa.iter().map(|&i| self.items[i].track.video_id.clone()).collect();
+            let artis: Vec<String> = biasa.iter().map(|&i| self.items[i].track.artist.clone()).collect();
+            let m = smart::Masukan {
+                ids: &ids,
+                artis: &artis,
+                aktif: 0,
+                riwayat: &self.riwayat,
+                sekarang_ms: Self::jam_ms(),
+                seed: self.rng.next_u64(),
+            };
+            // `susun` mengembalikan indeks ke dalam `ids`; terjemahkan kembali
+            // ke indeks `items` lewat `biasa`.
+            let urutan = smart::susun(&m);
+            let disusun: Vec<usize> = urutan.iter().map(|&k| biasa[k]).collect();
+            self.order = vec![item_idx];
+            self.order.extend(prioritas);
+            self.order.extend(disusun);
+            self.cursor = 0;
+            return;
+        }
+
         self.rng.shuffle(&mut biasa);
 
         self.order = vec![item_idx];

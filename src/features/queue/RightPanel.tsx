@@ -20,6 +20,7 @@ interface Props {
   onMove: (from: number, to: number) => void;
   onClear: () => void;
   onToggleShuffle: () => void;
+  onToggleShufflePintar?: () => void;
   onCycleRepeat: () => void;
 }
 
@@ -40,6 +41,7 @@ export function RightPanel({
   onMove,
   onClear,
   onToggleShuffle,
+  onToggleShufflePintar,
   onCycleRepeat,
 }: Props) {
   const isPlaying = playerState.status === "playing";
@@ -126,6 +128,7 @@ export function RightPanel({
           onMove={onMove}
           onClear={onClear}
           onToggleShuffle={onToggleShuffle}
+          onToggleShufflePintar={onToggleShufflePintar}
           onCycleRepeat={onCycleRepeat}
         />
       ) : (
