@@ -9,4 +9,12 @@ pub struct QueueItem {
     pub track: Track,
     /// Posisi sebelum shuffle; dipakai untuk membatalkan shuffle tanpa kehilangan urutan asli.
     pub original_order: i64,
+    /// Lagu yang pengguna tambahkan sendiri ("Tambah ke antrean").
+    ///
+    /// Selalu diputar sebelum lagu acak dari playlist, sesuai urutan
+    /// penambahan — inilah "custom queue" ala Spotify.
+    pub prioritas: bool,
+    /// Urutan penambahan antar lagu prioritas. Dipakai supaya lagu yang
+    /// ditambahkan duluan tetap diputar duluan walau shuffle menyala.
+    pub prioritas_urut: i64,
 }

@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
+    "clean": "node -e \"require('fs').rmSync('src-tauri/target/debug',{recursive:true,force:true});require('fs').rmSync('src-tauri/target/release/build',{recursive:true,force:true})\"",
     "tauri": "tauri"
   },
   "dependencies": {

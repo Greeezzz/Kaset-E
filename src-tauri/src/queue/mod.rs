@@ -138,6 +138,8 @@ impl QueueManager {
                     position: pos as i64,
                     original_order: it.original_order,
                     track: it.track.clone(),
+                    prioritas: it.prioritas,
+                    prioritas_urut: it.prioritas_urut,
                 })
             })
             .collect()
@@ -151,18 +153,38 @@ impl QueueManager {
     // ---------------------------------------------------------------- mutasi
 
     /// Tambah lagu di akhir antrean. Mengembalikan posisi tampilan barunya.
+    ///
+    /// Lagu yang ditambahkan lewat cara ini ditandai PRIORITAS: itu jalur
+    /// "Tambah ke antrean", dan pengguna mengharapkan lagu pilihannya diputar
+    /// sebelum sisa playlist yang acak. Gunakan `add_biasa` untuk lagu yang
+    /// datang dari playlist/acak.
     pub fn add(&mut self, track: Track) -> usize {
+        self.add_dengan_prioritas(track, true)
+    }
+
+    /// Tambah lagu tanpa menandainya prioritas (dipakai `replace` untuk
+    /// mengisi antrean dari playlist).
+    pub fn add_biasa(&mut self, track: Track) -> usize {
+        self.add_dengan_prioritas(track, false)
+    }
+
+    fn add_dengan_prioritas(&mut self, track: Track, prioritas: bool) -> usize {
         let original_order = self.next_original_order();
+        // Urutan prioritas terus naik, sama seperti `original_order`, supaya
+        // lagu yang ditambahkan lebih dulu tetap diputar lebih dulu.
+        let prioritas_urut = if prioritas { original_order } else { 0 };
         self.items.push(QueueItem {
             position: self.items.len() as i64,
             original_order,
             track,
+            prioritas,
+            prioritas_urut,
         });
         let item_idx = self.items.len() - 1;
 
-        if self.shuffle {
-            // Saat shuffle hidup, lagu baru ditaruh acak di antara sisa antrean
-            // (bukan di akhir) supaya tidak selalu muncul belakangan.
+        if self.shuffle && !prioritas {
+            // Lagu playlist ditaruh acak di antara sisa antrean supaya tidak
+            // selalu muncul belakangan.
             let insert_at = if self.order.len() <= 1 {
                 self.order.len()
             } else {
@@ -171,6 +193,20 @@ impl QueueManager {
                 ahead + (self.rng.next_u64() as usize % (span + 1))
             };
             self.order.insert(insert_at, item_idx);
+        } else if self.shuffle {
+            // Lagu prioritas: taruh SETELAH semua prioritas yang sudah ada,
+            // dan sebelum lagu acak. Itulah "custom queue" — pengguna
+            // menambahkan dua lagu, keduanya harus berurutan dan didahulukan.
+            let mulai = self.cursor + 1;
+            let mut akhir_prioritas = mulai;
+            while akhir_prioritas < self.order.len() {
+                let idx = self.order[akhir_prioritas];
+                if !self.items[idx].prioritas {
+                    break;
+                }
+                akhir_prioritas += 1;
+            }
+            self.order.insert(akhir_prioritas, item_idx);
         } else {
             self.order.push(item_idx);
         }
@@ -214,6 +250,8 @@ impl QueueManager {
             position: self.items.len() as i64,
             original_order,
             track,
+            prioritas: true,
+            prioritas_urut: original_order,
         });
         let item_idx = self.items.len() - 1;
         let at = (self.cursor + 1).min(self.order.len());
@@ -302,6 +340,9 @@ impl QueueManager {
                 position: i as i64,
                 original_order: i as i64,
                 track,
+                // Isi playlist bukan prioritas: urutannya boleh diacak.
+                prioritas: false,
+                prioritas_urut: 0,
             })
             .collect();
         if self.items.is_empty() {
@@ -347,22 +388,14 @@ impl QueueManager {
         }
     }
 
+    /// Nyalakan shuffle memakai lagu aktif saat ini sebagai titik awal.
+    ///
+    /// Sengaja memanggil `enable_shuffle_for` supaya HANYA ADA SATU aturan
+    /// urutan shuffle. Dua implementasi berbeda sebelumnya membuat lagu
+    /// prioritas didahulukan di satu jalur tapi tidak di jalur lain.
     fn enable_shuffle(&mut self) {
-        let current_item = self.current_item_index();
-        // Order awal = urutan asli, lalu diacak.
-        self.order = (0..self.items.len()).collect();
-        self.rng.shuffle(&mut self.order);
-
-        // Pastikan lagu aktif tetap di depan (posisi cursor 0) supaya tidak
-        // ada lompatan saat shuffle baru dinyalakan.
-        if let Some(cur) = current_item {
-            if let Some(p) = self.order.iter().position(|&i| i == cur) {
-                self.order.swap(0, p);
-            }
-            self.cursor = 0;
-        } else {
-            self.cursor = 0;
-        }
+        let cur = self.current_item_index().unwrap_or(0);
+        self.enable_shuffle_for(cur);
     }
 
     fn current_item_index(&self) -> Option<usize> {
@@ -446,13 +479,43 @@ impl QueueManager {
         q
     }
 
+    /// Indeks lagu aktif di dalam `items` (urutan asli), bukan posisi di
+    /// `order`.
+    ///
+    /// Ini yang harus DISIMPAN dan dipulihkan: posisi di `order` berubah setiap
+    /// kali shuffle dinyalakan ulang, sedangkan indeks `items` stabil. Bug
+    /// "antrean balik ke awal" terjadi karena yang disimpan posisi `order` tapi
+    /// `restore` menafsirkannya sebagai indeks `items`.
+    pub fn active_item_index(&self) -> usize {
+        self.order.get(self.cursor).copied().unwrap_or(0)
+    }
+
     /// Sama seperti `enable_shuffle`, tapi lagu aktif ditentukan indeks `items`.
+    ///
+    /// Urutan hasil: [lagu aktif] → [lagu prioritas sesuai urutan penambahan]
+    /// → [sisanya, diacak]. Itulah "custom queue" ala Spotify: yang pengguna
+    /// pilih sendiri selalu didahulukan, sisanya baru acak.
     fn enable_shuffle_for(&mut self, item_idx: usize) {
-        self.order = (0..self.items.len()).collect();
-        self.rng.shuffle(&mut self.order);
-        if let Some(p) = self.order.iter().position(|&i| i == item_idx) {
-            self.order.swap(0, p);
+        // Pisahkan dulu supaya prioritas tidak ikut teracak.
+        let mut prioritas: Vec<usize> = Vec::new();
+        let mut biasa: Vec<usize> = Vec::new();
+        for (i, item) in self.items.iter().enumerate() {
+            if i == item_idx {
+                continue; // lagu aktif selalu paling depan
+            }
+            if item.prioritas {
+                prioritas.push(i);
+            } else {
+                biasa.push(i);
+            }
         }
+        // Lagu yang ditambahkan lebih dulu diputar lebih dulu.
+        prioritas.sort_by_key(|&i| self.items[i].prioritas_urut);
+        self.rng.shuffle(&mut biasa);
+
+        self.order = vec![item_idx];
+        self.order.extend(prioritas);
+        self.order.extend(biasa);
         self.cursor = 0;
     }
 }
@@ -714,7 +777,7 @@ mod tests {
         let build = |seed| {
             let mut q = QueueManager::new(seed);
             for i in 0..20 {
-                q.add(track(&format!("t{i}")));
+                q.add_biasa(track(&format!("t{i}")));
             }
             q.set_shuffle(true);
             ids(&q)
@@ -778,10 +841,10 @@ mod tests {
         for seed in 1..25u64 {
             let mut q = QueueManager::new(seed * 7919);
             for i in 0..10 {
-                q.add(track(&format!("t{i}")));
+                q.add_biasa(track(&format!("t{i}")));
             }
             q.set_shuffle(true);
-            q.add(track("baru"));
+            q.add_biasa(track("baru"));
             posisi.push(ids(&q).iter().position(|x| x == "baru").unwrap());
         }
         assert!(
@@ -797,11 +860,11 @@ mod tests {
         for seed in 1..15u64 {
             let mut q = QueueManager::new(seed * 104_729);
             for i in 0..8 {
-                q.add(track(&format!("t{i}")));
+                q.add_biasa(track(&format!("t{i}")));
             }
             q.set_shuffle(true);
             q.advance(); // cursor maju di dalam order
-            q.add(track("baru"));
+            q.add_biasa(track("baru"));
             let p = ids(&q).iter().position(|x| x == "baru").unwrap();
             assert!(
                 p > q.cursor(),
@@ -920,4 +983,88 @@ mod tests {
         assert!(q.is_empty());
         assert!(q.current().is_none());
     }
+    /// Regresi: cursor yang disimpan adalah posisi di `order`, bukan indeks
+    /// `items`. Saat shuffle aktif keduanya BERBEDA, jadi memulihkan dengan
+    /// `cursor.min(items.len())` menunjuk lagu yang salah — antrean terlihat
+    /// "balik ke awal" padahal sebenarnya menunjuk indeks yang salah.
+    #[test]
+    fn restore_dengan_shuffle_memulihkan_lagu_yang_sama() {
+        let mut q = QueueManager::new(7);
+        for i in 0..10 {
+            q.add(track(&format!("l{i}")));
+        }
+        q.set_shuffle(true);
+        // Maju tiga lagu di urutan shuffle.
+        q.advance();
+        q.advance();
+        q.advance();
+        let lagu_aktif = q.current().unwrap().track.video_id.clone();
+        let cursor_tersimpan = q.cursor();
+        let items_tersimpan = q.items().to_vec();
+
+        // Simulasi simpan -> muat ulang.
+        let q2 = QueueManager::restore(items_tersimpan, cursor_tersimpan, true, RepeatMode::Off);
+        assert_eq!(
+            q2.current().map(|i| i.track.video_id.clone()),
+            Some(lagu_aktif.clone()),
+            "setelah dipulihkan, lagu aktif harus sama (cursor {} menunjuk lagu yang salah)",
+            cursor_tersimpan
+        );
+    }
+
+    /// Fitur antrean prioritas: lagu yang pengguna tambahkan sendiri harus
+    /// diputar sebelum lagu playlist, walau shuffle menyala.
+    #[test]
+    fn prioritas_didahului_walau_shuffle() {
+        let mut q = QueueManager::new(42);
+        // Isi dari playlist (bukan prioritas).
+        q.replace(
+            (0..8).map(|i| track(&format!("pl{i}"))).collect(),
+            0,
+        );
+        q.set_shuffle(true);
+        // Pengguna menambahkan dua lagu sendiri, berurutan.
+        q.add(track("pilihA"));
+        q.add(track("pilihB"));
+
+        let urut = ids(&q);
+        assert_eq!(urut[0], "pl0", "lagu aktif tetap di depan");
+        assert_eq!(urut[1], "pilihA", "prioritas pertama didahulukan");
+        assert_eq!(urut[2], "pilihB", "prioritas kedua setelah yang pertama");
+        assert!(
+            urut[3..].iter().all(|s| s.starts_with("pl")),
+            "sisanya lagu playlist yang diacak: {:?}",
+            &urut[3..]
+        );
+    }
+
+    /// Menyalakan shuffle lagi tidak boleh mengacak lagu prioritas.
+    #[test]
+    fn shuffle_ulang_tetap_mendahului_prioritas() {
+        let mut q = QueueManager::new(9);
+        q.replace((0..6).map(|i| track(&format!("pl{i}"))).collect(), 0);
+        q.add(track("pilihA"));
+        q.add(track("pilihB"));
+        q.set_shuffle(true);
+        q.advance(); // pindah ke pilihA
+        // Nyalakan ulang shuffle tanpa melewati mode mati: yang diuji adalah
+        // apakah prioritas tetap berurutan, bukan perilaku shuffle-off.
+        q.set_shuffle(true);
+        q.enable_shuffle();
+
+        let urut = ids(&q);
+        assert_eq!(urut[0], "pilihA");
+        assert_eq!(urut[1], "pilihB", "prioritas tetap berurutan setelah shuffle ulang");
+    }
+
+    /// Isi playlist (replace) BUKAN prioritas — itu lagu yang boleh diacak.
+    #[test]
+    fn replace_tidak_menandai_prioritas() {
+        let mut q = QueueManager::new(1);
+        q.replace(vec![track("a"), track("b")], 0);
+        assert!(q.items().iter().all(|i| !i.prioritas));
+        q.add(track("c"));
+        assert!(q.items().last().unwrap().prioritas);
+    }
+
 }

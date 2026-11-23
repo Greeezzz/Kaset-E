@@ -336,6 +336,23 @@ export function QueuePanel({
                     >
                       {it.track.artist}
                     </span>
+                    {it.prioritas && (
+                      <span
+                        className="mono"
+                        title={T.antreanPrioritasHint}
+                        style={{
+                          display: "inline-block",
+                          marginTop: 2,
+                          padding: "1px 5px",
+                          fontSize: 9,
+                          letterSpacing: "0.08em",
+                          background: "var(--accent)",
+                          color: "var(--accent-ink)",
+                        }}
+                      >
+                        {T.antreanPrioritas}
+                      </span>
+                    )}
                   </button>
 
                   <span className="mono muted" style={{ fontSize: 11, textAlign: "right" }}>

@@ -297,6 +297,9 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         position: i,
         track: t,
         originalOrder: i,
+        // Isi playlist bukan prioritas: boleh diacak.
+        prioritas: false,
+        prioritasUrut: 0,
       }));
       mockQueue.cursor = 0;
       return mockQueue.view() as T;
@@ -309,6 +312,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         position: mockQueue.items.length,
         track: t,
         originalOrder: mockQueue.items.length,
+        prioritas: true,
+        prioritasUrut: mockQueue.items.length,
       });
       return mockQueue.view() as T;
     }
@@ -319,6 +324,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         position: mockQueue.items.length,
         track: t,
         originalOrder: mockQueue.items.length,
+        prioritas: true,
+        prioritasUrut: mockQueue.items.length,
       });
       mockQueue.cursor = mockQueue.items.length - 1;
       return mockQueue.view() as T;
@@ -329,6 +336,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         position: 0,
         track: t,
         originalOrder: mockQueue.items.length,
+        prioritas: true,
+        prioritasUrut: mockQueue.items.length,
       });
       return mockQueue.view() as T;
     }
@@ -354,6 +363,9 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         position: i,
         track: t,
         originalOrder: i,
+        // Isi playlist bukan prioritas: boleh diacak.
+        prioritas: false,
+        prioritasUrut: 0,
       }));
       mockQueue.cursor =
         tracks.length === 0 ? 0 : Math.min(Math.max(0, startIndex), tracks.length - 1);

@@ -24,6 +24,10 @@ export interface QueueItem {
   track: Track;
   /** Posisi asli sebelum shuffle; dipakai untuk membatalkan shuffle. */
   originalOrder: number;
+  /** Lagu yang pengguna tambahkan sendiri — selalu diputar sebelum lagu acak. */
+  prioritas: boolean;
+  /** Urutan penambahan antar lagu prioritas. */
+  prioritasUrut: number;
 }
 
 export interface PlayerState {

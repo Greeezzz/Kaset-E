@@ -29,20 +29,30 @@ pub fn save(db: &Db, queue: &QueueManager) -> AppResult<()> {
             // Simpan dalam urutan ASLI, dengan `original_order` sebagai penanda
             // urutan yang stabil.
             let mut stmt = tx.prepare(
-                "INSERT INTO queue_items (position, video_id, original_order)
-                 VALUES (?1, ?2, ?3)",
+                "INSERT INTO queue_items
+                    (position, video_id, original_order, prioritas, prioritas_urut)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
             )?;
             let mut sorted: Vec<&QueueItem> = queue.items().iter().collect();
             sorted.sort_by_key(|i| i.original_order);
             for (idx, it) in sorted.iter().enumerate() {
-                stmt.execute(params![idx as i64, it.track.video_id, it.original_order])?;
+                stmt.execute(params![
+                    idx as i64,
+                    it.track.video_id,
+                    it.original_order,
+                    i64::from(it.prioritas),
+                    it.prioritas_urut,
+                ])?;
             }
         }
         tx.commit()?;
         Ok(())
     })?;
 
-    set_setting(db, KEY_CURSOR, &queue.cursor().to_string())?;
+    // Simpan indeks ITEMS, bukan posisi di `order`. Posisi order berubah saat
+    // shuffle dinyalakan ulang, jadi memakainya membuat lagu aktif salah setelah
+    // aplikasi dibuka lagi.
+    set_setting(db, KEY_CURSOR, &queue.active_item_index().to_string())?;
     set_setting(
         db,
         KEY_SHUFFLE,
@@ -60,7 +70,8 @@ pub fn load(db: &Db) -> AppResult<Option<QueueManager>> {
     let items: Vec<QueueItem> = db.with(|c| {
         let mut stmt = c.prepare(
             "SELECT q.position, q.original_order,
-                    t.video_id, t.title, t.artist, t.album, t.duration_ms
+                    t.video_id, t.title, t.artist, t.album, t.duration_ms,
+                    q.prioritas, q.prioritas_urut
              FROM queue_items q
              JOIN tracks t ON t.video_id = q.video_id
              ORDER BY q.original_order",
@@ -70,6 +81,8 @@ pub fn load(db: &Db) -> AppResult<Option<QueueManager>> {
             Ok(QueueItem {
                 position: r.get(0)?,
                 original_order: r.get(1)?,
+                prioritas: r.get::<_, i64>(7)? != 0,
+                prioritas_urut: r.get(8)?,
                 track: Track {
                     cover_key: Track::cover_key_for(&video_id),
                     video_id,

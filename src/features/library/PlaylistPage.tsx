@@ -75,20 +75,30 @@ export function PlaylistPage({
   onGoSearch,
   onOpenHistory,
 }: Props) {
-  const [sort, setSort] = useState<SortKey>("asli");
+  // Pilihan urutan DISIMPAN per playlist (localStorage), bukan hanya state
+  // lokal. Sebelumnya `setSort("asli")` dipanggil setiap kali playlistId
+  // berubah, sehingga membuka ulang playlist selalu mengembalikan urutannya ke
+  // awal — pilihan pengguna hilang tanpa penjelasan.
+  const [sort, setSort] = useState<SortKey>(() => bacaSort(playlist?.id ?? null));
   const [menuBuka, setMenuBuka] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset mode edit/menu saat berpindah playlist.
+  // Reset mode edit/menu saat berpindah playlist — TAPI bukan pilihan urutan.
+  // Urutan dimuat ulang dari preferensi tersimpan playlist tujuan.
   const playlistId = playlist?.id ?? null;
   useEffect(() => {
     setMenuBuka(false);
     setRenaming(false);
     setRenameVal("");
-    setSort("asli");
+    setSort(bacaSort(playlistId));
   }, [playlistId]);
+
+  // Simpan pilihan urutan setiap kali berubah.
+  useEffect(() => {
+    if (playlistId !== null) simpanSort(playlistId, sort);
+  }, [playlistId, sort]);
 
   const sortedTracks = useMemo(() => {
     if (sort === "asli") return tracks;
@@ -510,4 +520,32 @@ export function PlaylistPage({
       )}
     </section>
   );
+}
+
+/**
+ * Preferensi urutan per playlist.
+ *
+ * Disimpan di `localStorage`, bukan database: ini preferensi tampilan, bukan
+ * data yang perlu disinkronkan atau dicadangkan. Kalau nanti Fase 6 (sync)
+ * dikerjakan, pindahkan ke tabel `settings` dengan kunci per playlist.
+ */
+const KUNCI_SORT = "kaset.sort.playlist.";
+
+function bacaSort(id: number | null): SortKey {
+  if (id === null) return "asli";
+  try {
+    const v = localStorage.getItem(KUNCI_SORT + id);
+    if (v === "judul" || v === "artis" || v === "durasi" || v === "asli") return v;
+  } catch {
+    // localStorage bisa gagal di mode privasi; jatuh ke urutan asli.
+  }
+  return "asli";
+}
+
+function simpanSort(id: number, sort: SortKey) {
+  try {
+    localStorage.setItem(KUNCI_SORT + id, sort);
+  } catch {
+    // Gagal simpan bukan alasan menggagalkan render.
+  }
 }

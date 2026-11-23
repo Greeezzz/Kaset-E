@@ -64,6 +64,9 @@ export const T = {
 
   // Antrean & Panel Kanan
   antrean: "ANTREAN",
+  antreanPrioritas: "PILIHANMU",
+  antreanPrioritasHint:
+    "Lagu yang kamu tambahkan sendiri. Selalu diputar sebelum lagu acak dari playlist, sesuai urutan penambahan.",
   antreanKosong: "ANTREAN KOSONG",
   antreanKosongHint: "Tambahkan lagu dari hasil pencarian atau playlist.",
   sedangDiputar: "SEDANG DIPUTAR",

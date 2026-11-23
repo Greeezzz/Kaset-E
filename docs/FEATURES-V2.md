@@ -144,6 +144,32 @@ Aturan keras:
 - Verifikasi dulu apakah crate katalog yang dipakai mendukung endpoint ini. Jangan mengarang API.
 - Hormati kebijakan di `RESILIENCE.md` (rate limit, backoff).
 
+### 2.3b Antrean Dua Jenis — SELESAI
+
+Setiap item antrean punya penanda `prioritas`, bukan dua daftar terpisah.
+Dua daftar berarti dua sumber kebenaran untuk cursor, dan bug sinkronisasi
+antrean sudah pernah terjadi (lihat catatan cursor di `PROGRESS.md`).
+
+| | `prioritas = true` | `prioritas = false` |
+|---|---|---|
+| Dari mana | "Tambah ke antrean", "Putar berikutnya" | isi playlist, hasil ACAK |
+| Urutan | sesuai `prioritas_urut` (urutan penambahan) | diacak |
+| Posisi main | **selalu sebelum** lagu acak | setelah semua prioritas |
+
+Urutan hasil shuffle: `[lagu aktif]` → `[prioritas berurutan]` → `[sisa diacak]`.
+Itulah "custom queue" ala Spotify: lagu yang kamu pilih sendiri tidak pernah
+tenggelam di antara lagu acak.
+
+Aturan penting:
+
+- Lagu aktif **selalu** di depan, termasuk saat shuffle dinyalakan ulang.
+- Menyalakan shuffle lagi **tidak mengacak** lagu prioritas.
+- `replace()` (isi dari playlist) menandai semua lagu `prioritas = false`.
+- Saat shuffle mati, prioritas kembali ke posisi aslinya di `items` — perilaku
+  shuffle non-destruktif dipertahankan, jadi urutan asli tidak pernah hilang.
+
+Di UI, lagu prioritas diberi label **PILIHANMU** di panel antrean.
+
 ### 2.4 Kriteria Selesai
 
 - [ ] Modul `queue::smart_shuffle` murni (tanpa I/O) menerima daftar lagu + statistik + seed
