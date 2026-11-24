@@ -6,6 +6,7 @@ import { PlaylistArt } from "../../components/PlaylistArt";
 import { IkonPlay, IkonPause, IkonHati, IkonMenu } from "../../components/icons";
 import { AksiMenu } from "../../components/AksiMenu";
 import { EmptyState } from "../../components/EmptyState";
+import { streamCache } from "../../lib/streamCache";
 import { PlaylistTable } from "./PlaylistTable";
 import { formatTotalDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
@@ -94,6 +95,24 @@ export function PlaylistPage({
     setRenameVal("");
     setSort(bacaSort(playlistId));
   }, [playlistId]);
+
+  // Prefetch lagu PERTAMA saat halaman playlist dibuka.
+  //
+  // Itu lagu yang paling mungkin diputar berikutnya (pengguna membuka playlist
+  // biasanya untuk memutarnya), jadi resolve-nya layak dikerjakan lebih awal.
+  // Hanya satu lagu: bukan seluruh playlist, karena itu akan membanjiri
+  // throttle resolver untuk lagu yang belum tentu dipilih.
+  //
+  // Memakai `tracks[0]`: lagu pertama dalam urutan asli playlist, yang juga
+  // yang tampil paling atas saat urutan belum diubah.
+  const videoPertama = tracks[0]?.videoId ?? null;
+  useEffect(() => {
+    if (!videoPertama) return;
+    // Jeda kecil supaya pembukaan halaman (render + cover) tidak berebut
+    // dengan resolve.
+    const t = setTimeout(() => streamCache.prefetch(videoPertama), 600);
+    return () => clearTimeout(t);
+  }, [playlistId, videoPertama]);
 
   // Simpan pilihan urutan setiap kali berubah.
   useEffect(() => {

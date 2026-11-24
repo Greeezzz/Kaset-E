@@ -258,6 +258,36 @@ pub async fn ensure_available() -> AppResult<PathBuf> {
     }
 }
 
+/// Hapus cadangan versi lama yang sudah berumur lebih dari beberapa hari.
+///
+/// Dipanggil saat start. Terpisah dari pemeriksaan versi baru: pembersihan ini
+/// tidak butuh jaringan dan harus jalan meski offline.
+#[cfg(windows)]
+pub fn bersihkan_cadangan_lama() {
+    let Some(dir) = crate::paths::data_dir() else {
+        return;
+    };
+    let Some(aktif) = super::biner::daftar_versi(&dir).into_iter().next() else {
+        return;
+    };
+    let hapus = super::biner::cadangan_kadaluarsa(
+        &dir,
+        &aktif,
+        super::biner::UMUR_CADANGAN_HARI,
+        sekarang_ms(),
+    );
+    for folder in hapus {
+        match std::fs::remove_dir_all(&folder) {
+            Ok(()) => tracing::info!(folder = %folder.display(), "cadangan yt-dlp lama dihapus"),
+            Err(e) => {
+                // Gagal hapus bukan masalah: cuma makan disk. Bisa jadi folder
+                // masih dipakai proses lain.
+                tracing::debug!(folder = %folder.display(), error = %e, "gagal menghapus cadangan yt-dlp")
+            }
+        }
+    }
+}
+
 /// Periksa versi terbaru di background dan pasang kalau sudah waktunya.
 ///
 /// Dipanggil setelah resolver aktif — **tidak pernah** memblokir pemutaran.
@@ -320,7 +350,7 @@ pub async fn cek_pembaruan_latar(db: &crate::db::Db) {
 
     // Pemasangan memakai jalur yang sama dengan pemasangan pertama; kalau
     // gagal, versi lama tetap ada dan tetap dipakai.
-    match unduh_bytes(super::biner::url_onedir()).await {
+    match unduh_onedir_terverifikasi().await {
         Ok(bytes) => {
             let tanda = sekarang as u64;
             let kerja = super::biner::folder_sementara(&dir, tanda);
@@ -420,7 +450,7 @@ async fn pasang_onedir(dir: &std::path::Path) -> Option<PathBuf> {
     SEDANG_MENYIAPKAN.store(true, std::sync::atomic::Ordering::Relaxed);
     let _penanda = Penanda;
 
-    let zip_bytes = match unduh_bytes(biner::url_onedir()).await {
+    let zip_bytes = match unduh_onedir_terverifikasi().await {
         Ok(b) => b,
         Err(e) => {
             tracing::warn!(error = %e, "gagal mengunduh zip onedir; memakai biner satu-file");
@@ -591,6 +621,77 @@ async fn jalankan_versi(biner: &std::path::Path) -> AppResult<String> {
         ));
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// Unduh zip onedir DAN verifikasi SHA-256 terhadap daftar hash resmi.
+///
+/// Kenapa hash diperiksa meski HTTPS sudah dipakai: HTTPS melindungi
+/// pengiriman, tapi tidak melindungi dari rilis yang diubah di sisi GitHub atau
+/// dari proxy yang dipasang pengguna. Daftar hash resmi memberi titik
+/// pembanding kedua, dan itu murah.
+///
+/// Kalau daftar hash tidak bisa diambil atau hash tidak cocok, unduhan
+/// DITOLAK. Pemanggil lalu tetap memakai versi yang sudah terpasang — lebih
+/// baik memutar dengan versi agak tua daripada memasang biner yang tidak
+/// terverifikasi.
+#[cfg(windows)]
+async fn unduh_onedir_terverifikasi() -> AppResult<Vec<u8>> {
+    use super::biner;
+
+    // Jangan pernah mengambil daftar hash dari URL yang bukan rilis resmi:
+    // kalau zip bisa diubah, daftar hash-nya juga bisa.
+    let url_zip = biner::url_onedir();
+    let url_sums = biner::url_sums();
+    if !biner::url_rilis_sah(&url_zip) || !biner::url_rilis_sah(&url_sums) {
+        return Err(AppError::stream(
+            "URL unduhan bukan rilis resmi yt-dlp".to_string(),
+            false,
+        ));
+    }
+
+    let sums = match unduh_bytes(&url_sums).await {
+        Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+        Err(e) => {
+            // Tanpa daftar hash kita tidak bisa memverifikasi. Menolak lebih
+            // aman daripada memasang apa pun yang datang.
+            tracing::warn!(error = %e, "gagal mengambil daftar hash; unduhan dibatalkan");
+            return Err(AppError::stream(
+                format!("gagal mengambil daftar hash resmi: {e}"),
+                false,
+            ));
+        }
+    };
+
+    let diharapkan = biner::hash_untuk(&sums, biner::nama_zip_onedir()).ok_or_else(|| {
+        tracing::warn!(
+            berkas = biner::nama_zip_onedir(),
+            "daftar hash resmi tidak mencantumkan berkas ini"
+        );
+        AppError::stream(
+            format!(
+                "daftar hash resmi tidak mencantumkan {}",
+                biner::nama_zip_onedir()
+            ),
+            false,
+        )
+    })?;
+
+    let bytes = unduh_bytes(&url_zip).await?;
+
+    if !biner::hash_cocok(&bytes, &diharapkan) {
+        tracing::warn!(
+            diharapkan = %diharapkan,
+            ukuran = bytes.len(),
+            "hash unduhan tidak cocok; berkas ditolak"
+        );
+        return Err(AppError::stream(
+            "hash unduhan yt-dlp tidak cocok — berkas ditolak".to_string(),
+            false,
+        ));
+    }
+
+    tracing::info!(hash = %diharapkan, "hash unduhan yt-dlp cocok");
+    Ok(bytes)
 }
 
 /// Unduh isi URL jadi byte. Dipakai jalur onedir; jalur satu-file memakai

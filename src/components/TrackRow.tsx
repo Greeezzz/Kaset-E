@@ -6,6 +6,7 @@ import { formatDuration } from "../lib/format";
 import { T } from "../lib/strings";
 import { IkonMenu, IkonHati } from "./icons";
 import { AksiMenu } from "./AksiMenu";
+import { usePrefetchHover } from "../hooks/usePrefetchHover";
 
 interface Props {
   track: Track;
@@ -56,6 +57,7 @@ export function TrackRow({
 }: Props) {
   const [menuBuka, setMenuBuka] = useState(false);
   const [hover, setHover] = useState(false);
+  const hoverPrefetch = usePrefetchHover();
   const [fokus, setFokus] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -85,8 +87,16 @@ export function TrackRow({
         // bukan teks kuning (kontras gagal di tema terang).
         boxShadow: active ? "inset 3px 0 0 var(--accent)" : "none",
       }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={() => {
+        setHover(true);
+        // Prefetch saat kursor berhenti di baris (debounce 400 ms). Tidak
+        // dipasang di hasil pencarian sebagai daftar — lihat usePrefetchHover.
+        hoverPrefetch.onHover(track.videoId);
+      }}
+      onMouseLeave={() => {
+        setHover(false);
+        hoverPrefetch.onKeluar();
+      }}
       onFocus={() => setFokus(true)}
       onBlur={(e) => {
         // Fokus pindah ke elemen lain di luar baris ini = bukan fokus kita lagi.

@@ -59,6 +59,10 @@ pub fn run() {
                 let state = handle.state::<state::AppState>();
                 state.upgrade_catalog().await;
                 state.upgrade_resolver().await;
+                // Pembersihan cadangan tidak butuh jaringan; jalankan setelah
+                // resolver siap supaya tidak berebut disk saat unduhan.
+                #[cfg(windows)]
+                crate::resolver::ytdlp::bersihkan_cadangan_lama();
             });
 
             // Bersihkan cache cover sekali saat start, setelah katalog siap.

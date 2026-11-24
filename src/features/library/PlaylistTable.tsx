@@ -6,6 +6,7 @@ import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
 import { IkonPlay, IkonPause, IkonMenu, IkonHati } from "../../components/icons";
 import { AksiMenu } from "../../components/AksiMenu";
+import { usePrefetchHover } from "../../hooks/usePrefetchHover";
 
 const ROW_HEIGHT = 56;
 const OVERSCAN = 6;
@@ -208,6 +209,7 @@ function BarisTabel({
   labelHapus?: string;
 }) {
   const [hover, setHover] = useState(false);
+  const hoverPrefetch = usePrefetchHover();
   const [fokus, setFokus] = useState(false);
   const [menuBuka, setMenuBuka] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -234,8 +236,14 @@ function BarisTabel({
     <div
       role="row"
       onDoubleClick={() => onPlayFromIndex(index)}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={() => {
+        setHover(true);
+        hoverPrefetch.onHover(track.videoId);
+      }}
+      onMouseLeave={() => {
+        setHover(false);
+        hoverPrefetch.onKeluar();
+      }}
       onFocus={() => setFokus(true)}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node)) setFokus(false);

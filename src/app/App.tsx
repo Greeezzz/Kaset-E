@@ -8,6 +8,7 @@ import { MiniPlayer } from "./layout/MiniPlayer";
 import { PlayerBar } from "../features/player/PlayerBar";
 import { useMenyiapkanPemutar } from "../hooks/useMenyiapkanPemutar";
 import { T } from "../lib/strings";
+
 import { FullPlayer } from "../features/player/FullPlayer";
 import { RightPanel, type RightPanelTab } from "../features/queue/RightPanel";
 import { Search } from "../features/search/Search";
@@ -30,6 +31,14 @@ import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
 import { PlaylistDetailDialog } from "../features/library/PlaylistDetailDialog";
 import { ImportDialog } from "../features/library/ImportDialog";
+/**
+ * Kapan prefetch lagu berikutnya dipicu, dihitung dari posisi lagu aktif.
+ *
+ * 4 detik: cukup lama agar lagu yang baru dibuka tidak langsung memicu resolve
+ * kedua (yang akan berebut slot dengan lagu aktif), cukup cepat agar prefetch
+ * selesai jauh sebelum lagu berganti.
+ */
+const AMBANG_PREFETCH_MS = 4000;
 
 /** Ambil pesan ramah dari error Tauri (yang datang sebagai objek {message, permanent}). */
 function errMessage(err: unknown, fallback: string): string {
@@ -127,17 +136,25 @@ export function App() {
         // menulis; di sini cuma meneruskan posisi.
         pencatatMendengar.catat(positionMs);
 
-        // Prefetch lagu berikutnya saat lagu ini tinggal ~15 detik
-        // (MVP.md Fase 1.5). Resolve memakan 1-4 detik; tanpa ini ada jeda
-        // hening di antara dua lagu. Ambang 15 detik cukup lebar untuk
-        // resolve lambat, tapi tidak terlalu awal untuk lagu pendek.
-        const sisa = durationMs - positionMs;
-        if (durationMs > 0 && sisa > 0 && sisa < 15_000 && !prefetchRef.current) {
+        // Prefetch lagu berikutnya BEBERAPA DETIK SETELAH lagu ini mulai.
+        //
+        // Dulu dipicu saat sisa < 15 detik. Itu terlalu telat: resolve butuh
+        // ~2,5-3 detik setelah pindah ke yt-dlp onedir (dulu 5-6 detik), jadi
+        // kalau lagu pendek atau pengguna skip di menit akhir, prefetch belum
+        // selesai dan terdengar jeda hening.
+        //
+        // Sekarang dipicu sekali per lagu di detik ke-AMBANG_PREFETCH. Biaya
+        // awalnya satu resolve lebih awal, dan itu ditukar dengan klik->bunyi
+        // yang jauh lebih pendek untuk lagu berikutnya.
+        if (!prefetchRef.current && durationMs > 0 && positionMs >= AMBANG_PREFETCH_MS) {
           const { items, cursor } = queueViewRef.current;
           const berikut = items[cursor + 1];
           if (berikut?.track.videoId) {
             prefetchRef.current = berikut.track.videoId;
             streamCache.prefetch(berikut.track.videoId);
+            console.info(
+              `[perf] prefetch mulai videoId=${berikut.track.videoId} pada ${Math.round(positionMs)}ms`,
+            );
           }
         }
       },
