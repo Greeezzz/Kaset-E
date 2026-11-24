@@ -114,6 +114,16 @@ fn kemiripan(a: &str, b: &str) -> f32 {
         return 1.0;
     }
 
+    // Spasi tidak boleh membuat nama artis dianggap berbeda.
+    //
+    // Bukti dari impor nyata: Spotify menulis "PornoGraffitti", katalog YouTube
+    // menulis "Porno Graffitti"; Spotify "Sukima Switch", katalog "SUKIMASWITCH".
+    // Tanpa ini skor artis = 0, dan lagu yang judulnya sudah cocok persis tetap
+    // gagal (skor total 0,42 < ambang 0,80).
+    if na.replace(' ', "") == nb.replace(' ', "") {
+        return 1.0;
+    }
+
     let ta: std::collections::HashSet<&str> = na.split(' ').collect();
     let tb: std::collections::HashSet<&str> = nb.split(' ').collect();
     let irisan = ta.intersection(&tb).count() as f32;
@@ -137,7 +147,34 @@ pub fn nilai(
 ) -> Penilaian {
     let mut alasan = Vec::new();
 
-    let skor_judul = kemiripan(judul_impor, &k.judul);
+    let mut skor_judul = kemiripan(judul_impor, &k.judul);
+
+    // Judul impor yang termuat UTUH di judul kandidat dianggap cocok penuh —
+    // tapi HANYA kalau kandidat tidak membawa penanda versi yang tidak ada di
+    // sumber.
+    //
+    // Kasus nyata yang ingin ditolong: katalog menambah terjemahan romaji
+    // setelah judul asli, "メリッサ" menjadi "メリッサ - Melissa". Token
+    // Jaccard menghukum token tambahan itu (0,65) padahal judul intinya utuh.
+    //
+    // Kasus yang TIDAK boleh ikut lolos: "Creep" vs "Creep (Acoustic Version)".
+    // Di situ token tambahannya justru penanda versi — rekaman yang berbeda.
+    // Tanpa penjagaan ini, substring bonus meloloskan versi acoustic/live
+    // secara otomatis, dan tes regresinya langsung gagal.
+    {
+        let (ni, nk) = (normal(judul_impor), normal(&k.judul));
+        let versi_impor = punya_penanda_versi(judul_impor);
+        let versi_kandidat = punya_penanda_versi(&k.judul);
+        let tambahan_bukan_versi = versi_impor == versi_kandidat;
+        if !ni.is_empty()
+            && !nk.is_empty()
+            && ni != nk
+            && (ni.contains(&nk) || nk.contains(&ni))
+            && tambahan_bukan_versi
+        {
+            skor_judul = 1.0;
+        }
+    }
     let skor_artis = {
         // Bandingkan terhadap artis pertama DAN daftar lengkap; lagu feat
         // sering ditulis berbeda di YouTube ("X feat. Y" vs "X; Y").
@@ -167,9 +204,22 @@ pub fn nilai(
 
     // Durasi: pembeda paling andal antara versi studio dan live/remix.
     // Selisih > 20 detik dari lagu asli hampir selalu rekaman berbeda.
+    //
+    // Bonus durasi TIDAK diberikan kalau penanda versi berbeda. Alasannya
+    // terukur: "Creep" (239 s) vs "Creep (Acoustic Version)" (239 s) punya
+    // durasi identik, jadi dapat +0,10 yang menutupi penalti versi -0,20 dan
+    // skor akhirnya 0,90 — lolos otomatis padahal itu rekaman berbeda.
+    // Durasi sama bukan bukti versi sama; penanda versi lebih menentukan.
+    let versi_berbeda = {
+        let vi = punya_penanda_versi(judul_impor);
+        let vk = punya_penanda_versi(&k.judul);
+        vi != vk
+            && !matches!(vi, Some("remaster") | Some("remastered"))
+            && !matches!(vk, Some("remaster") | Some("remastered"))
+    };
     if let (Some(di), Some(dk)) = (durasi_impor, k.durasi_ms) {
         let selisih = (di - dk).abs();
-        if selisih <= 5_000 {
+        if selisih <= 5_000 && !versi_berbeda {
             skor += 0.10;
             alasan.push("durasi cocok".into());
         } else if selisih > 20_000 {
@@ -194,7 +244,12 @@ pub fn nilai(
         let hanya_remaster = matches!(v_impor, Some("remaster") | Some("remastered"))
             || matches!(v_kandidat, Some("remaster") | Some("remastered"));
         if !hanya_remaster {
-            skor -= 0.20;
+            // 0,35 bukan 0,20: dengan judul dan artis sempurna (skor 1,0),
+            // penalti 0,20 menyisakan 0,80 — tepat di ambang otomatis, jadi
+            // versi acoustic/live tetap lolos. 0,35 menyisakan 0,65: masuk
+            // "perlu diperiksa", bukan diterima diam-diam. Itu perilaku yang
+            // benar — pengguna boleh memilihnya, tapi bukan otomatis.
+            skor -= 0.35;
             alasan.push(match (v_impor, v_kandidat) {
                 (None, Some(p)) => format!("kandidat versi {p}"),
                 (Some(p), None) => format!("impor versi {p}, kandidat bukan"),
@@ -355,4 +410,56 @@ mod tests {
         let p = nilai("Secukupnya", "Hindia", "Hindia", Some(252_000), &k);
         assert_eq!(p.keputusan, Keputusan::TidakAda);
     }
+    /// Regresi dari impor nyata: Spotify "PornoGraffitti" vs katalog
+    /// "Porno Graffitti". Skor artis dulu 0 sehingga lagu yang judulnya sudah
+    /// cocok persis tetap gagal (0,42 < ambang 0,80).
+    #[test]
+    fn artis_beda_spasi_dianggap_sama() {
+        assert_eq!(kemiripan("PornoGraffitti", "Porno Graffitti"), 1.0);
+        assert_eq!(kemiripan("Sukima Switch", "SUKIMASWITCH"), 1.0);
+        let k = kandidat("メリッサ - Melissa", "Porno Graffitti", None);
+        let p = nilai("メリッサ", "PornoGraffitti", "PornoGraffitti", None, &k);
+        assert!(
+            p.keputusan == Keputusan::Otomatis,
+            "harus lolos otomatis, dapat {:?} skor {}",
+            p.keputusan,
+            p.skor
+        );
+    }
+
+    /// Regresi: katalog menambah terjemahan romaji setelah judul asli.
+    /// Jaccard menghukum token tambahan itu (0,65) padahal judul intinya utuh.
+    #[test]
+    fn judul_kanji_dengan_terjemahan_romaji_cocok() {
+        let k = kandidat("ゴールデンタイムラバー - Golden Time Rubber", "SUKIMASWITCH", None);
+        let p = nilai("ゴールデンタイムラバー", "Sukima Switch", "Sukima Switch", None, &k);
+        assert!(
+            p.keputusan == Keputusan::Otomatis,
+            "harus lolos otomatis, dapat {:?} skor {}",
+            p.keputusan,
+            p.skor
+        );
+    }
+
+    /// Yang TIDAK boleh berubah: substring tidak boleh meloloskan versi salah.
+    /// "creep" termuat di "creep acoustic", tapi penanda versi tetap dihukum.
+    #[test]
+    fn substring_tidak_melonggarkan_penanda_versi() {
+        let k = kandidat("Creep (Acoustic Version)", "Radiohead", Some(239_000));
+        let p = nilai("Creep", "Radiohead", "Radiohead", Some(239_000), &k);
+        assert!(
+            p.keputusan != Keputusan::Otomatis,
+            "versi acoustic tidak boleh lolos otomatis hanya karena substring (skor {})",
+            p.skor
+        );
+    }
+
+    /// Judul yang benar-benar berbeda tetap tidak cocok, walau salah satu
+    /// memuat yang lain sebagai kebetulan token.
+    #[test]
+    fn judul_berbeda_tetap_skor_rendah() {
+        let s = kemiripan("Tokio", "誰我為");
+        assert!(s < 0.5, "judul berbeda harus skor rendah, dapat {s}");
+    }
+
 }
