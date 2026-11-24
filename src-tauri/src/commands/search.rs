@@ -75,6 +75,16 @@ pub async fn resolver_status(state: State<'_, AppState>) -> AppResult<bool> {
     Ok(state.resolver_is_live())
 }
 
+/// Apakah pemutar sedang disiapkan (unduh + ekstrak yt-dlp pertama kali).
+///
+/// UI memakainya untuk menampilkan "MENYIAPKAN PEMUTAR…" — proses ini butuh
+/// unduhan 22,8 MB dan ekstraksi ±3,5 detik, dan tanpa status yang jelas
+/// pengguna akan mengira aplikasinya rusak.
+#[tauri::command]
+pub async fn resolver_preparing() -> AppResult<bool> {
+    Ok(crate::resolver::ytdlp::sedang_menyiapkan())
+}
+
 #[tauri::command]
 pub async fn resolve_stream(
     state: State<'_, AppState>,

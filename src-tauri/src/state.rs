@@ -134,6 +134,17 @@ impl AppState {
                 )));
                 *self.resolver.write() = real;
                 tracing::info!(path = %path.display(), "resolver yt-dlp aktif");
+
+                // Setelah resolver hidup, periksa versi baru di background.
+                // Sengaja SETELAH aktif: pemutaran tidak boleh menunggu jaringan,
+                // dan kalau pemeriksaan ini gagal biner yang ada tetap dipakai.
+                #[cfg(windows)]
+                {
+                    let db = self.db.clone();
+                    tauri::async_runtime::spawn(async move {
+                        crate::resolver::ytdlp::cek_pembaruan_latar(&db).await;
+                    });
+                }
                 true
             }
             Err(e) => {

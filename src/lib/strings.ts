@@ -13,6 +13,9 @@ export const T = {
   // Navigasi
   navCari: "CARI",
   navLibrary: "LIBRARY",
+  menyiapkanPemutar: "MENYIAPKAN PEMUTAR…",
+  menyiapkanPemutarHint:
+    "Mengunduh mesin pemutar sekali saja (22,8 MB). Setelah ini pemutaran langsung siap dan pembaruan berjalan di latar belakang.",
   navStats: "STATISTIK",
   statsJudul: "STATISTIK",
   statsSubjudul:

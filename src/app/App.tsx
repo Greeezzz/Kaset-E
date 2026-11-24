@@ -6,6 +6,8 @@ import { Sidebar } from "./layout/Sidebar";
 import { BottomNav } from "./layout/BottomNav";
 import { MiniPlayer } from "./layout/MiniPlayer";
 import { PlayerBar } from "../features/player/PlayerBar";
+import { useMenyiapkanPemutar } from "../hooks/useMenyiapkanPemutar";
+import { T } from "../lib/strings";
 import { FullPlayer } from "../features/player/FullPlayer";
 import { RightPanel, type RightPanelTab } from "../features/queue/RightPanel";
 import { Search } from "../features/search/Search";
@@ -40,6 +42,7 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export function App() {
+  const menyiapkanPemutar = useMenyiapkanPemutar();
   const [route, setRoute] = useState<Route>("search");
   // Panel kanan: default TERTUTUP (DESIGN-LAYOUT bagian 1). Pilihan terakhir
   // diingat supaya user yang selalu membukanya tidak perlu membuka tiap start.
@@ -737,17 +740,41 @@ export function App() {
       </div>
 
       {adaPlayerBar(bp) ? (
-        <PlayerBar
-          state={state}
-          onToggle={togglePlay}
-          onNext={() => void playNextInQueue()}
-          onPrevious={() => void playPreviousInQueue()}
-          onSeek={handleSeek}
-          onVolume={handleVolume}
-          onToggleQueue={() => toggleRightTab("queue")}
-          onOpenNowPlaying={() => toggleRightTab("now")}
-          queueOpen={queueOpen && rightTab === "queue"}
-        />
+        <>
+          {menyiapkanPemutar && (
+            <div
+              role="status"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "6px var(--s-4)",
+                background: "var(--accent)",
+                color: "var(--accent-ink)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                flex: "0 0 auto",
+              }}
+            >
+              <span>{T.menyiapkanPemutar}</span>
+              <span style={{ opacity: 0.7, fontSize: 10, letterSpacing: 0 }}>
+                {T.menyiapkanPemutarHint}
+              </span>
+            </div>
+          )}
+          <PlayerBar
+            state={state}
+            onToggle={togglePlay}
+            onNext={() => void playNextInQueue()}
+            onPrevious={() => void playPreviousInQueue()}
+            onSeek={handleSeek}
+            onVolume={handleVolume}
+            onToggleQueue={() => toggleRightTab("queue")}
+            onOpenNowPlaying={() => toggleRightTab("now")}
+            queueOpen={queueOpen && rightTab === "queue"}
+          />
+        </>
       ) : (
         <MiniPlayer
           track={state.track}

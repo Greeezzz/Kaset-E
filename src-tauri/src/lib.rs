@@ -87,6 +87,7 @@ pub fn run() {
             commands::track,
             commands::catalog_status,
             commands::resolver_status,
+            commands::resolver_preparing,
             commands::tracks_count,
             commands::resolve_stream,
             commands::cover_get,
