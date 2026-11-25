@@ -30,8 +30,8 @@ pub fn save(db: &Db, queue: &QueueManager) -> AppResult<()> {
             // urutan yang stabil.
             let mut stmt = tx.prepare(
                 "INSERT INTO queue_items
-                    (position, video_id, original_order, prioritas, prioritas_urut)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                    (position, video_id, original_order, prioritas, prioritas_urut, sudah_diputar)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )?;
             let mut sorted: Vec<&QueueItem> = queue.items().iter().collect();
             sorted.sort_by_key(|i| i.original_order);
@@ -42,6 +42,7 @@ pub fn save(db: &Db, queue: &QueueManager) -> AppResult<()> {
                     it.original_order,
                     i64::from(it.prioritas),
                     it.prioritas_urut,
+                    i64::from(it.sudah_diputar),
                 ])?;
             }
         }
@@ -71,7 +72,7 @@ pub fn load(db: &Db) -> AppResult<Option<QueueManager>> {
         let mut stmt = c.prepare(
             "SELECT q.position, q.original_order,
                     t.video_id, t.title, t.artist, t.album, t.duration_ms,
-                    q.prioritas, q.prioritas_urut
+                    q.prioritas, q.prioritas_urut, q.sudah_diputar
              FROM queue_items q
              JOIN tracks t ON t.video_id = q.video_id
              ORDER BY q.original_order",
@@ -83,6 +84,8 @@ pub fn load(db: &Db) -> AppResult<Option<QueueManager>> {
                 original_order: r.get(1)?,
                 prioritas: r.get::<_, i64>(7)? != 0,
                 prioritas_urut: r.get(8)?,
+                // Antrean lama (sebelum migrasi 0007) otomatis 0 = belum diputar.
+                sudah_diputar: r.get::<_, i64>(9)? != 0,
                 track: Track {
                     cover_key: Track::cover_key_for(&video_id),
                     video_id,
@@ -238,6 +241,59 @@ mod tests {
         save(&db, &q).unwrap();
         clear(&db).unwrap();
         assert!(load(&db).unwrap().is_none());
+    }
+
+    /// Regresi "antrean prioritas hantu" pada lapisan persistensi.
+    ///
+    /// Skenario nyata: isi antrean, tambah dua lagu prioritas, putar keduanya
+    /// sampai lewat, tutup aplikasi. Setelah `save` → `load`, lagu yang sudah
+    /// diputar tidak boleh muncul lagi sebagai "berikutnya". Diuji untuk shuffle
+    /// mati dan nyala karena keduanya membangun ulang `order` dengan cara
+    /// berbeda.
+    #[test]
+    fn muat_antrean_tidak_menghidupkan_lagu_prioritas_yang_sudah_diputar() {
+        let db = seeded();
+        for id in ["pl0", "pl1", "pl2", "pilihA", "pilihB"] {
+            ensure_track(&db, &track(id)).unwrap();
+        }
+
+        for shuffle in [false, true] {
+            let mut q = QueueManager::new(7);
+            q.replace(vec![track("pl0"), track("pl1"), track("pl2")], 0);
+            q.set_shuffle(shuffle);
+            q.add(track("pilihA"));
+            q.add(track("pilihB"));
+
+            // Putar kedua lagu prioritas sampai lewat, tanpa mengasumsikan
+            // posisinya: posisi bergantung pada shuffle.
+            let pos = q
+                .play_order()
+                .iter()
+                .position(|i| i.track.video_id == "pilihA")
+                .expect("pilihA harus ada di antrean");
+            assert!(q.jump_to(pos));
+            assert_eq!(q.advance().unwrap().track.video_id, "pilihB");
+
+            save(&db, &q).unwrap();
+            let loaded = load(&db).unwrap().expect("antrean harus tersimpan");
+
+            assert_eq!(
+                loaded.current().unwrap().track.video_id,
+                "pilihB",
+                "lagu aktif harus tetap sama (shuffle={shuffle})"
+            );
+            let sisa: Vec<String> = loaded
+                .play_order()
+                .iter()
+                .skip(loaded.cursor() + 1)
+                .map(|i| i.track.video_id.clone())
+                .collect();
+            assert!(
+                !sisa.contains(&"pilihA".to_string()),
+                "lagu prioritas yang sudah diputar muncul lagi di BERIKUTNYA (shuffle={shuffle}): {sisa:?}"
+            );
+            assert_eq!(loaded.len(), 5, "tidak boleh ada lagu yang hilang");
+        }
     }
 
     #[test]

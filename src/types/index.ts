@@ -28,6 +28,13 @@ export interface QueueItem {
   prioritas: boolean;
   /** Urutan penambahan antar lagu prioritas. */
   prioritasUrut: number;
+  /**
+   * Cursor sudah melewati lagu ini. Disimpan di database supaya lagu prioritas
+   * yang sudah diputar tidak muncul lagi sebagai "berikutnya" setelah aplikasi
+   * dibuka ulang. UI tidak perlu membacanya: panel Antrean hanya menampilkan
+   * `position > cursor`.
+   */
+  sudahDiputar: boolean;
 }
 
 export interface PlayerState {

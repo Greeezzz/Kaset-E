@@ -156,6 +156,7 @@ impl QueueManager {
                     track: it.track.clone(),
                     prioritas: it.prioritas,
                     prioritas_urut: it.prioritas_urut,
+                    sudah_diputar: it.sudah_diputar,
                 })
             })
             .collect()
@@ -195,6 +196,8 @@ impl QueueManager {
             track,
             prioritas,
             prioritas_urut,
+            // Lagu baru selalu belum diputar: ia harus muncul di BERIKUTNYA.
+            sudah_diputar: false,
         });
         let item_idx = self.items.len() - 1;
 
@@ -250,6 +253,7 @@ impl QueueManager {
         if let Some(pos) = self.order.iter().position(|&i| i == item_idx) {
             self.cursor = pos;
         }
+        self.tandai_sampai_cursor();
         item_idx
     }
 
@@ -268,6 +272,8 @@ impl QueueManager {
             track,
             prioritas: true,
             prioritas_urut: original_order,
+            // Disisipkan SETELAH lagu aktif: ia justru lagu berikutnya.
+            sudah_diputar: false,
         });
         let item_idx = self.items.len() - 1;
         let at = (self.cursor + 1).min(self.order.len());
@@ -313,6 +319,7 @@ impl QueueManager {
             // Yang dihapus adalah lagu terakhir: mundur satu, jangan melewati ujung.
             self.cursor = self.order.len() - 1;
         }
+        self.tandai_sampai_cursor();
         true
     }
 
@@ -333,6 +340,7 @@ impl QueueManager {
             c if from > c && to <= c => c + 1,
             c => c,
         };
+        self.tandai_sampai_cursor();
         true
     }
 
@@ -359,6 +367,8 @@ impl QueueManager {
                 // Isi playlist bukan prioritas: urutannya boleh diacak.
                 prioritas: false,
                 prioritas_urut: 0,
+                // Antrean baru: tidak ada riwayat putar yang perlu dibawa.
+                sudah_diputar: false,
             })
             .collect();
         if self.items.is_empty() {
@@ -373,12 +383,14 @@ impl QueueManager {
             self.order = (0..self.items.len()).collect();
             self.cursor = idx;
         }
+        self.tandai_sampai_cursor();
     }
 
     /// Ajukan lagu pada posisi pemutaran `pos` sebagai lagu aktif.
     pub fn jump_to(&mut self, pos: usize) -> bool {
         if pos < self.order.len() {
             self.cursor = pos;
+            self.tandai_sampai_cursor();
             true
         } else {
             false
@@ -401,6 +413,7 @@ impl QueueManager {
             self.order = (0..self.items.len()).collect();
             // Kembalikan cursor ke posisi lagu aktif di urutan asli.
             self.cursor = self.current_item_index().unwrap_or(0);
+            self.tandai_sampai_cursor();
         }
     }
 
@@ -486,6 +499,7 @@ impl QueueManager {
         } else {
             return None;
         }
+        self.tandai_sampai_cursor();
         self.current()
     }
 
@@ -498,6 +512,7 @@ impl QueueManager {
         if self.cursor > 0 {
             self.cursor -= 1;
         }
+        self.tandai_sampai_cursor();
         self.current()
     }
 
@@ -517,17 +532,24 @@ impl QueueManager {
         q.shuffle = shuffle;
         q.repeat = repeat;
 
-        let idx = if q.items.is_empty() {
-            0
-        } else {
-            cursor.min(q.items.len() - 1)
-        };
+        if q.items.is_empty() {
+            q.order.clear();
+            q.cursor = 0;
+            return q;
+        }
+        let idx = cursor.min(q.items.len() - 1);
 
         if shuffle {
             q.enable_shuffle_for(idx);
         } else {
-            q.order = (0..q.items.len()).collect();
-            q.cursor = idx;
+            // Tanpa riwayat, ini sama dengan urutan identitas. Dengan riwayat,
+            // lagu yang sudah diputar ditaruh SEBELUM lagu aktif supaya tidak
+            // muncul lagi sebagai "berikutnya" (urutan `order` aslinya tidak
+            // disimpan, jadi hanya penanda ini yang tersisa).
+            let sisa: Vec<usize> = (0..q.items.len())
+                .filter(|&i| i != idx && !q.items[i].sudah_diputar)
+                .collect();
+            q.cursor = q.susun_order(idx, sisa);
         }
         q
     }
@@ -545,16 +567,29 @@ impl QueueManager {
 
     /// Sama seperti `enable_shuffle`, tapi lagu aktif ditentukan indeks `items`.
     ///
-    /// Urutan hasil: [lagu aktif] → [lagu prioritas sesuai urutan penambahan]
-    /// → [sisanya, diacak]. Itulah "custom queue" ala Spotify: yang pengguna
-    /// pilih sendiri selalu didahulukan, sisanya baru acak.
+    /// Urutan hasil: [lagu yang sudah dilewati cursor] → [lagu aktif] → [lagu
+    /// prioritas yang belum diputar, sesuai urutan penambahan] → [sisanya,
+    /// diacak]. Itulah "custom queue" ala Spotify: yang pengguna pilih sendiri
+    /// selalu didahulukan, sisanya baru acak.
+    ///
+    /// Lagu yang sudah diputar TIDAK ikut diusulkan lagi. Dulu semua lagu
+    /// prioritas diselipkan tepat setelah lagu aktif tanpa peduli riwayat,
+    /// sehingga setelah aplikasi dibuka ulang lagu yang sudah lewat muncul
+    /// sebagai "berikutnya" (bug antrean prioritas hantu).
     fn enable_shuffle_for(&mut self, item_idx: usize) {
+        if self.items.is_empty() {
+            self.order.clear();
+            self.cursor = 0;
+            return;
+        }
+        let item_idx = item_idx.min(self.items.len() - 1);
+
         // Pisahkan dulu supaya prioritas tidak ikut teracak.
         let mut prioritas: Vec<usize> = Vec::new();
         let mut biasa: Vec<usize> = Vec::new();
         for (i, item) in self.items.iter().enumerate() {
-            if i == item_idx {
-                continue; // lagu aktif selalu paling depan
+            if i == item_idx || item.sudah_diputar {
+                continue; // aktif dan riwayat tidak masuk bagian "berikutnya"
             }
             if item.prioritas {
                 prioritas.push(i);
@@ -568,8 +603,14 @@ impl QueueManager {
         if self.shuffle_pintar && biasa.len() > 1 {
             // Susun sisa lagu menurut riwayat. Prioritas tetap di depan dan
             // tidak ikut disusun: pilihan pengguna tidak boleh "dipintarkan".
-            let ids: Vec<String> = biasa.iter().map(|&i| self.items[i].track.video_id.clone()).collect();
-            let artis: Vec<String> = biasa.iter().map(|&i| self.items[i].track.artist.clone()).collect();
+            let ids: Vec<String> = biasa
+                .iter()
+                .map(|&i| self.items[i].track.video_id.clone())
+                .collect();
+            let artis: Vec<String> = biasa
+                .iter()
+                .map(|&i| self.items[i].track.artist.clone())
+                .collect();
             let m = smart::Masukan {
                 ids: &ids,
                 artis: &artis,
@@ -581,20 +622,60 @@ impl QueueManager {
             // `susun` mengembalikan indeks ke dalam `ids`; terjemahkan kembali
             // ke indeks `items` lewat `biasa`.
             let urutan = smart::susun(&m);
-            let disusun: Vec<usize> = urutan.iter().map(|&k| biasa[k]).collect();
-            self.order = vec![item_idx];
-            self.order.extend(prioritas);
-            self.order.extend(disusun);
-            self.cursor = 0;
+            prioritas.extend(urutan.iter().map(|&k| biasa[k]));
+            self.cursor = self.susun_order(item_idx, prioritas);
             return;
         }
 
         self.rng.shuffle(&mut biasa);
+        prioritas.extend(biasa);
+        self.cursor = self.susun_order(item_idx, prioritas);
+    }
 
-        self.order = vec![item_idx];
-        self.order.extend(prioritas);
-        self.order.extend(biasa);
-        self.cursor = 0;
+    /// Bangun `order` dari penanda `sudah_diputar`.
+    ///
+    /// `sisa` sudah dalam urutan yang diinginkan pemanggil (asli saat shuffle
+    /// mati, acak/pintar saat hidup). Hasilnya:
+    ///
+    /// ```text
+    /// [sudah dilewati cursor, urut asli] → [lagu aktif] → [sisa]
+    /// ```
+    ///
+    /// Cursor menjadi jumlah lagu yang sudah dilewati, sehingga panel antrean
+    /// (yang hanya menampilkan `pos > cursor` sebagai BERIKUTNYA) tidak
+    /// menawarkan lagu lama, sementara tombol Previous tetap bisa kembali.
+    ///
+    /// Mengembalikan posisi lagu aktif di `order`.
+    fn susun_order(&mut self, aktif: usize, sisa: Vec<usize>) -> usize {
+        let mut sebelum: Vec<usize> = (0..self.items.len())
+            .filter(|&i| i != aktif && self.items[i].sudah_diputar)
+            .collect();
+        sebelum.sort_by_key(|&i| self.items[i].original_order);
+
+        let mut order = Vec::with_capacity(self.items.len());
+        order.extend(&sebelum);
+        order.push(aktif);
+        order.extend(sisa);
+        self.order = order;
+
+        sebelum.len()
+    }
+
+    /// Tandai semua lagu pada/di belakang cursor sebagai "sudah diputar".
+    ///
+    /// Yang ditandai adalah lagu yang sudah DILEWATI, bukan hanya yang
+    /// benar-benar berbunyi: melompat ke posisi 5 lewat klik berarti lagu 1–4
+    /// tidak akan diputar dengan sendirinya lagi, jadi mereka berperilaku sama
+    /// seperti lagu yang sudah diputar. Tanpa penanda ini, `restore` tidak bisa
+    /// membedakan riwayat dari sisa antrean karena `order` tidak disimpan.
+    fn tandai_sampai_cursor(&mut self) {
+        for pos in 0..=self.cursor {
+            if let Some(&idx) = self.order.get(pos) {
+                if let Some(it) = self.items.get_mut(idx) {
+                    it.sudah_diputar = true;
+                }
+            }
+        }
     }
 }
 
@@ -1117,6 +1198,11 @@ mod tests {
     }
 
     /// Menyalakan shuffle lagi tidak boleh mengacak lagu prioritas.
+    ///
+    /// Catatan: setelah riwayat putar disimpan, lagu aktif TIDAK lagi dijamin
+    /// berada di indeks 0 `play_order` — lagu yang sudah dilewati ditaruh di
+    /// depannya supaya tidak muncul sebagai "berikutnya". Jadi yang diuji di
+    /// sini adalah urutan SETELAH lagu aktif, bukan indeks absolut.
     #[test]
     fn shuffle_ulang_tetap_mendahului_prioritas() {
         let mut q = QueueManager::new(9);
@@ -1124,15 +1210,126 @@ mod tests {
         q.add(track("pilihA"));
         q.add(track("pilihB"));
         q.set_shuffle(true);
-        q.advance(); // pindah ke pilihA
         // Nyalakan ulang shuffle tanpa melewati mode mati: yang diuji adalah
         // apakah prioritas tetap berurutan, bukan perilaku shuffle-off.
+        q.advance(); // pindah ke pilihA
         q.set_shuffle(true);
         q.enable_shuffle();
 
-        let urut = ids(&q);
-        assert_eq!(urut[0], "pilihA");
-        assert_eq!(urut[1], "pilihB", "prioritas tetap berurutan setelah shuffle ulang");
+        assert_eq!(q.current().unwrap().track.video_id, "pilihA");
+        let urut = berikutnya(&q);
+        assert_eq!(
+            urut[0], "pilihB",
+            "prioritas tetap berurutan setelah shuffle ulang"
+        );
+    }
+
+    // ------------------------------------- regresi: lagu "hantu" saat restore
+
+    /// Helper: lagu yang masih akan diputar setelah lagu aktif.
+    fn berikutnya(q: &QueueManager) -> Vec<String> {
+        q.play_order()
+            .iter()
+            .skip(q.cursor() + 1)
+            .map(|i| i.track.video_id.clone())
+            .collect()
+    }
+
+    /// Regresi "antrean prioritas hantu", shuffle MATI.
+    ///
+    /// "Sudah diputar" dulu hanya tersirat dari posisi relatif di `order`, tapi
+    /// `order` sengaja TIDAK disimpan — `restore` membangunnya ulang dari urutan
+    /// asli `items`. Lagu prioritas yang dulu disisipkan lewat "Play next" ada
+    /// di akhir `items`, jadi setelah dipulihkan ia muncul lagi sebagai lagu
+    /// berikutnya padahal sudah lewat.
+    #[test]
+    fn restore_shuffle_mati_tidak_menghidupkan_lagu_yang_sudah_diputar() {
+        let mut q = QueueManager::new(1);
+        q.replace(
+            vec![track("a"), track("b"), track("c"), track("d"), track("e")],
+            0,
+        );
+        // Di `order` lagu ini duduk setelah lagu aktif; di `items` ia di akhir.
+        q.play_next(track("pilih"));
+        q.advance(); // pilih
+        q.advance(); // b
+        assert_eq!(q.current().unwrap().track.video_id, "b");
+
+        let q2 = QueueManager::restore(
+            q.items().to_vec(),
+            q.active_item_index(),
+            false,
+            RepeatMode::Off,
+        );
+
+        assert_eq!(q2.current().unwrap().track.video_id, "b");
+        let sisa = berikutnya(&q2);
+        assert!(
+            !sisa.contains(&"pilih".to_string()),
+            "lagu yang sudah diputar muncul lagi di BERIKUTNYA: {sisa:?}"
+        );
+        // Lagu yang memang belum diputar tetap ada, urutannya tetap.
+        assert_eq!(
+            sisa,
+            vec!["c".to_string(), "d".to_string(), "e".to_string()]
+        );
+    }
+
+    /// Regresi "antrean prioritas hantu", shuffle NYALA.
+    ///
+    /// Skenario yang dilaporkan: isi antrean dari playlist, tambah dua lagu
+    /// prioritas, putar keduanya sampai lewat, tutup aplikasi. Setelah dibuka
+    /// lagi, keduanya muncul lagi di BERIKUTNYA karena `enable_shuffle_for`
+    /// menyelipkan SEMUA lagu prioritas tepat setelah lagu aktif.
+    #[test]
+    fn restore_shuffle_nyala_tidak_menghidupkan_lagu_prioritas_yang_sudah_diputar() {
+        let mut q = QueueManager::new(42);
+        q.replace((0..8).map(|i| track(&format!("pl{i}"))).collect(), 0);
+        q.set_shuffle(true);
+        q.add(track("pilihA"));
+        q.add(track("pilihB"));
+        q.advance(); // pilihA
+        q.advance(); // pilihB
+        assert_eq!(q.current().unwrap().track.video_id, "pilihB");
+
+        let q2 = QueueManager::restore(
+            q.items().to_vec(),
+            q.active_item_index(),
+            true,
+            RepeatMode::Off,
+        );
+
+        assert_eq!(q2.current().unwrap().track.video_id, "pilihB");
+        let sisa = berikutnya(&q2);
+        assert!(
+            !sisa.contains(&"pilihA".to_string()),
+            "lagu prioritas yang sudah diputar muncul lagi di BERIKUTNYA: {sisa:?}"
+        );
+        assert_eq!(q2.len(), 10, "tidak boleh ada lagu yang hilang");
+    }
+
+    /// Memulihkan riwayat tidak boleh mengorbankan tombol Previous: lagu yang
+    /// sudah diputar tetap bisa dituju ke belakang.
+    #[test]
+    fn lagu_yang_sudah_diputar_tetap_bisa_dituju_previous_setelah_restore() {
+        let mut q = QueueManager::new(42);
+        q.replace(vec![track("a"), track("b"), track("c")], 0);
+        q.advance(); // b
+        q.add(track("pilih")); // disisipkan setelah b
+        q.advance(); // pilih
+        let q2 = QueueManager::restore(
+            q.items().to_vec(),
+            q.active_item_index(),
+            false,
+            RepeatMode::Off,
+        );
+
+        let mut q2 = q2;
+        assert_eq!(
+            q2.retreat().map(|i| i.track.video_id.clone()),
+            Some("b".to_string()),
+            "previous harus kembali ke lagu yang benar-benar diputar sebelumnya"
+        );
     }
 
     /// Isi playlist (replace) BUKAN prioritas — itu lagu yang boleh diacak.
@@ -1144,5 +1341,4 @@ mod tests {
         q.add(track("c"));
         assert!(q.items().last().unwrap().prioritas);
     }
-
 }

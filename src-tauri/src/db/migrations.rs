@@ -34,6 +34,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "0006",
         sql: include_str!("../../migrations/0006_queue_prioritas.sql"),
     },
+    Migration {
+        version: "0007",
+        sql: include_str!("../../migrations/0007_queue_sudah_diputar.sql"),
+    },
 ];
 
 pub fn run(db: &Db) -> AppResult<()> {
