@@ -77,11 +77,27 @@ fn normal(s: &str) -> String {
 }
 
 /// Penanda versi yang membedakan rekaman satu sama lain.
+///
+/// Isinya berasal dari data impor nyata (461 lagu Spotify): setiap entri di
+/// sini adalah bentuk yang BENAR-BENAR muncul di judul katalog YouTube Music
+/// dan membuat lagu itu bukan rekaman yang sama.
+///
+/// Yang sengaja TIDAK masuk: `feat.`, `with`, dan terjemahan romaji. Katalog
+/// rutin menambahkan artis feat dan judul romaji; menghukumnya akan membuat
+/// ratusan lagu yang BENAR berubah status jadi "perlu diperiksa". Empat
+/// puluh satu judul di data nyata mengandung salah satu dari itu.
+///
+/// Urutan penting: `instrumental` harus sebelum `inst` supaya yang lebih
+/// spesifik menang, dan `remaster` sebelum `remastered` tidak masalah karena
+/// keduanya diperlakukan sama di penalti.
 const PENANDA_VERSI: &[&str] = &[
     "live",
     "remix",
     "acoustic",
     "instrumental",
+    // Katalog menyingkat jadi "Inst." — ditemukan di data nyata pada lagu
+    // "With" (Jin) yang cocok dengan "With (Inst.)" dan lolos otomatis 0,925.
+    "inst.",
     "karaoke",
     "cover",
     "sped up",
@@ -92,6 +108,14 @@ const PENANDA_VERSI: &[&str] = &[
     "version",
     "edit",
     "demo",
+    // Bentuk lain yang muncul di data nyata dan bukan rekaman yang sama:
+    "stripped",   // "Multo (Stripped Down)", "We Hug Now (Stripped)"
+    "sing-along", // "How It's Done (Sing-Along)"
+    "reprise",    // "Evaluasi (Reprise)"
+    "extended",   // "THIS IS FOR (Extended)"
+    "from the first take",
+    "off vocal",
+    "instrumental version",
 ];
 
 fn punya_penanda_versi(s: &str) -> Option<&'static str> {
@@ -460,6 +484,71 @@ mod tests {
     fn judul_berbeda_tetap_skor_rendah() {
         let s = kemiripan("Tokio", "誰我為");
         assert!(s < 0.5, "judul berbeda harus skor rendah, dapat {s}");
+    }
+
+    // ------------------------------- penanda versi dari data impor nyata (C3)
+
+    /// Setiap bentuk ini muncul di judul katalog pada impor 461 lagu dan
+    /// membuat lagu tersebut BUKAN rekaman yang sama. Semua harus dikenali.
+    #[test]
+    fn penanda_versi_bentuk_nyata_dikenali() {
+        let kasus = [
+            ("With (Inst.)", "inst."),
+            ("Multo (Stripped Down)", "stripped"),
+            ("How It\'s Done (Sing-Along)", "sing-along"),
+            ("Evaluasi (Reprise)", "reprise"),
+            ("THIS IS FOR (Extended)", "extended"),
+            ("スターマーカー - From THE FIRST TAKE", "from the first take"),
+            ("うまぴょい伝説 (Off Vocal)", "off vocal"),
+        ];
+        for (judul, harus) in kasus {
+            assert_eq!(
+                punya_penanda_versi(judul),
+                Some(harus),
+                "judul {judul:?} harus dikenali sebagai {harus:?}"
+            );
+        }
+    }
+
+    /// "With" (Jin) lolos otomatis 0,925 ke "With (Inst.)" sebelum perbaikan.
+    /// Versi instrumental bukan rekaman yang sama.
+    #[test]
+    fn lagu_instrumental_tidak_lolos_otomatis() {
+        let k = kandidat("With (Inst.)", "Jin", None);
+        let p = nilai("With", "Jin", "Jin", None, &k);
+        assert!(
+            p.keputusan != Keputusan::Otomatis,
+            "versi Inst. tidak boleh lolos otomatis (skor {})",
+            p.skor
+        );
+    }
+
+    /// Yang TIDAK boleh jadi penanda versi: feat dan judul romaji.
+    /// Katalog rutin menambahkannya; menghukumnya akan menurunkan ratusan lagu
+    /// yang sebenarnya BENAR.
+    #[test]
+    fn feat_dan_romaji_bukan_penanda_versi() {
+        for judul in [
+            "Mr. Loverman (feat. chloe moriondo)",
+            "Side To Side (feat. Nicki Minaj)",
+            "ホログラム - Hologram",
+            "インフェルノ - Inferno",
+            "光るなら - Hikarunara",
+        ] {
+            assert_eq!(
+                punya_penanda_versi(judul),
+                None,
+                "{judul:?} tidak boleh dianggap versi berbeda"
+            );
+        }
+    }
+
+    /// Lagu dengan feat tambahan tetap lolos otomatis — itu rekaman yang sama.
+    #[test]
+    fn feat_tambahan_di_katalog_tetap_otomatis() {
+        let k = kandidat("Mr. Loverman (feat. chloe moriondo)", "Ricky Montgomery", Some(216_000));
+        let p = nilai("Mr. Loverman", "Ricky Montgomery", "Ricky Montgomery", Some(216_000), &k);
+        assert_eq!(p.keputusan, Keputusan::Otomatis, "skor {}", p.skor);
     }
 
 }
