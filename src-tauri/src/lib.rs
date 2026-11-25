@@ -192,7 +192,7 @@ mod tests {
     fn versi_skema_terakhir_tercatat() {
         let db = Db::open_in_memory().expect("buka db in-memory");
         let v = db.schema_version().expect("versi");
-        assert_eq!(v.as_deref(), Some("0006"));
+        assert_eq!(v.as_deref(), Some("0007"));
     }
 
     #[test]

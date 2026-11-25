@@ -17,4 +17,10 @@ pub struct QueueItem {
     /// Urutan penambahan antar lagu prioritas. Dipakai supaya lagu yang
     /// ditambahkan duluan tetap diputar duluan walau shuffle menyala.
     pub prioritas_urut: i64,
+    /// Posisi cursor sudah melewati/memutar lagu ini.
+    ///
+    /// Disimpan ke database karena `order` tidak ikut disimpan: tanpa penanda
+    /// ini, lagu prioritas yang sudah diputar muncul lagi setelah aplikasi
+    /// dibuka ulang. Lihat migrasi `0007`.
+    pub sudah_diputar: bool,
 }

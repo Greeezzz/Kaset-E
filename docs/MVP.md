@@ -82,6 +82,13 @@ Catatan Fase 1 Cover Art — dua bug yang hanya ketemu saat dijalankan:
 - [x] Shuffle non-destruktif (kolom `original_order`) + unit test
 - [x] Repeat off/one/all + unit test
 - [x] Simpan dan pulihkan queue saat app dibuka
+- [x] Lagu yang sudah diputar tidak muncul lagi sebagai "berikutnya" setelah app dibuka ulang (migrasi `0007`, kolom `sudah_diputar`)
+
+Catatan Fase 1 Queue — bug "antrean prioritas hantu":
+
+- **Gejala.** Tambah dua lagu lewat "Tambah ke antrean" (prioritas), putar keduanya sampai lewat, tutup aplikasi, buka lagi — keduanya muncul lagi di daftar BERIKUTNYA. Memutar lagu lain membuatnya hilang.
+- **Sebab.** `order` (urutan pemutaran) sengaja tidak disimpan karena shuffle harus bisa dibatalkan ke urutan asli `items`. Saat aplikasi dibuka lagi, `restore` membangun ulang `order` dari nol, jadi satu-satunya informasi "sudah diputar" ikut hilang. Shuffle mati: lagu prioritas duduk di akhir `items`, yaitu setelah cursor. Shuffle nyala: `enable_shuffle_for` menyelipkan SEMUA lagu prioritas tepat setelah lagu aktif tanpa melihat riwayat.
+- **Perbaikan.** Penanda `sudah_diputar` dipersistensikan (migrasi `0007`) dan diperbarui setiap cursor bergerak. Urutan dipulihkan sebagai riwayat → lagu aktif → sisa antrean, sehingga panel yang hanya menampilkan `pos > cursor` tidak lagi menawarkan lagu lama, tapi tombol Previous tetap bisa kembali.
 
 **Library minimal**
 - [x] CRUD playlist lokal (buat, ganti nama, hapus)
