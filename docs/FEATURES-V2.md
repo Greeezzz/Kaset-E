@@ -47,7 +47,13 @@ Satu baris `listen_events` per sesi putar sebuah lagu.
   - `interrupted`: app ditutup / error / pindah setelah ambang "play" tapi sebelum selesai.
 - Sebuah lagu dihitung sebagai **"play"** jika `listened_ms ≥ min(30 detik, 50% durasi)`.
 
-### 1.4 Skema (migrasi `0003_listen_events.sql`)
+### 1.4 Skema (migrasi `0005_listen_events.sql`)
+
+> **Koreksi:** dokumen ini semula menyebut `0003`. Nomor itu sudah dipakai
+> `search_history` (Fase 1) dan `0004` dipakai `playlist_details`, jadi
+> `listen_events` masuk sebagai `0005`. Skema yang benar-benar dipakai lebih
+> ramping daripada contoh di bawah: satu baris per POTONGAN waktu, bukan per
+> sesi — lihat alasannya di `MVP.md` Fase 4a.
 
 ```sql
 CREATE TABLE listen_events (
@@ -90,7 +96,7 @@ LIMIT 20;
 
 ### 1.6 Kriteria Selesai
 
-- [ ] Migrasi `0003` + repository `listen`
+- [ ] Migrasi `0005` + repository `listen`
 - [ ] Pencatat di Rust yang menerima event posisi dan menulis event saat lagu berganti
 - [ ] Unit test: seek tidak menggelembungkan `listened_ms`; pause tidak dihitung; ambang "play"
 - [ ] Layar **Stats** di UI (lihat `DESIGN-ENDFIELD.md` bagian "Stats sebagai telemetri")
@@ -237,7 +243,13 @@ score = 0.5 × kemiripan_judul
 5. Penalti untuk kandidat bertanda `live`, `cover`, `remix`, `karaoke`, `instrumental` bila baris sumber tidak mengandung kata itu.
 6. Hormati rate limit resolver/katalog: **antre dan beri jeda**, tampilkan progres ("142 / 300"), bisa dibatalkan, bisa dilanjutkan.
 
-### 3.5 Skema (migrasi `0004_imports.sql`)
+### 3.5 Skema (migrasi `0006_queue_prioritas.sql`)
+
+> **Koreksi:** impor TIDAK punya tabel sendiri. Hasil impor hidup di memori
+> dialog sampai pengguna menekan simpan, lalu masuk ke `playlists` +
+> `playlist_tracks` yang sudah ada. Nomor `0004` dipakai `playlist_details`,
+> `0005` dipakai `listen_events`, dan `0006` menambah penanda prioritas
+> antrean — bukan tabel impor.
 
 ```sql
 CREATE TABLE import_jobs (

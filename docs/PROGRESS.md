@@ -2,7 +2,7 @@
 
 Ringkasan status proyek. Sumber kebenaran tetap `MVP.md` (checklist); dokumen ini untuk melihat gambaran besar tanpa membaca semuanya.
 
-Terakhir diperbarui: commit `470183f`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
+Terakhir diperbarui: commit `6872dfe`, branch `main`, repo `github.com/Greeezzz/Kaset-E`.
 
 ## Angka
 
@@ -11,20 +11,17 @@ Terakhir diperbarui: commit `470183f`, branch `main`, repo `github.com/Greeezzz/
 | Fase 0 — Fondasi | **6/6 (selesai)** |
 | Fase 1 — Desktop MVP | **35/35 (100%, selesai)** |
 | Fase 1.5 — Polish | **4/4 (selesai)** |
+| Fase 1.6 — Penyempurnaan Desktop | **4/4 tahap (selesai)** |
 | Fase 2 — Android | 0/6 |
 | Fase 3 — Rilis | 0/4 |
 | Fase 4 — Stats + Smart Shuffle | **8/8 (selesai)** |
-| Fase 5 — Import Playlist | 4/5 |
+| Fase 5 — Import Playlist | **5/5 (selesai)** |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **54/71 item (76%)** |
+| **Total** | **55/71 item (77%)** |
 
-Ukuran kode: **7.652 baris Rust + 9.200 baris TypeScript/TSX**. **161 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 49 commit.
+Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **211 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
 
-Kenapa naik dari 89 ke 101: `playlist_cover.rs` akhirnya masuk kompilasi (+9 tes:
-validasi magic bytes, batas ukuran, crop tengah, PNG transparan, tulis/hapus
-berkas, nama file aman), dan tiga tes regresi antrean untuk bug cursor.
-
-Ukuran terpasang: `kaset.exe` 8,6 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 10 tabel + `schema_migrations` (skema versi `0004`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
+Ukuran terpasang: `kaset.exe` 9,8 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 11 tabel + `schema_migrations` (skema versi `0006`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
 
 ## Yang sudah benar-benar jalan (terverifikasi di aplikasi, bukan mock)
 
@@ -51,12 +48,17 @@ progress dan tombol batal: baca (24 ms untuk 461 lagu) → cocokkan → review �
 simpan ke playlist.
 
 Hasil pada berkas nyata 461 lagu (`chelokebab10k.csv`): **183,6 detik
-(~3 menit), 419 otomatis (91%), 18 perlu diperiksa (4%), 24 tidak ketemu (5%)**.
+(~3 menit), 428 otomatis (93%), 16 perlu diperiksa (3%), 17 tidak ketemu (4%)**
+setelah perbaikan Tahap B dan C.
 
-Yang tidak ketemu hampir semuanya lagu Jepang (`紅蓮`, `メリッサ`,
-`恋愛サーキュレーション`) — batas katalog YouTube Music, bukan bug parser. Satu
-kasus salah cocok juga ketemu: `誰我為` dapat "Tokio" (skor 0,35) dan masuk daftar
-tidak ketemu, bukan diterima diam-diam.
+> **Klaim lama yang dikoreksi.** Dokumen ini sempat menulis bahwa yang gagal
+> "hampir semuanya lagu Jepang — batas katalog YouTube Music". Itu tidak
+> terbukti. Katalog MENEMUKAN lagu-lagu itu; penskoran yang menolak, karena
+> spasi artis ("PornoGraffitti" vs "Porno Graffitti" = skor 0) dan terjemahan
+> romaji yang dihukum Jaccard. Sembilan lagu terselamatkan setelah diperbaiki.
+>
+> Yang tetap tidak ketemu terbagi dua: 8 memang tanpa kandidat, 6 kandidatnya
+> lagu berbeda (`誰我為` -> "Tokio" 0,35). Keduanya sengaja TIDAK dipaksa lolos.
 
 Dua bug yang hanya ketemu lewat pengujian di aplikasi: job kedua tidak bisa
 membatalkan job pertama (tanda batal di-reset di awal), dan tidak ada timeout

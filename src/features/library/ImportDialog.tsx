@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke, listen } from "../../lib/tauri";
+import { save } from "@tauri-apps/plugin-dialog";
+import { invoke, listen, runningInTauri } from "../../lib/tauri";
 import { T } from "../../lib/strings";
 
 /**
@@ -62,6 +63,7 @@ interface Props {
 export function ImportDialog({ onClose, onSelesai }: Props) {
   const [tahap, setTahap] = useState<"pilih" | "cocok" | "review" | "simpan">("pilih");
   const [ringkas, setRingkas] = useState<RingkasanCocok | null>(null);
+  const [eksporPesan, setEksporPesan] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [namaPlaylist, setNamaPlaylist] = useState("Hasil impor");
@@ -124,6 +126,36 @@ export function ImportDialog({ onClose, onSelesai }: Props) {
       );
       return { ...r, baris };
     });
+  }
+
+  /**
+   * Ekspor daftar lagu yang TIDAK masuk playlist ke CSV.
+   *
+   * Isinya: baris "tidak ditemukan" dan baris "perlu diperiksa" yang tidak
+   * dicentang. Itu yang perlu ditindak lanjuti manual — lagu otomatis tidak
+   * perlu dilihat lagi.
+   *
+   * Path dipilih lewat dialog simpan native, jadi pengguna tahu ke mana
+   * berkasnya pergi. Di browser (tanpa Tauri) tombol ini tidak ditampilkan.
+   */
+  async function eksporTidakMasuk() {
+    if (!ringkas) return;
+    setEksporPesan(null);
+    try {
+      const path = await save({
+        title: T.imporEksporJudul,
+        defaultPath: `kaset-tidak-masuk-${new Date().toISOString().slice(0, 10)}.csv`,
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+      });
+      if (!path) return; // dibatalkan pengguna
+      const jumlah = await invoke<number>("import_ekspor_tidak_masuk", {
+        baris: ringkas.baris,
+        path,
+      });
+      setEksporPesan(T.imporEksporBerhasil(jumlah, path));
+    } catch (e) {
+      setEksporPesan(T.imporEksporGagal(e instanceof Error ? e.message : String(e)));
+    }
   }
 
   async function simpan() {
@@ -370,7 +402,34 @@ export function ImportDialog({ onClose, onSelesai }: Props) {
                     </button>
                   </>
                 )}
+                {runningInTauri && (ringkas.tidakAda > 0 || ringkas.perluReview > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => void eksporTidakMasuk()}
+                    style={{
+                      minHeight: 32,
+                      padding: "0 var(--s-2)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                      letterSpacing: "0.06em",
+                      border: "1px solid var(--line-strong)",
+                      background: "transparent",
+                    }}
+                  >
+                    {T.imporEkspor}
+                  </button>
+                )}
               </div>
+
+              {eksporPesan && (
+                <p
+                  role="status"
+                  className="mono"
+                  style={{ margin: 0, fontSize: 11, color: "var(--ok)" }}
+                >
+                  {eksporPesan}
+                </p>
+              )}
 
               <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {ringkas.baris.map((b, i) => {

@@ -151,6 +151,53 @@ tidak lagi diekspos sebagai aksi UI.
 - [ ] README lengkap + disclaimer
 - [ ] Cek versi baru (updater desktop; Android via GitHub Releases API)
 
+## Fase 1.6 — Penyempurnaan Desktop (SELESAI)
+
+Dikerjakan setelah Fase 1.5, sebelum Android. Semua item lahir dari pemakaian
+nyata sehari-hari, bukan dari daftar fitur.
+
+### Tahap A — Delay klik lagu baru (7-10 detik) — SELESAI
+
+Diagnosa dulu, tanpa mengubah kode. Hasil pengukuran: biner yt-dlp satu-file
+adalah PyInstaller **onefile** yang mengekstrak 30 MB / 142 berkas ke `%TEMP%`
+pada SETIAP pemanggilan. Start-up saja 2,1-4,4 detik; jaringan hanya 0,7-1,6
+detik dari total. Jadi "batas jaringan" bukan penyebabnya.
+
+- [x] **A1** Diagnosa + angka: startup, resolve 3 lagu x 2, perbandingan versi lama/baru.
+- [x] **A2** Biner **onedir** (`yt-dlp_win.zip`) menggantikan satu-file. Resolve turun dari 5.540-5.670 ms ke 2.459-3.224 ms di aplikasi nyata. Platform lain tetap satu-file.
+- [x] **A2.2** Pembaruan berkala di background, paling sering sekali per 3 hari, tukar atomik, simpan satu versi cadangan, aman offline.
+- [x] **A2.3** Peringatan yt-dlp tidak lagi dibuang (`--no-warnings` dihapus), didedupe, dicatat level WARN. Ini yang akhirnya memunculkan deprecation runtime JS.
+- [x] **A2.4** Verifikasi SHA-256 terhadap `SHA2-256SUMS` rilis resmi, HTTPS + host `github.com/yt-dlp/yt-dlp` saja. Hash tidak cocok = tolak, versi sekarang tetap dipakai.
+- [x] **A2.5** Unduhan dimulai saat start (bukan saat klik play); cadangan versi lama dihapus otomatis setelah 7 hari.
+- [x] **A3** Prefetch lagu berikutnya dipicu 4 detik setelah lagu mulai (dulu sisa <15 detik).
+- [x] **A4** Prefetch saat hover baris (debounce 400 ms, satu berjalan, batal kalau pindah) + lagu pertama saat halaman playlist dibuka. Hasil pencarian sengaja TIDAK di-prefetch.
+
+Hasil: lagu baru 2.394-3.429 ms, lagu yang di-prefetch ~0 ms.
+
+### Tahap B — 23 lagu "tidak ketemu" saat impor — SELESAI
+
+Klaim lama "batas katalog YouTube Music" **tidak terbukti**: katalog menemukan
+lagu-lagu itu, penskoran yang menolak.
+
+- [x] **B1** Ambil 23 lagu gagal + kandidat + skor dari impor 461 lagu nyata.
+- [x] **B2** Uji 4 hipotesis. Terbukti: (c) kanji vs romaji — katalog menulis "メリッサ - Melissa", judul impor termuat utuh tapi Jaccard menghukum token romaji; (d) **spasi artis** — "PornoGraffitti" vs "Porno Graffitti" memberi skor 0.
+- [x] **B3** Variasi kueri (gabungan/judul/artis) dengan throttle 1,6 detik.
+- [x] **B4** Perbaikan: spasi diabaikan saat banding utuh; judul termuat utuh = 1,0 bila penanda versi sama; bonus durasi tidak diberikan bila versi beda; penalti versi 0,20 -> 0,35. Ambang 0,80 TIDAK diturunkan.
+
+Hasil: 418 -> 432 otomatis, 23 -> 14 tidak ketemu (9 terselamatkan).
+
+### Tahap C — Audit akurasi otomatis (ambang 0,80) — SELESAI
+
+- [x] **C1** 20 lagu acak dari 432 otomatis, tabel judul/artis/durasi/skor + flag versi.
+- [x] **C2** Dinilai manual pemilik proyek: **20/20 benar**. Tidak ada pola salah, jadi tidak ada penyesuaian bobot.
+- [x] **C3** Sampel 20 tidak cukup (406 dari 432 skor 1,000), jadi seluruh 433 judul hasil dipindai. Ditemukan celah nyata: `Inst.` tidak dikenali sebagai instrumental, sehingga lagu instrumental lolos otomatis. Ditambah: `inst.`, `stripped`, `sing-along`, `reprise`, `extended`, `from the first take`, `off vocal`. Hasil: 432 -> 428 otomatis (4 lagu pindah ke review — penurunan yang disengaja).
+
+### Tahap D — Dokumen dan item tersisa — SELESAI
+
+- [x] **D1** Ekspor daftar "tidak ditemukan" + "perlu diperiksa" ke CSV lewat dialog simpan native. 5 tes unit.
+- [x] **D2** Sinkronkan `PROGRESS.md` dan `MVP.md`: angka, hash commit, skema `0006`, hapus kalimat basi. Koreksi nomor migrasi di `FEATURES-V2.md` (`0003`/`0004` -> `0005`/`0006`).
+- [x] **D3** Blok ini.
+
 ## Fase 4 — Listen Stats + Smart Shuffle (target `v0.4.0`)
 
 Dikerjakan dalam dua tahap. **4a lebih dulu** supaya data mulai terkumpul dari
@@ -195,7 +242,7 @@ yang dihitung. Ini yang membedakan "mendengar" dari "lagu sedang terbuka".
 
 Tiga bug ditemukan karena mengukur pada data nyata, bukan lewat unit test: favorit sempat lebih rendah dari lagu asing, rasio "mendengar biasa" tidak terpakai (hanya 2 dari 16 lagu pernah "selesai"), dan satu skip menghukum penuh karena penyebut rasio skip salah.
 
-## Fase 5 — Import Playlist (target `v0.5.0`) — SELESAI (4/5)
+## Fase 5 — Import Playlist (target `v0.5.0`) — SELESAI (5/5)
 
 > Detail di `FEATURES-V2.md` §3.
 
@@ -205,9 +252,11 @@ Tiga bug ditemukan karena mengukur pada data nyata, bukan lewat unit test: favor
 - [x] Layar review + ringkasan. Dialog 4 tahap (pilih berkas → progress → review dengan filter/filter checkbox → hasil). Baris `review` TIDAK tercentang otomatis.
 - [x] Batalkan/lanjutkan job. Tombol batal memeriksa tanda setiap lagu; job kedua ditolak supaya tidak berebut katalog; timeout 15 detik per pencarian.
 
-**Hasil pada berkas nyata (461 lagu Spotify):** 183,6 detik (~3 menit, 398 ms/lagu) → **419 otomatis (91%), 18 review (4%), 24 tidak ketemu (5%)**. Yang gagal hampir semuanya lagu Jepang — batas katalog YouTube Music, bukan bug parser.
+**Hasil pada berkas nyata (461 lagu Spotify):** 183,6 detik (~3 menit, 398 ms/lagu) → **428 otomatis (93%), 16 review (3%), 17 tidak ketemu (4%)** setelah perbaikan Tahap B dan C.
 
-**Ekspor daftar "tidak ditemukan"** belum dibuat sebagai berkas terpisah; untuk sekarang daftarnya terlihat di layar review dengan filter TIDAK KETEMU.
+> **Koreksi klaim lama.** Versi pertama dokumen ini menulis bahwa yang gagal "hampir semuanya lagu Jepang — batas katalog YouTube Music". Itu **tidak terbukti**. Investigasi Tahap B menunjukkan katalog MENEMUKAN lagu-lagu itu; penskoran yang menolak, karena dua sebab terukur: (1) spasi artis — Spotify "PornoGraffitti" vs katalog "Porno Graffitti" memberi skor artis 0, dan (2) katalog menambah terjemahan romaji ("メリッサ - Melissa") yang dihukum Jaccard sebagai token tambahan. Sembilan lagu terselamatkan setelah kedua hal itu diperbaiki. Sisa 14 terbagi dua: 8 memang tanpa kandidat, 6 kandidatnya lagu berbeda.
+
+- [x] Ekspor daftar "tidak ditemukan" dan "perlu diperiksa" ke CSV lewat dialog simpan native (Tahap D1). Header 9 kolom, semua nilai dikutip sehingga judul berkoma dan bertanda kutip tetap sah; 5 tes unit.
 
 ## Fase 6 — Login + Sync (opsional, `v0.6.0`+)
 

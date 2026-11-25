@@ -24,7 +24,7 @@ use crate::models::Track;
 use crate::state::AppState;
 
 /// Satu baris hasil pencocokan, dikirim ke UI.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BarisCocok {
     /// Judul & artis dari berkas, untuk ditampilkan apa adanya.
@@ -40,7 +40,7 @@ pub struct BarisCocok {
     pub pilih: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KandidatPublik {
     pub video_id: String,
@@ -99,6 +99,93 @@ impl Drop for PenjagaJob {
 pub async fn import_parse(isi: String) -> AppResult<Vec<LaguImport>> {
     let lagu = parse_otomatis(&isi)?;
     Ok(dedupe(lagu))
+}
+
+/// Buat isi CSV dari baris impor yang tidak diterima.
+///
+/// Yang diekspor: baris `tidakada` dan baris `review` yang TIDAK dicentang
+/// pengguna saat menyimpan. Keduanya sama-sama "lagu yang tidak masuk
+/// playlist", dan itulah yang perlu pengguna tindak lanjuti secara manual.
+///
+/// Kolom sengaja dibuat bisa dibuka di Excel/LibreOffice tanpa impor khusus:
+/// header sederhana, pemisah koma, dan semua nilai dikutip — judul lagu sering
+/// mengandung koma ("Hello, Goodbye"), tanda kutip, dan baris baru.
+///
+/// `kandidat` ikut disertakan sebagai saran, bukan keputusan: pengguna yang
+/// memutuskan apakah itu lagu yang benar.
+pub fn csv_tidak_masuk(baris: &[BarisCocok]) -> String {
+    let mut out = String::from(
+        "judul_impor,artis_impor,baris_sumber,status,saran_judul,saran_artis,durasi_saran_detik,skor,alasan\n",
+    );
+    for b in baris {
+        // Hanya baris yang TIDAK masuk playlist.
+        let status = match b.keputusan {
+            Keputusan::TidakAda => "tidak_ditemukan",
+            Keputusan::Review => "perlu_diperiksa",
+            Keputusan::Otomatis => continue,
+        };
+        let (sj, sa, skor, durasi) = match &b.kandidat {
+            Some(k) => (
+                k.judul.as_str(),
+                k.artis.as_str(),
+                format!("{:.2}", b.skor),
+                k.durasi_ms.map(|d| (d / 1000).to_string()).unwrap_or_default(),
+            ),
+            None => ("", "", String::new(), String::new()),
+        };
+        let alasan = b.alasan.join("; ");
+        let nomor_baris = b.baris.to_string();
+
+        let kolom = [
+            b.judul_impor.as_str(),
+            b.artis_impor.as_str(),
+            &nomor_baris,
+            status,
+            sj,
+            sa,
+            &durasi,
+            &skor,
+            &alasan,
+        ];
+        let baris_csv: Vec<String> = kolom.iter().map(|v| kutip_csv(v)).collect();
+        out.push_str(&baris_csv.join(","));
+        out.push('\n');
+    }
+    out
+}
+
+/// Kutip satu nilai CSV, escape tanda kutip ganda dengan menggandakannya.
+///
+/// Selalu dikutip, bukan hanya saat perlu: lebih mudah dibaca di diff dan
+/// tidak ada kasus tepi "ternyata ada koma".
+fn kutip_csv(v: &str) -> String {
+    format!("\"{}\"", v.replace('"', "\"\""))
+}
+
+/// Tulis CSV ke path yang dipilih pengguna.
+///
+/// Path datang dari dialog simpan native, jadi pengguna sudah menyetujuinya.
+/// Tetap ditolak kalau kosong, dan folder induk dibuat bila perlu (dialog
+/// Windows mengizinkan mengetik folder yang belum ada).
+#[tauri::command]
+pub async fn import_ekspor_tidak_masuk(
+    baris: Vec<BarisCocok>,
+    path: String,
+) -> AppResult<usize> {
+    if path.trim().is_empty() {
+        return Err(AppError::invalid("path ekspor kosong"));
+    }
+    let isi = csv_tidak_masuk(&baris);
+    let jumlah = isi.lines().count().saturating_sub(1);
+    let p = std::path::Path::new(&path);
+    if let Some(induk) = p.parent() {
+        if !induk.as_os_str().is_empty() {
+            std::fs::create_dir_all(induk)?;
+        }
+    }
+    std::fs::write(p, isi)?;
+    tracing::info!(path = %path, jumlah, "daftar lagu tidak masuk diekspor");
+    Ok(jumlah)
 }
 
 /// Hentikan job pencocokan yang sedang berjalan.
@@ -340,4 +427,85 @@ pub async fn import_simpan(
 /// Nama keputusan untuk log — dipakai saat menelusuri masalah impor.
 pub fn label_keputusan(k: Keputusan) -> &'static str {
     sebut_keputusan(k)
+}
+
+#[cfg(test)]
+mod tests_csv {
+    use super::*;
+
+    fn baris(judul: &str, artis: &str, keputusan: Keputusan, kandidat: Option<(&str, &str)>, skor: f32) -> BarisCocok {
+        BarisCocok {
+            judul_impor: judul.into(),
+            artis_impor: artis.into(),
+            baris: 2,
+            kandidat: kandidat.map(|(j, a)| KandidatPublik {
+                video_id: "vid".into(),
+                judul: j.into(),
+                artis: a.into(),
+                durasi_ms: Some(215_000),
+                cover_key: "v-vid".into(),
+            }),
+            skor,
+            keputusan,
+            alasan: vec!["uji".into()],
+            pilih: false,
+        }
+    }
+
+    #[test]
+    fn hanya_baris_tidak_masuk_yang_diekspor() {
+        let b = vec![
+            baris("Lagu A", "Artis A", Keputusan::Otomatis, Some(("A", "Artis A")), 1.0),
+            baris("Lagu B", "Artis B", Keputusan::TidakAda, None, 0.0),
+            baris("Lagu C", "Artis C", Keputusan::Review, Some(("C2", "Artis C2")), 0.7),
+        ];
+        let csv = csv_tidak_masuk(&b);
+        assert!(!csv.contains("Lagu A"), "baris otomatis tidak boleh ikut");
+        assert!(csv.contains("Lagu B"));
+        assert!(csv.contains("tidak_ditemukan"));
+        assert!(csv.contains("Lagu C"));
+        assert!(csv.contains("perlu_diperiksa"));
+    }
+
+    #[test]
+    fn header_selalu_ada_walau_tidak_ada_baris() {
+        let csv = csv_tidak_masuk(&[]);
+        assert_eq!(csv.lines().count(), 1);
+        assert!(csv.starts_with("judul_impor,artis_impor"));
+    }
+
+    /// Judul lagu sering mengandung koma dan tanda kutip: CSV harus tetap sah.
+    #[test]
+    fn koma_dan_kutip_di_judul_di_escape() {
+        let b = vec![baris("Hello, Goodbye", "The \"Fab\" Four", Keputusan::TidakAda, None, 0.0)];
+        let csv = csv_tidak_masuk(&b);
+        assert!(csv.contains("\"Hello, Goodbye\""), "koma harus di dalam kutip");
+        assert!(csv.contains("\"The \"\"Fab\"\" Four\""), "kutip harus digandakan");
+        // Jumlah kolom tetap 9 walau judul berisi koma.
+        let data = csv.lines().nth(1).unwrap();
+        let mut kolom = 0;
+        let mut dalam = false;
+        for c in data.chars() {
+            match c {
+                '"' => dalam = !dalam,
+                ',' if !dalam => kolom += 1,
+                _ => {}
+            }
+        }
+        assert_eq!(kolom + 1, 9, "harus 9 kolom: {data}");
+    }
+
+    #[test]
+    fn kandidat_kosong_tidak_panik() {
+        let b = vec![baris("X", "Y", Keputusan::TidakAda, None, 0.0)];
+        let csv = csv_tidak_masuk(&b);
+        assert!(csv.contains("\"X\""));
+        assert!(csv.contains("tidak_ditemukan"));
+    }
+
+    #[test]
+    fn skor_diformat_dua_desimal() {
+        let b = vec![baris("X", "Y", Keputusan::Review, Some(("X2", "Y2")), 0.7512)];
+        assert!(csv_tidak_masuk(&b).contains("0.75"));
+    }
 }

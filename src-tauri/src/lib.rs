@@ -26,7 +26,9 @@ pub fn run() {
         )
         .init();
 
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init());
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
@@ -117,6 +119,7 @@ pub fn run() {
             commands::list_favorites,
             commands::is_favorite,
             commands::import_parse,
+            commands::import_ekspor_tidak_masuk,
             commands::import_cocokkan,
             commands::import_batal,
             commands::import_simpan,
