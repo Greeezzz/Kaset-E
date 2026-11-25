@@ -53,8 +53,17 @@ function errMessage(err: unknown, fallback: string): string {
 
 export function App() {
   const menyiapkanPemutar = useMenyiapkanPemutar();
-  const { mode: modeNowPlaying, setMode: setModeNowPlaying } = useModeNowPlaying();
+  const {
+    mode: modeNowPlaying,
+    setMode: setModeNowPlaying,
+    muatUlang: muatUlangMode,
+  } = useModeNowPlaying();
   const [route, setRoute] = useState<Route>("search");
+  // Mode tampilan dibaca ulang tiap kali layar Now Playing dibuka, supaya
+  // perubahan dari Pengaturan langsung terlihat tanpa restart.
+  useEffect(() => {
+    if (route === "queue") muatUlangMode();
+  }, [route, muatUlangMode]);
   // Panel kanan: default TERTUTUP (DESIGN-LAYOUT bagian 1). Pilihan terakhir
   // diingat supaya user yang selalu membukanya tidak perlu membuka tiap start.
   const [queueOpen, setQueueOpen] = useState(false);

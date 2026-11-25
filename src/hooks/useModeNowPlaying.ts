@@ -19,21 +19,30 @@ const KUNCI = "nowplaying.mode";
 export function useModeNowPlaying() {
   const [mode, setModeState] = useState<ModeNowPlaying>("standar");
 
-  useEffect(() => {
+  /**
+   * Baca ulang dari `settings`.
+   *
+   * Dipanggil saat mount DAN setiap kali layar Now Playing dibuka. Tanpa
+   * pembacaan ulang, perubahan yang dilakukan di layar Pengaturan tidak
+   * terlihat sampai aplikasi dijalankan ulang: hook ini tinggal di `App` yang
+   * tidak pernah unmount, sementara `Settings` menulis langsung ke DB.
+   * Itu benar-benar terjadi saat diuji — DB berisi "kaset" tapi UI menampilkan
+   * STANDAR aktif.
+   */
+  const muatUlang = useCallback(() => {
     if (!runningInTauri) return;
-    let batal = false;
     void invoke<string | null>("setting_get", { key: KUNCI })
       .then((v) => {
-        if (batal) return;
         if (v === "kaset" || v === "standar") setModeState(v);
       })
       .catch(() => {
-        // Gagal baca bukan masalah: tetap standar.
+        // Gagal baca bukan masalah: biarkan nilai yang ada.
       });
-    return () => {
-      batal = true;
-    };
   }, []);
+
+  useEffect(() => {
+    muatUlang();
+  }, [muatUlang]);
 
   const setMode = useCallback((baru: ModeNowPlaying) => {
     // UI diperbarui lebih dulu supaya tombol terasa langsung; penyimpanan
@@ -45,5 +54,5 @@ export function useModeNowPlaying() {
     });
   }, []);
 
-  return { mode, setMode };
+  return { mode, setMode, muatUlang };
 }
