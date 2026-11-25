@@ -19,9 +19,9 @@ Terakhir diperbarui: commit `6872dfe`, branch `main`, repo `github.com/Greeezzz/
 | Fase 6 — Login + Sync | 0/3 |
 | **Total** | **55/71 item (77%)** |
 
-Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **211 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
+Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **215 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
 
-Ukuran terpasang: `kaset.exe` 9,8 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 11 tabel + `schema_migrations` (skema versi `0006`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
+Ukuran terpasang: `kaset.exe` 9,8 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 11 tabel + `schema_migrations` (skema versi `0007`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
 
 ## Yang sudah benar-benar jalan (terverifikasi di aplikasi, bukan mock)
 
@@ -37,6 +37,7 @@ Ukuran terpasang: `kaset.exe` 9,8 MB. Database di `%APPDATA%\app.kaset.desktop\k
 - **Library hidup** — favorit, riwayat, playlist semuanya tersambung dan tersimpan. Diverifikasi di aplikasi nyata: favorit bertahan setelah restart, playlist 3 lagu diputar (audio 11,4 s/299 s), hapus lagu di tengah merapatkan posisi tanpa bentrok, dialog playlist tidak menggandakan lagu, riwayat tercatat. Dua bug ketemu lewat uji ini dan sudah diperbaiki: tombol ▶ playlist menampilkan hitungan basi, dan tab History menampilkan 0 padahal database terisi.
 - **Saran dan riwayat pencarian** — mengetik 2+ huruf memunculkan panel saran: riwayat lokal lebih dulu (tanpa menunggu jaringan), lalu saran YouTube Music dengan debounce 250 ms. Jawaban basi dibuang lewat nomor urut, jadi saran untuk "rad" tidak menimpa "radiohead". Keyboard: panah membuka & menyorot, Enter memilih, Escape menutup; klik di luar juga menutup. Riwayat disimpan di tabel `search_history` (migrasi `0003`) dengan kunci ternormalisasi sehingga "Radiohead"/"radiohead"/"radiohead  " jadi satu baris, dihitung `hits`, bisa dihapus per entri atau semua, dan dipangkas ke 100. Diverifikasi di aplikasi: 6 saran nyata muncul untuk "radio"; hapus satu entri dan hapus semua bekerja; setelah restart riwayat tetap ada dengan hits benar.
 - **Seek dan volume di UI** — bar seek bisa diklik, di-drag, dan dioperasikan keyboard (panah 5 detik, Shift+panah 30 detik, Home/End); volume punya slider + tombol bisu yang mengembalikan angka sebelumnya. Volume tersimpan dan pulih lintas restart. Diverifikasi di aplikasi: klik 60%/20%/90% mendarat 181,6/62,3/271,8 detik dari durasi 299,3; volume 35% → bisu → bunyi lagi 35%; setelah restart tetap 35. Satu bug ketemu: klik pada bar tidak melompat karena handler membaca state drag dari render sebelumnya — sekarang disimpan di ref.
+- **Lagu prioritas "hantu" saat antrean dipulihkan (bug diperbaiki)** — dulu "sudah diputar" hanya tersirat dari posisi di `order`, dan `order` sengaja tidak disimpan karena shuffle harus bisa dibatalkan ke urutan asli. Saat aplikasi dibuka ulang, `restore` membangun `order` dari nol: shuffle mati menaruh lagu prioritas di ujung `items` (setelah cursor), shuffle nyala menyelipkan SEMUA lagu prioritas tepat setelah lagu aktif. Hasilnya lagu yang sudah lewat muncul lagi di BERIKUTNYA. Sekarang penanda `sudah_diputar` ikut disimpan (migrasi `0007`), diperbarui setiap cursor bergerak, dan pemulihan menyusun `[riwayat] → [lagu aktif] → [sisa]`; tombol Previous tetap bisa kembali. Tes regresi ada di `queue::tests` dan `db::queue`.
 - **Antrean bisa di-drag** — HTML5 drag tanpa dependensi tambahan, urutan tersimpan setelah diubah.
 - **Desain Endfield hidup** — dua tema (Terminal Kertas / Terminal Malam), font self-host, grid halus, chamfer, kontras terverifikasi (aktif = blok kuning + teks hitam).
 
