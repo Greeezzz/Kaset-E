@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import type { PlayerState, QueueItem } from "../../types";
+import type { ModeNowPlaying } from "../../hooks/useModeNowPlaying";
 import { CoverArt } from "../../components/CoverArt";
 import { EmptyState } from "../../components/EmptyState";
 import { TrackRow } from "../../components/TrackRow";
@@ -10,14 +12,27 @@ import { T } from "../../lib/strings";
  * Layar pemutar penuh (mobile). Slide-up dari mini player — DESIGN.md §3/§4.
  * Fase 0: menampilkan state + antrean; kontrol play/seek menyusul di Fase 1.
  */
+/**
+ * Mode kaset dimuat malas: selama pengguna memakai mode standar, bundelnya
+ * tidak pernah diunduh. Itu syarat §0.2 di `FEATURES-V3.md` — fitur opsional
+ * tidak boleh membebani jalur yang tidak memakainya.
+ */
+const KasetMode = lazy(() => import("./KasetMode").then((m) => ({ default: m.KasetMode })));
+
 export function FullPlayer({
   state,
   queue,
   onClose,
+  mode = "standar",
+  onModeChange,
 }: {
   state: PlayerState;
   queue: QueueItem[];
   onClose: () => void;
+  /** Mode tampilan aktif (K1). Default `standar` = perilaku lama. */
+  mode?: ModeNowPlaying;
+  /** Ganti mode. Kalau tidak diberikan, switcher tidak ditampilkan. */
+  onModeChange?: (m: ModeNowPlaying) => void;
 }) {
   const progress = state.durationMs > 0 ? Math.min(1, state.positionMs / state.durationMs) : 0;
 
@@ -50,26 +65,71 @@ export function FullPlayer({
         </button>
       </header>
 
-      <div style={{ display: "grid", placeItems: "center", gap: "var(--s-4)" }}>
-        {state.track ? (
-          <>
-            <CoverArt
-              coverKey={state.track.coverKey}
-              title={state.track.title}
-              size={220}
-              radius={0}
-            />
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 20 }}>
-                {state.track.title}
+      {onModeChange && (
+        <div
+          role="group"
+          aria-label={T.modeTampilan}
+          style={{ display: "flex", gap: 4, justifyContent: "center" }}
+        >
+          {(["standar", "kaset"] as const).map((m) => {
+            const aktif = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => onModeChange(m)}
+                aria-pressed={aktif}
+                className="mono"
+                style={{
+                  minHeight: 32,
+                  padding: "0 10px",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  border: aktif ? "1px solid var(--accent)" : "1px solid var(--line)",
+                  background: aktif ? "var(--accent)" : "transparent",
+                  color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
+                  fontWeight: aktif ? 600 : 400,
+                }}
+              >
+                {m === "standar" ? T.modeStandar : T.modeKaset}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {mode === "kaset" ? (
+        <Suspense
+          fallback={
+            <p className="mono muted" style={{ textAlign: "center", fontSize: 11 }}>
+              {T.memuat}
+            </p>
+          }
+        >
+          <KasetMode state={state} />
+        </Suspense>
+      ) : (
+        <div style={{ display: "grid", placeItems: "center", gap: "var(--s-4)" }}>
+          {state.track ? (
+            <>
+              <CoverArt
+                coverKey={state.track.coverKey}
+                title={state.track.title}
+                size={220}
+                radius={0}
+              />
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 20 }}>
+                  {state.track.title}
+                </div>
+                <div className="muted">{state.track.artist}</div>
               </div>
-              <div className="muted">{state.track.artist}</div>
-            </div>
-          </>
-        ) : (
-          <EmptyState title={T.belumAdaLagu} hint={T.pilihLaguDariCari} />
-        )}
-      </div>
+            </>
+          ) : (
+            <EmptyState title={T.belumAdaLagu} hint={T.pilihLaguDariCari} />
+          )}
+        </div>
+      )}
 
       <div aria-hidden="true" style={{ height: 4, background: "var(--panel-2)" }}>
         <div

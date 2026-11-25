@@ -110,6 +110,14 @@ export const T = {
   memutar: "MEMUTAR",
   dijeda: "DIJEDA",
   belumAdaLaguHint: "Pilih lagu dari pencarian atau playlist untuk mulai memutar.",
+  modeTampilan: "TAMPILAN",
+  modeStandar: "STANDAR",
+  modeKaset: "KASET",
+  modeKasetSegera: "Mode kaset menyusul.",
+  pengaturanTampilan: "Tampilan",
+  pengaturanModeNowPlaying: "Mode Now Playing",
+  pengaturanModeHint:
+    "Kaset menampilkan dek kaset bergaya perangkat keras. Standar tetap seperti sekarang.",
   bukaSedangDiputar: "Lihat detail sedang diputar",
   acakPintar: "PINTAR",
   acakPintarHint:

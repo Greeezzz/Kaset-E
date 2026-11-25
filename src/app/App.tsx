@@ -7,6 +7,7 @@ import { BottomNav } from "./layout/BottomNav";
 import { MiniPlayer } from "./layout/MiniPlayer";
 import { PlayerBar } from "../features/player/PlayerBar";
 import { useMenyiapkanPemutar } from "../hooks/useMenyiapkanPemutar";
+import { useModeNowPlaying } from "../hooks/useModeNowPlaying";
 import { T } from "../lib/strings";
 
 import { FullPlayer } from "../features/player/FullPlayer";
@@ -52,6 +53,7 @@ function errMessage(err: unknown, fallback: string): string {
 
 export function App() {
   const menyiapkanPemutar = useMenyiapkanPemutar();
+  const { mode: modeNowPlaying, setMode: setModeNowPlaying } = useModeNowPlaying();
   const [route, setRoute] = useState<Route>("search");
   // Panel kanan: default TERTUTUP (DESIGN-LAYOUT bagian 1). Pilihan terakhir
   // diingat supaya user yang selalu membukanya tidak perlu membuka tiap start.
@@ -677,7 +679,13 @@ export function App() {
           {/* Mobile: tap mini player membuka layar penuh (DESIGN.md §3).
               Tanpa cabang ini, route 'queue' akan merender layar kosong. */}
           {route === "queue" && (
-            <FullPlayer state={state} queue={queue.view.items} onClose={() => setRoute("search")} />
+            <FullPlayer
+              state={state}
+              queue={queue.view.items}
+              onClose={() => setRoute("search")}
+              mode={modeNowPlaying}
+              onModeChange={setModeNowPlaying}
+            />
           )}
         </main>
 
@@ -789,6 +797,7 @@ export function App() {
             onVolume={handleVolume}
             onToggleQueue={() => toggleRightTab("queue")}
             onOpenNowPlaying={() => toggleRightTab("now")}
+            onOpenFullPlayer={() => setRoute("queue")}
             queueOpen={queueOpen && rightTab === "queue"}
           />
         </>

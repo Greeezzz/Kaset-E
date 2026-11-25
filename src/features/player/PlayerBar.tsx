@@ -22,6 +22,7 @@ export function PlayerBar({
   onVolume,
   onToggleQueue,
   onOpenNowPlaying,
+  onOpenFullPlayer,
   queueOpen = false,
 }: {
   state: PlayerState;
@@ -32,6 +33,15 @@ export function PlayerBar({
   onVolume?: (volume: number) => void;
   onToggleQueue?: () => void;
   onOpenNowPlaying?: () => void;
+  /**
+   * Buka pemutar penuh (layar Now Playing) — K1 `FEATURES-V3.md`.
+   *
+   * Dipisah dari `onOpenNowPlaying` yang membuka PANEL KANAN. Di desktop,
+   * panel kanan sudah terlihat, jadi satu-satunya cara masuk ke layar penuh
+   * adalah lewat cover ini. Tanpa ini, mode kaset mustahil dijangkau di
+   * desktop — dan itu memang yang dicatat sebagai kekurangan di K1.
+   */
+  onOpenFullPlayer?: () => void;
   queueOpen?: boolean;
 }) {
   const playing = state.status === "playing";
@@ -59,10 +69,10 @@ export function PlayerBar({
       {/* Zona kiri: cover 56px dengan corner brackets + identitas lagu. */}
       <button
         type="button"
-        onClick={onOpenNowPlaying}
-        disabled={!onOpenNowPlaying}
-        aria-label={T.bukaSedangDiputar}
-        title={T.bukaSedangDiputar}
+        onClick={onOpenFullPlayer ?? onOpenNowPlaying}
+        disabled={!onOpenFullPlayer && !onOpenNowPlaying}
+        aria-label={onOpenFullPlayer ? T.bukaPemutarPenuh : T.bukaSedangDiputar}
+        title={onOpenFullPlayer ? T.bukaPemutarPenuh : T.bukaSedangDiputar}
         style={{
           display: "flex",
           alignItems: "center",

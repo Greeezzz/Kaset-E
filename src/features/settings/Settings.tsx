@@ -25,6 +25,7 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
   // Statistik (Fase 4b)
   const [statsAktif, setStatsAktif] = useState(true);
   const [statsMsg, setStatsMsg] = useState<string | null>(null);
+  const [modeNp, setModeNp] = useState<"standar" | "kaset">("standar");
 
   async function ekspor() {
     setBackupBusy(true);
@@ -130,6 +131,11 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
 
   useEffect(() => {
     if (!runningInTauri) return;
+    void invoke<string | null>("setting_get", { key: "nowplaying.mode" })
+      .then((v) => {
+        if (v === "kaset" || v === "standar") setModeNp(v);
+      })
+      .catch(() => {});
     void invoke<string | null>("setting_get", { key: "listen_stats" })
       .then((v) => setStatsAktif(v !== "0"))
       .catch(() => setStatsAktif(true));
@@ -142,6 +148,17 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
     } catch {
       // Gagal simpan: kembalikan saklar supaya UI tidak berbohong.
       setStatsAktif(!aktif);
+    }
+  }
+
+  // Mode Now Playing (FEATURES-V3 K1). Dibaca dari tabel `settings` yang sama
+  // dengan hook di App; di sini hanya untuk menampilkan pilihan.
+  async function ubahModeNowPlaying(m: "standar" | "kaset") {
+    setModeNp(m);
+    try {
+      await invoke("setting_set", { key: "nowplaying.mode", value: m });
+    } catch {
+      setModeNp((v) => (v === m ? (m === "kaset" ? "standar" : "kaset") : v));
     }
   }
 
@@ -304,6 +321,34 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
           )}
         </dd>
       </dl>
+
+      <h2 style={{ fontSize: 15, margin: "var(--s-6) 0 var(--s-2)" }}>{T.pengaturanTampilan}</h2>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13 }}>{T.pengaturanModeNowPlaying}</span>
+        {(["standar", "kaset"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => void ubahModeNowPlaying(m)}
+            aria-pressed={modeNp === m}
+            className="mono"
+            style={{
+              padding: "6px 12px",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              border: modeNp === m ? "1px solid var(--accent)" : "1px solid var(--line-strong)",
+              background: modeNp === m ? "var(--accent)" : "transparent",
+              color: modeNp === m ? "var(--accent-ink)" : "var(--ink)",
+              fontWeight: modeNp === m ? 600 : 400,
+            }}
+          >
+            {m === "standar" ? T.modeStandar : T.modeKaset}
+          </button>
+        ))}
+      </div>
+      <span className="muted" style={{ display: "block", fontSize: 12, marginTop: 6 }}>
+        {T.pengaturanModeHint}
+      </span>
 
       <h2 style={{ fontSize: 15, margin: "var(--s-6) 0 var(--s-2)" }}>{T.statsPengaturan}</h2>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
