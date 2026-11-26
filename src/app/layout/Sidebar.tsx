@@ -179,26 +179,16 @@ export function Sidebar({
             <button
               key={it.id}
               type="button"
+              className="k-nav"
               aria-current={aktif ? "page" : undefined}
               onClick={() => onNavigate(it.id)}
               aria-label={it.label}
               title={rel ? it.label : undefined}
               style={{
                 padding: rel ? 0 : "10px var(--s-3)",
-                minHeight: 44,
-                minWidth: 44,
-                display: rel ? "grid" : "block",
+                display: rel ? "grid" : undefined,
                 placeItems: rel ? "center" : undefined,
-                textAlign: "left",
-                background: aktif ? "var(--accent)" : "transparent",
-                color: aktif ? "var(--accent-ink)" : "var(--ink)",
-                border: "none",
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                cursor: "pointer",
-                fontWeight: aktif ? 600 : 400,
+                textAlign: rel ? "center" : "left",
               }}
             >
               {rel ? it.ikon : it.label}
@@ -210,6 +200,7 @@ export function Sidebar({
             keadaan aktif, supaya tidak ada dua ajakan yang bersaing. */}
         <button
           type="button"
+          className="k-btn"
           onClick={() => {
             // Di rel ikon, form inline selebar 72px tidak terbaca. Langsung
             // buat playlist lalu buka dialog Nama & Detail yang punya ruang.
@@ -226,18 +217,10 @@ export function Sidebar({
           style={{
             marginTop: "var(--s-2)",
             padding: rel ? 0 : "10px var(--s-3)",
-            minHeight: 44,
-            minWidth: 44,
-            display: rel ? "grid" : "block",
+            display: rel ? "grid" : "inline-flex",
             placeItems: rel ? "center" : undefined,
-            textAlign: "left",
-            background: "transparent",
-            color: "var(--ink)",
-            border: "1px solid var(--line-strong)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            letterSpacing: "0.1em",
-            cursor: "pointer",
+            textAlign: rel ? "center" : "left",
+            justifyContent: rel ? "center" : "flex-start",
           }}
         >
           {rel ? <IkonTambah size={18} /> : T.baru}
@@ -245,26 +228,20 @@ export function Sidebar({
 
         <button
           type="button"
+          className="k-btn k-btn-quiet"
           onClick={onImportPlaylist}
           aria-label={T.imporPlaylistBaru}
           title={rel ? T.imporPlaylistBaru : undefined}
           style={{
             padding: rel ? 0 : "10px var(--s-3)",
-            minHeight: 44,
-            minWidth: 44,
-            display: rel ? "grid" : "block",
+            display: rel ? "grid" : "inline-flex",
             placeItems: rel ? "center" : undefined,
-            textAlign: "left",
-            background: "transparent",
-            color: "var(--ink-muted)",
-            border: "1px solid var(--line)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            letterSpacing: "0.1em",
-            cursor: "pointer",
+            textAlign: rel ? "center" : "left",
+            justifyContent: rel ? "center" : "flex-start",
+            textTransform: "none",
           }}
         >
-          {rel ? <IkonTambah size={18} /> : T.imporPlaylistBaru}
+          {rel ? <IkonTambah size={18} /> : `↓ ${T.imporPlaylistBaru}`}
         </button>
 
         {buatBuka && !rel && (

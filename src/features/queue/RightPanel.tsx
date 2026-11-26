@@ -151,9 +151,13 @@ export function RightPanel({
               {/* Baris status sistem */}
               <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
                 <span className="label" aria-hidden="true">
-                  02 /
+                  03 /
                 </span>
-                <span className="label" style={{ color: "var(--ink)" }}>
+                <span
+                  className={`status-dot ${playerState.status === "loading" ? "status-dot-muat" : isPlaying ? "status-dot-aktif" : ""}`}
+                  aria-hidden="true"
+                />
+                <span className="label" style={{ color: "var(--ink)" }} aria-live="polite">
                   {playerState.status === "loading" ? T.memuat : isPlaying ? T.memutar : T.dijeda}
                 </span>
                 <span style={{ flex: 1, borderTop: "1px solid var(--line)" }} aria-hidden="true" />
@@ -250,61 +254,80 @@ export function RightPanel({
                     {T.tidakAdaBerikutnya}
                   </p>
                 ) : (
-                  upcoming.map(({ pos, track }) => (
-                    <button
-                      key={`${pos}-${track.videoId}`}
-                      type="button"
-                      onClick={() => onPlayIndex(pos)}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "40px minmax(0, 1fr) 44px",
-                        alignItems: "center",
-                        gap: "var(--s-2)",
-                        width: "100%",
-                        padding: "var(--s-2)",
-                        textAlign: "left",
-                        background: "var(--bg)",
-                        border: "1px solid var(--line)",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      <CoverArt
-                        coverKey={track.coverKey}
-                        title={track.title}
-                        size={40}
-                        radius={0}
-                      />
-                      <span style={{ minWidth: 0 }}>
-                        <span
-                          style={{
-                            display: "block",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            fontSize: 13,
-                            fontWeight: 500,
-                          }}
-                        >
-                          {track.title}
+                  <>
+                    {upcoming.map(({ pos, track }) => (
+                      <button
+                        key={`${pos}-${track.videoId}`}
+                        type="button"
+                        onClick={() => onPlayIndex(pos)}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "40px minmax(0, 1fr) 44px",
+                          alignItems: "center",
+                          gap: "var(--s-2)",
+                          width: "100%",
+                          padding: "var(--s-2)",
+                          textAlign: "left",
+                          background: "var(--bg)",
+                          border: "1px solid var(--line)",
+                          color: "var(--ink)",
+                        }}
+                      >
+                        <CoverArt
+                          coverKey={track.coverKey}
+                          title={track.title}
+                          size={40}
+                          radius={0}
+                        />
+                        <span style={{ minWidth: 0 }}>
+                          <span
+                            style={{
+                              display: "block",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              fontSize: 13,
+                              fontWeight: 500,
+                            }}
+                          >
+                            {track.title}
+                          </span>
+                          <span
+                            className="muted"
+                            style={{
+                              display: "block",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              fontSize: 12,
+                            }}
+                          >
+                            {track.artist}
+                          </span>
                         </span>
-                        <span
-                          className="muted"
-                          style={{
-                            display: "block",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            fontSize: 12,
-                          }}
-                        >
-                          {track.artist}
+                        <span className="mono muted" style={{ fontSize: 11, textAlign: "right" }}>
+                          {formatDuration(track.durationMs)}
                         </span>
-                      </span>
-                      <span className="mono muted" style={{ fontSize: 11, textAlign: "right" }}>
-                        {formatDuration(track.durationMs)}
-                      </span>
-                    </button>
-                  ))
+                      </button>
+                    ))}
+
+                    {/* Sisa antrean setelah 2 lagu teratas */}
+                    {Math.max(0, view.items.length - 1 - view.cursor - 2) > 0 && (
+                      <button
+                        type="button"
+                        className="k-btn k-btn-quiet"
+                        onClick={() => onTabChange("queue")}
+                        style={{
+                          width: "100%",
+                          marginTop: "var(--s-1)",
+                          minHeight: 36,
+                          fontSize: 11,
+                        }}
+                      >
+                        {T.laguLagi(Math.max(0, view.items.length - 1 - view.cursor - 2))}
+                      </button>
+                    )}
+                  </>
                 )}
               </section>
             </>
@@ -330,18 +353,13 @@ function TabBtn({
       role="tab"
       aria-selected={aktif}
       onClick={onClick}
+      className={`k-btn ${aktif ? "k-btn-accent" : ""}`}
       style={{
         flex: 1,
         minHeight: 44,
         padding: "0 var(--s-2)",
-        background: aktif ? "var(--accent)" : "transparent",
-        color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
-        border: aktif ? "1px solid var(--accent)" : "1px solid var(--line)",
-        fontFamily: "var(--font-mono)",
-        fontSize: 10,
-        letterSpacing: "0.08em",
-        fontWeight: aktif ? 600 : 400,
         whiteSpace: "nowrap",
+        fontSize: 10,
       }}
     >
       {children}

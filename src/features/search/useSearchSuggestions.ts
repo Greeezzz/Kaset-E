@@ -30,7 +30,7 @@ export function useSearchSuggestions(query: string, aktif: boolean) {
   // Nomor urut permintaan: hanya jawaban terbaru yang boleh mengubah state.
   const urutRef = useRef(0);
 
-  const muatRiwayat = useCallback(async (limit = 6) => {
+  const muatRiwayat = useCallback(async (limit = 8) => {
     try {
       const rows = await invoke<{ query: string; hits: number }[]>("search_history_list", {
         limit,

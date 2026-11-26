@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke, runningInTauri } from "../../lib/tauri";
 import { T } from "../../lib/strings";
+import { PageHead } from "../../components/PageHead";
 
 /**
  * Layar Stats — Fase 4b.
@@ -102,22 +103,14 @@ export function Stats() {
   );
 
   return (
-    <section style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", maxWidth: 860 }}>
-      <header style={{ marginBottom: "var(--s-5)" }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 34,
-            letterSpacing: "0.02em",
-            margin: 0,
-          }}
-        >
-          {T.statsJudul}
-        </h1>
-        <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
-          {T.statsSubjudul}
-        </p>
-      </header>
+    <section
+      className="page-enter"
+      style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", maxWidth: 860 }}
+    >
+      <PageHead title={T.statsJudul} />
+      <p className="muted" style={{ margin: "-12px 0 var(--s-5)", fontSize: 13 }}>
+        {T.statsSubjudul}
+      </p>
 
       <div style={{ display: "flex", gap: 4, marginBottom: "var(--s-5)" }}>
         {RENTANG.map((r) => {

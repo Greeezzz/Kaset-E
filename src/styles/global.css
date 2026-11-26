@@ -93,6 +93,335 @@ h3 {
   background: transparent;
 }
 
+/* ---------- 1.2 Fondasi CSS & Kelas Dasar (POLISH-UI) ---------- */
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-muted);
+  opacity: 0.75;
+}
+
+/* .k-input: input standar dengan sisi kiri tebal, fokus tanpa glow */
+.k-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-left-width: 3px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+  transition:
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+
+.k-input:hover {
+  background: var(--panel-2);
+}
+
+.k-input:focus {
+  border-left-color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* Tombol silang "x" pada input type search */
+.k-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background-color: var(--ink-muted);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='2' xmlns='http://www.w3.org/2000/svg'><path d='M4 4l8 8M12 4L4 12'/></svg>")
+    no-repeat center;
+  mask: url("data:image/svg+xml;utf8,<svg viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='2' xmlns='http://www.w3.org/2000/svg'><path d='M4 4l8 8M12 4L4 12'/></svg>")
+    no-repeat center;
+  cursor: pointer;
+}
+
+/* .k-btn: tombol outline mono 11px uppercase, min 44x44 */
+.k-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+
+.k-btn:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.k-btn:active:not(:disabled) {
+  transform: translate(1px, 1px);
+}
+
+/* .k-btn-quiet: varian redup bergaris putus-putus */
+.k-btn-quiet {
+  border: 1px dashed var(--line);
+  color: var(--ink-muted);
+}
+
+.k-btn-quiet:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-style: solid;
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+/* .k-btn-accent: blok kuning dengan bayangan keras */
+.k-btn-accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 1px solid var(--accent);
+  font-weight: 600;
+}
+
+.k-btn-accent:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 3px 3px 0 var(--line-strong);
+}
+
+.k-btn-accent:active:not(:disabled) {
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+/* .k-nav: item navigasi sidebar */
+.k-nav {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px var(--s-3);
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  border: none;
+  border-left: 3px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+
+.k-nav:hover:not([aria-current="page"]) {
+  background: var(--panel-2);
+  border-left-color: var(--accent);
+}
+
+.k-nav[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  border-left-color: var(--accent);
+}
+
+/* .k-chip: chip riwayat pencarian */
+.k-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+
+.k-chip:hover {
+  background: var(--panel-2);
+}
+
+/* Kepala halaman bernomor */
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.page-head-title {
+  font-size: 24px;
+  margin: 0;
+}
+
+.page-head-rule {
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+/* Status dot: kotak 8px */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+}
+
+.status-dot-aktif {
+  background: var(--accent);
+  border-color: var(--accent);
+  animation: kaset-led 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.status-dot-muat {
+  background: var(--accent);
+  border-color: var(--accent);
+  animation: kaset-led-muat 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes kaset-led-muat {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* .skeleton: balok panel-2 + sapuan cahaya */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: skeleton-sweep 1.6s infinite;
+}
+
+@keyframes skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* .page-enter: transisi masuk halaman */
+.page-enter {
+  animation: page-fade-up 220ms var(--ease) forwards;
+}
+
+@keyframes page-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* .k-range: slider volume bersegmen */
+.k-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 84px;
+  height: 24px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+.k-range:focus-visible {
+  outline: 2px solid var(--line-strong);
+}
+
+.k-range::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--isi, 0%),
+    var(--line) var(--isi, 0%),
+    var(--line) 100%
+  );
+  border: none;
+}
+
+.k-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  margin-top: -5px;
+  box-shadow: none;
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.k-range:hover::-webkit-slider-thumb {
+  background: var(--accent);
+}
+
+.k-range::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--isi, 0%),
+    var(--line) var(--isi, 0%),
+    var(--line) 100%
+  );
+  border: none;
+}
+
+.k-range::-moz-range-thumb {
+  width: 8px;
+  height: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.k-range:hover::-moz-range-thumb {
+  background: var(--accent);
+}
+
 /* ---------- Bahasa bentuk (DESIGN-ENDFIELD §5) ---------- */
 
 /* Panel dengan sudut dipotong. Catatan: clip-path juga memotong border di

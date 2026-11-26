@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke, runningInTauri } from "../../lib/tauri";
 import { currentTheme, setTheme, type Theme } from "../../lib/theme";
 import { T } from "../../lib/strings";
+import { PageHead } from "../../components/PageHead";
 
 interface ImportReport {
   favoritesAdded: number;
@@ -180,8 +181,11 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
     catalogLive === null ? T.memeriksa : catalogLive ? T.katalogAktif : T.katalogMock;
 
   return (
-    <section style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", maxWidth: 720 }}>
-      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>{T.pengaturan}</h1>
+    <section
+      className="page-enter"
+      style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", maxWidth: 720 }}
+    >
+      <PageHead title={T.pengaturan} />
 
       <dl
         style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--s-2) var(--s-4)" }}

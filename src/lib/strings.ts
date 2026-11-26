@@ -47,6 +47,10 @@ export const T = {
 
   // Umum
   cari: "CARI",
+  hasil: "HASIL",
+  cobaLagi: "COBA LAGI",
+  pencarianTerakhir: "PENCARIAN TERAKHIR",
+  laguLagi: (n: number) => `+ ${n} LAGU LAGI`,
   batal: "BATAL",
   simpan: "SIMPAN",
   menyimpan: "MENYIMPAN…",
@@ -291,7 +295,8 @@ export const T = {
   // LRCLIB (L5)
   pengaturanLirik: "Lirik",
   lrclibAktif: "Ambil lirik otomatis (LRCLIB)",
-  lrclibKet: "Mengambil lirik otomatis dari lrclib.net berdasarkan judul dan artis lagu saat tampilan lirik dibuka. Tanpa telemetri lain.",
+  lrclibKet:
+    "Mengambil lirik otomatis dari lrclib.net berdasarkan judul dan artis lagu saat tampilan lirik dibuka. Tanpa telemetri lain.",
   lrclibMencari: "Mencari lirik di LRCLIB…",
 
   // Romanisasi (L6)

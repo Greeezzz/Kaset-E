@@ -3,6 +3,8 @@ import { invoke } from "../../lib/tauri";
 import type { SearchResults, Track } from "../../types";
 import { TrackRow } from "../../components/TrackRow";
 import { EmptyState } from "../../components/EmptyState";
+import { PageHead } from "../../components/PageHead";
+import { IkonRiwayat } from "../../components/icons";
 import { T } from "../../lib/strings";
 import { SuggestionPanel } from "./SuggestionPanel";
 import { useSearchSuggestions } from "./useSearchSuggestions";
@@ -36,6 +38,12 @@ export function Search({
   const bungkusRef = useRef<HTMLDivElement | null>(null);
 
   const saran = useSearchSuggestions(query, panelTerbuka);
+
+  const { muatRiwayat } = saran;
+  // Muat riwayat saat halaman mount agar chip pencarian terakhir langsung tersedia
+  useEffect(() => {
+    void muatRiwayat(8);
+  }, [muatRiwayat]);
 
   // Klik di luar kotak menutup panel. Tanpa ini panel menutupi hasil pencarian
   // dan tidak ada cara menutupnya selain memilih saran.
@@ -116,14 +124,17 @@ export function Search({
 
   const tampilkanPanel = panelTerbuka && (saran.items.length > 0 || saran.memuat);
 
+  const metaText = results?.tracks.length ? `${results.tracks.length} ${T.hasil}` : undefined;
+
   return (
     <section style={{ padding: "var(--s-6) var(--s-6) var(--s-8)", minWidth: 0 }}>
-      <h1 style={{ fontSize: 24, marginBottom: "var(--s-4)" }}>{T.navCari}</h1>
+      <PageHead title={T.navCari} meta={metaText} />
 
       <form onSubmit={runSearch} style={{ display: "flex", gap: "var(--s-2)" }}>
         <div ref={bungkusRef} style={{ position: "relative", flex: 1 }}>
           <input
             type="search"
+            className="k-input"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -138,15 +149,6 @@ export function Search({
             aria-expanded={tampilkanPanel}
             aria-controls="panel-saran-pencarian"
             autoComplete="off"
-            style={{
-              width: "100%",
-              minHeight: 44,
-              padding: "0 var(--s-3)",
-              border: "1px solid var(--line-strong)",
-              background: "var(--panel)",
-              color: "var(--ink)",
-              font: "inherit",
-            }}
           />
 
           {tampilkanPanel ? (
@@ -163,30 +165,58 @@ export function Search({
             </div>
           ) : null}
         </div>
-        <button
-          type="submit"
-          style={{
-            minHeight: 44,
-            padding: "0 var(--s-4)",
-            background: "var(--accent)",
-            color: "var(--accent-ink)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 12,
-            letterSpacing: "0.08em",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
+        <button type="submit" className="k-btn k-btn-accent">
           {T.cari}
         </button>
       </form>
 
       <div style={{ marginTop: "var(--s-4)" }}>
-        {loading && <p className="muted">{T.sedangMencari}</p>}
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+        {loading && (
+          <div role="status" aria-label={T.sedangMencari} style={{ display: "grid", gap: 8 }}>
+            {[1, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15].map((op, i) => (
+              <div
+                key={i}
+                className="skeleton"
+                style={{
+                  height: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 var(--s-2)",
+                  gap: "var(--s-2)",
+                  opacity: op,
+                }}
+              >
+                <div style={{ width: 40, height: 40, background: "var(--panel)" }} />
+                <div style={{ flex: 1, display: "grid", gap: 6 }}>
+                  <div style={{ height: 10, width: "40%", background: "var(--panel)" }} />
+                  <div style={{ height: 8, width: "25%", background: "var(--panel)" }} />
+                </div>
+                <div style={{ width: 36, height: 8, background: "var(--panel)" }} />
+              </div>
+            ))}
+          </div>
+        )}
 
-        {results && results.tracks.length > 0 && (
-          <div style={{ display: "grid", gap: 2 }}>
+        {error && (
+          <EmptyState
+            kode="ERR"
+            title={T.pencarianGagal}
+            hint={error}
+            action={
+              <button
+                type="button"
+                className="k-btn"
+                onClick={() => void cari(query)}
+                style={{ marginTop: "var(--s-2)" }}
+              >
+                {T.cobaLagi}
+              </button>
+            }
+          />
+        )}
+
+        {!loading && !error && results && results.tracks.length > 0 && (
+          <div className="page-enter" style={{ display: "grid", gap: 2 }}>
             {results.tracks.map((t, i) => (
               <TrackRow
                 key={t.videoId}
@@ -203,12 +233,58 @@ export function Search({
           </div>
         )}
 
-        {results && results.tracks.length === 0 && (
-          <EmptyState title={T.tidakAdaHasil} hint={T.tidakAdaHasilHint} />
+        {!loading && !error && results && results.tracks.length === 0 && (
+          <EmptyState kode="0 HASIL" title={T.tidakAdaHasil} hint={T.tidakAdaHasilHint} />
         )}
 
-        {!results && !loading && !error && (
-          <EmptyState title={T.mulaiDariSini} hint={T.mulaiHint} />
+        {!loading && !error && !results && (
+          <div>
+            {saran.riwayat.length > 0 && (
+              <div style={{ marginBottom: "var(--s-6)" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "var(--s-2)",
+                  }}
+                >
+                  <span className="label" style={{ color: "var(--ink-muted)" }}>
+                    {T.pencarianTerakhir}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void saran.kosongkanRiwayat()}
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      letterSpacing: "0.08em",
+                      color: "var(--ink-muted)",
+                      cursor: "pointer",
+                      padding: "4px 8px",
+                    }}
+                  >
+                    {T.kosongkan}
+                  </button>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-2)" }}>
+                  {saran.riwayat.slice(0, 8).map((r) => (
+                    <button
+                      key={r.query}
+                      type="button"
+                      className="k-chip"
+                      onClick={() => pilihSaran(r.query)}
+                      title={r.query}
+                    >
+                      <IkonRiwayat size={14} />
+                      <span>{r.query}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <EmptyState kode="STANDBY" title={T.mulaiDariSini} hint={T.mulaiHint} />
+          </div>
         )}
       </div>
     </section>

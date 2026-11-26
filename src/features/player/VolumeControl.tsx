@@ -22,6 +22,8 @@ export function VolumeControl({ volume, onChange }: Props) {
 
   const ubah = (v: number) => onChange(Math.min(1, Math.max(0, v)));
 
+  const pct = Math.round(volume * 100);
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "var(--s-1)" }}>
       <button
@@ -50,23 +52,20 @@ export function VolumeControl({ volume, onChange }: Props) {
         min={0}
         max={100}
         step={1}
-        value={Math.round(volume * 100)}
+        value={pct}
         onChange={(e) => ubah(Number(e.target.value) / 100)}
         aria-label={T.volume}
-        aria-valuetext={`${Math.round(volume * 100)} persen`}
-        style={{
-          width: 84,
-          accentColor: "var(--accent)",
-          cursor: "pointer",
-        }}
+        aria-valuetext={`${pct} persen`}
+        className="k-range"
+        style={{ "--isi": `${pct}%` } as React.CSSProperties}
       />
 
       <span
         className="mono muted"
-        style={{ fontSize: 11, minWidth: 28, textAlign: "right" }}
+        style={{ fontSize: 11, minWidth: 34, textAlign: "right" }}
         aria-hidden="true"
       >
-        {Math.round(volume * 100)}
+        {pct}%
       </span>
     </div>
   );
