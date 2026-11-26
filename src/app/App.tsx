@@ -694,6 +694,11 @@ export function App() {
               onClose={() => setRoute("search")}
               mode={modeNowPlaying}
               onModeChange={setModeNowPlaying}
+              /* Handler yang sama persis dengan PlayerBar (§K4). */
+              onToggle={togglePlay}
+              onNext={() => void playNextInQueue()}
+              onPrevious={() => void playPreviousInQueue()}
+              onSeek={handleSeek}
             />
           )}
         </main>

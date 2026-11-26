@@ -320,6 +320,164 @@ h3 {
   transition: opacity var(--t-base) var(--ease);
 }
 
+/* ---------- Dek kaset (FEATURES-V3 K4) ---------- */
+
+/* LCD: latar gelap dengan garis pindai tipis, teks mono terang. Terlihat
+ * seperti layar, bukan kotak teks biasa. */
+.kaset-lcd {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  /* Garis pindai: gradien 2px berulang, sangat tipis. Tidak memakai animasi
+   * supaya tidak menambah beban render di area yang selalu terlihat. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 1px,
+    color-mix(in srgb, var(--ink) 6%, transparent) 1px,
+    color-mix(in srgb, var(--ink) 6%, transparent) 2px
+  );
+}
+
+/* Judul bergulir saat tidak muat. Hanya teks yang bergerak, bukan kotaknya,
+ * supaya LCD tidak pernah mengubah ukuran layout.
+ *
+ * `--marquee-jarak` diisi inline dari lebar teks sebenarnya; tanpa itu animasi
+ * harus menebak dan judul pendek akan bergulir terlalu jauh. */
+@keyframes kaset-marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  88%,
+  100% {
+    transform: translateX(var(--marquee-jarak, -50%));
+  }
+}
+
+.kaset-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: kaset-marquee 14s linear infinite;
+  will-change: transform;
+}
+
+/* Tanpa gulir saat gerak dikurangi: teks dipotong elipsis, informasi tetap
+ * terbaca lewat aria-label penuh di elemen induknya. */
+.kaset-marquee-diam {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Panggung kaset: membatasi lebar supaya SVG tidak pernah mendorong layout
+ * melebar dan memaksa scroll horizontal (§K4). */
+.kaset-panggung {
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 420 / 268;
+}
+
+.kaset-panggung > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Tombol dek: blok chamfer. Ukuran minimum 44x44 untuk target sentuh
+ * (persiapan Android, §K4). */
+.kaset-tombol {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--ink);
+  cursor: pointer;
+  clip-path: polygon(
+    var(--cut-sm) 0,
+    100% 0,
+    100% calc(100% - var(--cut-sm)),
+    calc(100% - var(--cut-sm)) 100%,
+    0 100%,
+    0 var(--cut-sm)
+  );
+}
+
+.kaset-tombol:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--ink);
+}
+
+.kaset-tombol:disabled {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Play: satu-satunya blok kuning, paling besar — hirarki yang sama dengan
+ * PlayerBar supaya mata jatuh ke tempat yang sama di kedua mode. */
+.kaset-tombol-utama {
+  min-width: 64px;
+  min-height: 52px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.kaset-tombol-utama:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.kaset-tombol-utama:disabled {
+  background: var(--panel-2);
+  color: var(--ink-muted);
+}
+
+/* Tata letak dek: kaset di kiri, kontrol di kanan saat layar lebar. */
+.kaset-layout {
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+}
+
+/* Dek: baris kontrol. Di layar sempit berubah jadi kolom supaya tombol tidak
+ * pernah terpotong atau memaksa scroll horizontal. */
+.kaset-dek {
+  display: grid;
+  gap: var(--s-3);
+  width: 100%;
+  min-width: 0;
+}
+
+.kaset-dek-kontrol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+}
+
+/* < 600 px: susun VERTIKAL (§K4). Kaset di atas, kontrol di bawah. */
+@media (max-width: 600px) {
+  .kaset-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kaset-panggung {
+    max-width: 100%;
+  }
+
+  .kaset-dek-kontrol {
+    gap: var(--s-2);
+  }
+}
+
 /* Hormati preferensi pengguna (DESIGN-ENDFIELD §8). */
 @media (prefers-reduced-motion: reduce) {
   *,

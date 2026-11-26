@@ -25,6 +25,10 @@ export function FullPlayer({
   onClose,
   mode = "standar",
   onModeChange,
+  onToggle,
+  onNext,
+  onPrevious,
+  onSeek,
 }: {
   state: PlayerState;
   queue: QueueItem[];
@@ -33,6 +37,15 @@ export function FullPlayer({
   mode?: ModeNowPlaying;
   /** Ganti mode. Kalau tidak diberikan, switcher tidak ditampilkan. */
   onModeChange?: (m: ModeNowPlaying) => void;
+  /**
+   * Handler transport — SAMA yang dipakai `PlayerBar` (§K4: "Prev/Play/Next
+   * memakai handler yang sama"). Diteruskan apa adanya ke `KasetMode`; tidak
+   * ada logika pemutaran di layar ini.
+   */
+  onToggle?: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  onSeek?: (positionMs: number) => void;
 }) {
   const progress = state.durationMs > 0 ? Math.min(1, state.positionMs / state.durationMs) : 0;
 
@@ -106,7 +119,13 @@ export function FullPlayer({
             </p>
           }
         >
-          <KasetMode state={state} />
+          <KasetMode
+            state={state}
+            onToggle={onToggle}
+            onNext={onNext}
+            onPrevious={onPrevious}
+            onSeek={onSeek}
+          />
         </Suspense>
       ) : (
         <div style={{ display: "grid", placeItems: "center", gap: "var(--s-4)" }}>

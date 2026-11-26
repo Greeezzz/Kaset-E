@@ -59,10 +59,14 @@ export function KasetSvg({
   const artis = pangkas(track?.artist ?? "—", 30);
   const durasi = track?.durationMs ? formatDuration(track.durationMs) : "--:--";
 
+  // §K4: SVG dekoratif. Informasi lagu sekarang ada sebagai TEKS NYATA di LCD
+  // dek, jadi `role="img"` + `aria-label` di sini akan membuat pembaca layar
+  // mengumumkan judul dua kali. Sebelum K4 (tanpa LCD) label itu memang
+  // satu-satunya sumber, karena itu dulu dipakai.
   return (
     <svg
-      role="img"
-      aria-label={`Kaset: ${track?.title ?? "tidak ada lagu"} — ${track?.artist ?? ""}`}
+      aria-hidden="true"
+      focusable="false"
       viewBox={`0 0 ${LEBAR} ${TINGGI}`}
       width={LEBAR * ukuran}
       height={TINGGI * ukuran}
