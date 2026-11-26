@@ -463,13 +463,20 @@ export function App() {
     }
   }
 
+  function handleNavigate(r: Route) {
+    setCenterMode(null);
+    setRoute(r);
+  }
+
   function handleSelectFavorites() {
+    setCenterMode(null);
     setSelectedPlaylistId(null);
     setLibTab("Favorit");
     setRoute("library");
   }
 
   function handleSelectPlaylist(id: number) {
+    setCenterMode(null);
     setSelectedPlaylistId(id);
     setLibTab("Playlist");
     setRoute("library");
@@ -607,7 +614,7 @@ export function App() {
           <Sidebar
             rel={sidebarRel}
             route={route}
-            onNavigate={setRoute}
+            onNavigate={handleNavigate}
             playlists={lib.playlists}
             favorites={lib.favorites}
             selectedPlaylistId={selectedPlaylistId}
@@ -635,10 +642,13 @@ export function App() {
           ref={mainRef}
           style={{
             minWidth: 0,
-            overflowY: "auto",
+            height: "100%",
+            minHeight: 0,
+            overflowY: centerMode ? "hidden" : "auto",
             overflowX: "hidden",
             display: "flex",
             flexDirection: "column",
+            flex: 1,
           }}
         >
           {centerMode === "kaset" ? (

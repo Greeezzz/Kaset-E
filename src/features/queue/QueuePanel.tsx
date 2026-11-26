@@ -71,7 +71,7 @@ export function QueuePanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      {/* Kepala sistem: 03 / ANTREAN ──── N ITEM */}
+      {/* Kepala sistem: 04 / ANTREAN ──── N ITEM */}
       <div
         style={{
           display: "flex",
@@ -82,7 +82,7 @@ export function QueuePanel({
         }}
       >
         <span className="label" aria-hidden="true">
-          03 /
+          04 /
         </span>
         <span className="label" style={{ color: "var(--ink)" }}>
           {T.antrean}

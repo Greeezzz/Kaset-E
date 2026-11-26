@@ -4,11 +4,9 @@ import type { PlayerState } from "../../types";
 import { T } from "../../lib/strings";
 import { formatDuration } from "../../lib/format";
 import { invoke, runningInTauri } from "../../lib/tauri";
-import { IkonNext, IkonPause, IkonPlay, IkonPrev } from "../../components/icons";
 import { useActiveLyric } from "../../hooks/useActiveLyric";
 import { useAnimasiKaset } from "../../hooks/useAnimasiKaset";
 import { useProgresKaset } from "../../hooks/useProgresKaset";
-import { SeekBar } from "./SeekBar";
 import { KasetSvg, KasetSvgBercover } from "./KasetSvg";
 
 /**
@@ -41,9 +39,6 @@ const KUNCI_LABEL = "kaset.label";
 export function KasetMode({
   state,
   onToggle,
-  onNext,
-  onPrevious,
-  onSeek,
 }: {
   state: PlayerState;
   onToggle?: () => void;
@@ -84,7 +79,6 @@ export function KasetMode({
     void invoke("setting_set", { key: KUNCI_LABEL, value: baru }).catch(() => {});
   }, []);
 
-  const ada = Boolean(state.track);
   const memutar = state.status === "playing";
   const memuat = state.status === "loading";
 
@@ -94,255 +88,279 @@ export function KasetMode({
   return (
     <div
       style={{
-        display: "grid",
-        gap: "var(--s-4)",
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        minHeight: 0,
+        height: "100%",
+        justifyContent: "center",
+        alignItems: "center",
         padding: "var(--s-4)",
-        border: "1px solid var(--line-strong)",
-        background: "var(--panel)",
-        minWidth: 0,
-        width: "100%",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        boxSizing: "border-box",
       }}
     >
-      {/* Strip Hazard Atas Industrial ala Referensi HTML */}
       <div
         style={{
-          height: 6,
-          background: "repeating-linear-gradient(-45deg, #FFE600 0 8px, #111111 8px 16px)",
-          margin: "-8px -8px 4px -8px",
-          borderBottom: "1px solid #111111",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Header telemetry kaset */}
-      <div
-        className="mono muted"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: 10,
-          letterSpacing: "0.08em",
-          borderBottom: "1px solid var(--line)",
-          paddingBottom: "var(--s-2)",
+          display: "grid",
+          gap: "var(--s-4)",
+          padding: "var(--s-4)",
+          border: "1px solid var(--line-strong)",
+          background: "var(--panel)",
+          minWidth: 0,
+          width: "100%",
+          maxWidth: 960,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
         }}
       >
-        <span>┌─ 01 / ANALOG TAPE TERMINAL ──────────────────────</span>
-        <button
-          type="button"
-          onClick={() => setIsDocked((d) => !d)}
-          className="k-btn k-btn-quiet"
-          style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 9 }}
-          title="Ubah posisi kaset miring atau masuk slot"
-        >
-          {isDocked ? "⇅ SLOT [DOCKED]" : "⇅ TILT [STANDBY]"}
-        </button>
-      </div>
-
-      <div className="kaset-layout">
+        {/* Strip Hazard Atas Industrial ala Referensi HTML */}
         <div
-          className="kaset-panggung"
           style={{
-            transform: isDocked ? "rotate(0deg) translateY(6px)" : "rotate(-2deg)",
-            transition: "transform var(--t-base) var(--ease)",
-            cursor: "pointer",
+            height: 6,
+            background: "repeating-linear-gradient(-45deg, #FFE600 0 8px, #111111 8px 16px)",
+            margin: "-8px -8px 4px -8px",
+            borderBottom: "1px solid #111111",
           }}
-          onClick={onToggle}
-          title="Klik kaset untuk memutar atau menjeda"
+          aria-hidden="true"
+        />
+
+        {/* Header telemetry kaset */}
+        <div
+          className="mono muted"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            borderBottom: "1px solid var(--line)",
+            paddingBottom: "var(--s-2)",
+          }}
         >
-          {jenisLabel === "cover" ? (
-            <KasetSvgBercover
-              track={state.track}
-              berputar={berputar}
-              progres={progres}
-              kurangiGerak={kurangiGerak}
-            />
-          ) : (
-            <KasetSvg
-              track={state.track}
-              berputar={berputar}
-              progres={progres}
-              kurangiGerak={kurangiGerak}
-            />
-          )}
+          <span>┌─ 01 / ANALOG TAPE TERMINAL ──────────────────────</span>
+          <button
+            type="button"
+            onClick={() => setIsDocked((d) => !d)}
+            className="k-btn k-btn-quiet"
+            style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 9 }}
+            title="Ubah posisi kaset miring atau masuk slot"
+          >
+            {isDocked ? "⇅ SLOT [DOCKED]" : "⇅ TILT [STANDBY]"}
+          </button>
         </div>
 
-        <div className="kaset-dek">
-          {/* Groove dekoratif slot kaset */}
+        <div className="kaset-layout">
           <div
+            className="kaset-panggung"
             style={{
-              height: 10,
-              background: "var(--bg)",
-              border: "1px solid var(--line-strong)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: -4,
+              transform: isDocked ? "rotate(0deg) translateY(6px)" : "rotate(-2deg)",
+              transition: "transform var(--t-base) var(--ease)",
+              cursor: "pointer",
             }}
+            onClick={onToggle}
+            title="Klik kaset untuk memutar atau menjeda"
           >
-            <span
-              className="mono muted"
-              style={{ fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase" }}
-            >
-              ▼ TAPE DECK SLOT // HEAD ENGAGED ▼
-            </span>
-          </div>
-
-          <Lcd
-            status={state.status}
-            judul={state.track?.title ?? T.belumAdaLagu}
-            artis={state.track?.artist ?? "\u2014"}
-            lirikAktif={activeLineText}
-            adaLirik={hasSyncedLyrics}
-            kurangiGerak={kurangiGerak}
-            terlihat={terlihat}
-            memutar={memutar}
-          />
-
-          {/* Counter mono: posisi / durasi. Angka tabular (kelas `.mono`)
-              supaya lebar digit tidak berubah dan baris tidak "bergetar". */}
-          <div
-            className="mono"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              fontSize: 13,
-            }}
-          >
-            <span style={{ color: "var(--ink)" }}>{formatDuration(state.positionMs)}</span>
-            <span className="muted" style={{ fontSize: 9, letterSpacing: "0.12em" }}>
-              {T.kasetCounter}
-            </span>
-            <span className="muted">{formatDuration(state.durationMs)}</span>
-          </div>
-
-          <SeekBar
-            positionMs={state.positionMs}
-            durationMs={state.durationMs}
-            onSeek={(ms) => onSeek?.(ms)}
-            disabled={!ada || !onSeek}
-            loading={memuat}
-          />
-
-          <div className="kaset-dek-kontrol">
-            <button
-              type="button"
-              className="kaset-tombol"
-              onClick={onPrevious}
-              disabled={!ada || !onPrevious}
-              aria-label={T.laguSebelumnya}
-              title={T.laguSebelumnya}
-            >
-              <IkonPrev size={18} />
-            </button>
-
-            {/* Satu-satunya blok kuning, paling besar — hirarki sama dengan
-                PlayerBar supaya mata jatuh ke tempat yang sama di kedua mode. */}
-            <button
-              type="button"
-              className="kaset-tombol kaset-tombol-utama"
-              onClick={onToggle}
-              disabled={!ada || !onToggle}
-              aria-label={memutar ? T.jeda : T.putar}
-              title={memutar ? T.jeda : T.putar}
-            >
-              {memuat ? (
-                <span aria-hidden="true" style={{ fontSize: 16, letterSpacing: 1 }}>
-                  {"\u2026"}
-                </span>
-              ) : memutar ? (
-                <IkonPause size={22} />
-              ) : (
-                <IkonPlay size={22} />
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="kaset-tombol"
-              onClick={onNext}
-              disabled={!ada || !onNext}
-              aria-label={T.laguBerikutnya}
-              title={T.laguBerikutnya}
-            >
-              <IkonNext size={18} />
-            </button>
-          </div>
-
-          {/* Indikator: LED status + LED shuffle. Teks selalu menyertai supaya
-              tidak bergantung pada warna saja. */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "var(--s-3)",
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <LedStatus status={state.status} terlihat={terlihat} />
-              <span className="mono muted" style={{ fontSize: 9, letterSpacing: "0.12em" }}>
-                {memutar
-                  ? T.memutar
-                  : memuat
-                    ? T.memuat
-                    : state.status === "error"
-                      ? T.gagal
-                      : T.dijeda}
-              </span>
-            </span>
-
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <span
-                aria-hidden="true"
-                className="kaset-led"
-                style={{
-                  display: "inline-block",
-                  width: 8,
-                  height: 8,
-                  background: state.shuffle ? "var(--accent)" : "var(--line)",
-                  border: "1px solid var(--line-strong)",
-                  opacity: state.shuffle ? 1 : 0.35,
-                }}
+            {jenisLabel === "cover" ? (
+              <KasetSvgBercover
+                track={state.track}
+                berputar={berputar}
+                progres={progres}
+                kurangiGerak={kurangiGerak}
               />
-              <span className="mono muted" style={{ fontSize: 9, letterSpacing: "0.12em" }}>
-                {state.shuffle ? T.kasetShuffleAktif : T.kasetShuffle}
-              </span>
-            </span>
+            ) : (
+              <KasetSvg
+                track={state.track}
+                berputar={berputar}
+                progres={progres}
+                kurangiGerak={kurangiGerak}
+              />
+            )}
           </div>
 
-          <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="mono muted" style={{ fontSize: 9, letterSpacing: "0.1em" }}>
-              {T.kasetLabel}
-            </span>
-            {(["generatif", "cover"] as const).map((j) => {
-              const aktif = jenisLabel === j;
-              return (
-                <button
-                  key={j}
-                  type="button"
-                  onClick={() => ubahLabel(j)}
-                  aria-pressed={aktif}
-                  className="mono"
+          <div className="kaset-dek">
+            {/* Groove dekoratif slot kaset */}
+            <div
+              style={{
+                height: 10,
+                background: "var(--bg)",
+                border: "1px solid var(--line-strong)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: -4,
+              }}
+            >
+              <span
+                className="mono muted"
+                style={{ fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase" }}
+              >
+                ▼ TAPE DECK SLOT // HEAD ENGAGED ▼
+              </span>
+            </div>
+
+            <Lcd
+              status={state.status}
+              judul={state.track?.title ?? T.belumAdaLagu}
+              artis={state.track?.artist ?? "\u2014"}
+              lirikAktif={activeLineText}
+              adaLirik={hasSyncedLyrics}
+              kurangiGerak={kurangiGerak}
+              terlihat={terlihat}
+              memutar={memutar}
+            />
+
+            {/* Counter mono: posisi / durasi. Angka tabular */}
+            <div
+              className="mono"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                fontSize: 12,
+                padding: "4px 8px",
+                background: "var(--bg)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              <span style={{ color: "var(--ink)", fontWeight: 600 }}>
+                {formatDuration(state.positionMs)}
+              </span>
+              <span className="muted" style={{ fontSize: 9, letterSpacing: "0.12em" }}>
+                {T.kasetCounter}
+              </span>
+              <span className="muted">{formatDuration(state.durationMs)}</span>
+            </div>
+
+            {/* Visualizer Bersegmen ala Terminal Tape Deck */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                padding: "8px",
+                background: "var(--bg)",
+                border: "1px solid var(--line)",
+              }}
+              aria-hidden="true"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 8,
+                  color: "var(--ink-muted)",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                <span>VU / SPECTRUM</span>
+                <span>{hasSyncedLyrics ? "SYNCED" : "UNSYNCED"}</span>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(20, 1fr)",
+                  gap: 2,
+                  height: 18,
+                  alignItems: "flex-end",
+                }}
+              >
+                {Array.from({ length: 20 }).map((_, i) => {
+                  const tinggiPct = memutar
+                    ? Math.max(15, Math.sin((i + 1) * 0.8 + state.positionMs / 300) * 40 + 55)
+                    : 10;
+                  const isPeak = tinggiPct > 75;
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        width: "100%",
+                        height: `${tinggiPct}%`,
+                        background: isPeak ? "var(--accent)" : "var(--line-strong)",
+                        opacity: memutar ? 1 : 0.4,
+                        transition: "height 0.1s ease",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Indikator Teknis & Metadata */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "var(--s-3)",
+                flexWrap: "wrap",
+                padding: "4px 0",
+                borderTop: "1px solid var(--line)",
+              }}
+            >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <LedStatus status={state.status} terlihat={terlihat} />
+                <span className="mono muted" style={{ fontSize: 9, letterSpacing: "0.12em" }}>
+                  {memutar
+                    ? T.memutar
+                    : memuat
+                      ? T.memuat
+                      : state.status === "error"
+                        ? T.gagal
+                        : T.dijeda}
+                </span>
+              </span>
+
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span
+                  aria-hidden="true"
+                  className="kaset-led"
                   style={{
-                    minHeight: 44,
-                    padding: "0 10px",
-                    fontSize: 9,
-                    letterSpacing: "0.08em",
-                    border: aktif ? "1px solid var(--accent)" : "1px solid var(--line)",
-                    background: aktif ? "var(--accent)" : "transparent",
-                    color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
-                    fontWeight: aktif ? 600 : 400,
-                    cursor: "pointer",
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    background: state.shuffle ? "var(--accent)" : "var(--line)",
+                    border: "1px solid var(--line-strong)",
+                    opacity: state.shuffle ? 1 : 0.35,
                   }}
-                >
-                  {j === "generatif" ? T.kasetLabelGeneratif : T.kasetLabelCover}
-                </button>
-              );
-            })}
+                />
+                <span className="mono muted" style={{ fontSize: 9, letterSpacing: "0.12em" }}>
+                  {state.shuffle ? T.kasetShuffleAktif : T.kasetShuffle}
+                </span>
+              </span>
+            </div>
+
+            {/* Opsi Label: GENERATIF | COVER */}
+            <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="mono muted" style={{ fontSize: 9, letterSpacing: "0.1em" }}>
+                {T.kasetLabel}
+              </span>
+              {(["generatif", "cover"] as const).map((j) => {
+                const aktif = jenisLabel === j;
+                return (
+                  <button
+                    key={j}
+                    type="button"
+                    onClick={() => ubahLabel(j)}
+                    aria-pressed={aktif}
+                    className="mono"
+                    style={{
+                      minHeight: 32,
+                      padding: "0 10px",
+                      fontSize: 9,
+                      letterSpacing: "0.08em",
+                      border: aktif ? "1px solid var(--accent)" : "1px solid var(--line)",
+                      background: aktif ? "var(--accent)" : "transparent",
+                      color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
+                      fontWeight: aktif ? 600 : 400,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {j === "generatif" ? T.kasetLabelGeneratif : T.kasetLabelCover}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

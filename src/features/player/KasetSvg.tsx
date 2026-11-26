@@ -30,6 +30,7 @@ export function KasetSvg({
   berputar = false,
   progres = 0,
   kurangiGerak = false,
+  coverUrl = null,
 }: {
   track: Track | null;
   /** Pengali ukuran; 1 = 420x268. */
@@ -44,6 +45,8 @@ export function KasetSvg({
   progres?: number;
   /** `prefers-reduced-motion`: tanpa putaran, radius tetap berubah. */
   kurangiGerak?: boolean;
+  /** URL cover art opsional untuk mode cover (dirender di label stiker luar, di bawah jendela reel). */
+  coverUrl?: string | null;
 }) {
   const label = useMemo(() => labelKaset(track?.videoId ?? "kaset"), [track?.videoId]);
   const strip = polaStrip(label.pola);
@@ -122,6 +125,22 @@ export function KasetSvg({
         <g transform={`rotate(${label.kemiringan} 210 78)`}>
           <rect x="40" y="26" width="340" height="104" fill="var(--panel)" stroke="var(--line)" />
 
+          {/* Latar cover art jika dalam mode cover: di bawah strip & teks, dengan overlay gelap */}
+          {coverUrl && (
+            <g>
+              <image
+                href={coverUrl}
+                x="40"
+                y="26"
+                width="340"
+                height="104"
+                preserveAspectRatio="xMidYMid slice"
+                opacity="0.28"
+              />
+              <rect x="40" y="26" width="340" height="104" fill="var(--bg)" opacity="0.4" />
+            </g>
+          )}
+
           {/* Strip warna: pola berbeda per lagu */}
           <StripWarna x={40} y={label.stripDiAtas ? 26 : 112} lebar={340} pola={strip} />
         </g>
@@ -129,17 +148,31 @@ export function KasetSvg({
         {/* Teks label: bagian yang benar-benar dibaca. Teks asli, bukan path,
             sehingga tetap bisa diseleksi dan dibacakan. */}
         <g transform={`rotate(${label.kemiringan} 210 78)`}>
-          <text
+          {/* Judul: max-width 265px di dalam foreignObject agar auto ellipsis & tidak menabrak badge SIDE A di x=328 */}
+          <foreignObject
             x="52"
-            y={label.stripDiAtas ? 74 : 62}
-            fill="var(--ink)"
-            fontFamily="var(--font-display)"
-            fontSize="26"
-            fontWeight="700"
-            letterSpacing="0.5"
+            y={label.stripDiAtas ? 46 : 34}
+            width="265"
+            height="36"
+            style={{ overflow: "hidden" }}
           >
-            {judul}
-          </text>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "24px",
+                fontWeight: 700,
+                color: "var(--ink)",
+                letterSpacing: "0.5px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                lineHeight: "36px",
+              }}
+              title={track?.title ?? "Tidak ada lagu"}
+            >
+              {judul}
+            </div>
+          </foreignObject>
           <text
             x="52"
             y={label.stripDiAtas ? 96 : 84}
@@ -449,44 +482,17 @@ export function KasetSvgBercover({
   kurangiGerak?: boolean;
 }) {
   const url = useCover(track?.coverKey);
-  if (!url) {
-    return (
-      <KasetSvg
-        track={track}
-        ukuran={ukuran}
-        berputar={berputar}
-        progres={progres}
-        kurangiGerak={kurangiGerak}
-      />
-    );
-  }
 
-  // Cover ditempel di jendela reel sebagai "foto di label", bukan menggantikan
-  // seluruh kaset: cangkang dan label tetap khas Kaset.
+  // Cover ditempatkan sebagai latar label stiker kaset (di bawah jendela reel)
+  // sehingga kedua jendela reel kiri & kanan tetap terlihat utuh dan berputar bebas.
   return (
-    <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-      <KasetSvg
-        track={track}
-        ukuran={ukuran}
-        berputar={berputar}
-        progres={progres}
-        kurangiGerak={kurangiGerak}
-      />
-      <img
-        src={url}
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: "23.5%",
-          top: "55.5%",
-          width: "21%",
-          aspectRatio: "1",
-          objectFit: "cover",
-          border: "1px solid var(--line-strong)",
-          pointerEvents: "none",
-        }}
-      />
-    </div>
+    <KasetSvg
+      track={track}
+      ukuran={ukuran}
+      berputar={berputar}
+      progres={progres}
+      kurangiGerak={kurangiGerak}
+      coverUrl={url}
+    />
   );
 }

@@ -154,8 +154,10 @@ export function LyricsView({
         // Auto scroll ke baris aktif jika user tidak sedang scroll manual
         if (!userScrolledRef.current && targetIdx >= 0) {
           const el = lineRefs.current[targetIdx];
-          if (el && containerRef.current) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          const container = containerRef.current;
+          if (el && container) {
+            const targetTop = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+            container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
           }
         }
       }
@@ -172,8 +174,10 @@ export function LyricsView({
     setUserScrolled(false);
     if (activeIndex >= 0) {
       const el = lineRefs.current[activeIndex];
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const container = containerRef.current;
+      if (el && container) {
+        const targetTop = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+        container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
       }
     }
   }, [activeIndex]);
@@ -321,9 +325,12 @@ export function LyricsView({
         background: isDragging ? "var(--accent-glow, rgba(255, 230, 0, 0.05))" : "var(--panel)",
         borderRadius: 0,
         position: "relative",
-        minHeight: 280,
+        minHeight: 0,
+        flex: 1,
+        height: "100%",
         justifyContent: data ? "flex-start" : "center",
-        alignItems: "center",
+        alignItems: data ? "stretch" : "center",
+        boxSizing: "border-box",
       }}
     >
       <input
@@ -343,7 +350,17 @@ export function LyricsView({
           {T.memuat}
         </p>
       ) : data ? (
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--s-3)",
+            flex: 1,
+          }}
+        >
           {/* Header Panel Lirik Industrial ala Referensi HTML */}
           <div
             style={{
@@ -584,8 +601,9 @@ export function LyricsView({
             onTouchMove={() => setUserScrolled(true)}
             className="lyrics-scroll-mask"
             style={{
-              maxHeight: 320,
-              minHeight: 200,
+              flex: 1,
+              minHeight: 0,
+              height: "100%",
               overflowY: "auto",
               display: "flex",
               flexDirection: "column",
@@ -664,18 +682,23 @@ export function LyricsView({
                     >
                       {line.text}
                     </span>
-                    {showRomaji && line.romanized && (
-                      <span
-                        className="mono muted"
-                        style={{
-                          fontSize: 11,
-                          lineHeight: 1.3,
-                          letterSpacing: "0.02em",
-                        }}
-                      >
-                        {line.romanized}
-                      </span>
-                    )}
+                    {showRomaji &&
+                      line.romanized &&
+                      /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\u0400-\u04ff]/.test(
+                        line.text,
+                      ) &&
+                      line.romanized.trim().toLowerCase() !== line.text.trim().toLowerCase() && (
+                        <span
+                          className="mono muted"
+                          style={{
+                            fontSize: 11,
+                            lineHeight: 1.3,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {line.romanized}
+                        </span>
+                      )}
                   </div>
                 </div>
               );

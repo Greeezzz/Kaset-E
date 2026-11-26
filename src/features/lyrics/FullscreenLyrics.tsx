@@ -99,6 +99,40 @@ export function FullscreenLyrics({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, onToggle]);
 
+  // Re-sync saat Resize / Alt-Tab (Spec §2.3)
+  useEffect(() => {
+    const syncScroll = () => {
+      if (userScrolledRef.current || activeIndex < 0) return;
+      const el = lineRefs.current[activeIndex];
+      const container = containerRef.current;
+      if (el && container) {
+        const targetTop = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+        container.scrollTo({ top: Math.max(0, targetTop), behavior: "auto" });
+      }
+    };
+
+    const handleVisibility = () => {
+      if (!document.hidden) syncScroll();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("resize", syncScroll);
+
+    let observer: ResizeObserver | null = null;
+    if (containerRef.current && typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => {
+        syncScroll();
+      });
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("resize", syncScroll);
+      observer?.disconnect();
+    };
+  }, [activeIndex]);
+
   // Sinkronisasi posisi audio
   useEffect(() => {
     if (!isPlaying || !lyricsData?.parsed.is_synced || lyricsData.parsed.lines.length === 0) {
@@ -138,8 +172,10 @@ export function FullscreenLyrics({
         if (targetIdx !== prev) {
           if (!userScrolledRef.current && targetIdx >= 0) {
             const el = lineRefs.current[targetIdx];
-            if (el && containerRef.current) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
+            const container = containerRef.current;
+            if (el && container) {
+              const targetTop = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+              container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
             }
           }
           return targetIdx;
@@ -158,8 +194,10 @@ export function FullscreenLyrics({
     setUserScrolled(false);
     if (activeIndex >= 0) {
       const el = lineRefs.current[activeIndex];
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const container = containerRef.current;
+      if (el && container) {
+        const targetTop = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+        container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
       }
     }
   }, [activeIndex]);
@@ -177,6 +215,8 @@ export function FullscreenLyrics({
       style={{
         position: "fixed",
         inset: 0,
+        width: "100%",
+        height: "100%",
         zIndex: 100,
         background: modeRedup ? "#080809" : "var(--bg)",
         color: "var(--ink)",
@@ -215,7 +255,7 @@ export function FullscreenLyrics({
           borderBottom: "1px solid var(--line)",
           background: "rgba(0,0,0,0.3)",
           backdropFilter: "blur(8px)",
-          flex: "0 0 auto",
+          flexShrink: 0,
           zIndex: 10,
         }}
       >
@@ -321,6 +361,7 @@ export function FullscreenLyrics({
         className="lyrics-scroll-mask"
         style={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
@@ -385,19 +426,24 @@ export function FullscreenLyrics({
                     >
                       {line.text}
                     </span>
-                    {tampilRomanisasi && line.romanized && (
-                      <span
-                        className="mono muted"
-                        style={{
-                          fontSize: fsRomaji,
-                          lineHeight: 1.3,
-                          letterSpacing: "0.02em",
-                          opacity: aktif ? 0.9 : 0.6,
-                        }}
-                      >
-                        {line.romanized}
-                      </span>
-                    )}
+                    {tampilRomanisasi &&
+                      line.romanized &&
+                      /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\u0400-\u04ff]/.test(
+                        line.text,
+                      ) &&
+                      line.romanized.trim().toLowerCase() !== line.text.trim().toLowerCase() && (
+                        <span
+                          className="mono muted"
+                          style={{
+                            fontSize: fsRomaji,
+                            lineHeight: 1.3,
+                            letterSpacing: "0.02em",
+                            opacity: aktif ? 0.9 : 0.6,
+                          }}
+                        >
+                          {line.romanized}
+                        </span>
+                      )}
                   </div>
                 </div>
               );
@@ -450,7 +496,7 @@ export function FullscreenLyrics({
           borderTop: "1px solid var(--line)",
           background: "rgba(0,0,0,0.4)",
           backdropFilter: "blur(10px)",
-          flex: "0 0 auto",
+          flexShrink: 0,
           zIndex: 10,
         }}
       >
