@@ -5,6 +5,7 @@ import { T } from "../../lib/strings";
 import { formatDuration } from "../../lib/format";
 import { invoke, runningInTauri } from "../../lib/tauri";
 import { IkonNext, IkonPause, IkonPlay, IkonPrev } from "../../components/icons";
+import { useActiveLyric } from "../../hooks/useActiveLyric";
 import { useAnimasiKaset } from "../../hooks/useAnimasiKaset";
 import { useProgresKaset } from "../../hooks/useProgresKaset";
 import { SeekBar } from "./SeekBar";
@@ -86,6 +87,9 @@ export function KasetMode({
   const memutar = state.status === "playing";
   const memuat = state.status === "loading";
 
+  // §5 I1: Hubungkan lirik aktif ke LCD kaset
+  const { activeLineText, hasSyncedLyrics } = useActiveLyric(state.track?.videoId, memutar);
+
   return (
     <div
       style={{
@@ -125,6 +129,8 @@ export function KasetMode({
             status={state.status}
             judul={state.track?.title ?? T.belumAdaLagu}
             artis={state.track?.artist ?? "\u2014"}
+            lirikAktif={activeLineText}
+            adaLirik={hasSyncedLyrics}
             kurangiGerak={kurangiGerak}
             terlihat={terlihat}
           />
@@ -295,12 +301,16 @@ function Lcd({
   status,
   judul,
   artis,
+  lirikAktif,
+  adaLirik,
   kurangiGerak,
   terlihat,
 }: {
   status: PlayerState["status"];
   judul: string;
   artis: string;
+  lirikAktif?: string | null;
+  adaLirik?: boolean;
   kurangiGerak: boolean;
   terlihat: boolean;
 }) {
@@ -308,6 +318,10 @@ function Lcd({
   const teksRef = useRef<HTMLSpanElement | null>(null);
   const [jarak, setJarak] = useState(0);
   const [perluGulir, setPerluGulir] = useState(false);
+
+  // Teks utama LCD: jika ada baris lirik aktif, tampilkan liriknya (§5 I1).
+  // Jika belum ada/tidak ada lirik, jatuh kembali ke judul lagu.
+  const teksTampil = lirikAktif ? lirikAktif : judul;
 
   const ukur = useCallback(() => {
     const kotak = kotakRef.current;
@@ -329,7 +343,7 @@ function Lcd({
       ro?.disconnect();
       window.removeEventListener("resize", ukur);
     };
-  }, [ukur, judul]);
+  }, [ukur, teksTampil]);
 
   const gulir = perluGulir && !kurangiGerak && terlihat;
 
@@ -350,11 +364,19 @@ function Lcd({
           className={gulir ? "kaset-marquee" : "kaset-marquee-diam"}
           style={gulir ? ({ "--marquee-jarak": `${jarak}px` } as React.CSSProperties) : undefined}
         >
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{judul}</span>
-          <span className="muted" style={{ fontSize: 12 }}>
-            {" \u00b7 "}
-            {artis}
-          </span>
+          {lirikAktif ? (
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>
+              {lirikAktif}
+            </span>
+          ) : (
+            <>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{judul}</span>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {" \u00b7 "}
+                {artis}
+              </span>
+            </>
+          )}
         </span>
       </div>
 
@@ -368,10 +390,12 @@ function Lcd({
           color: "var(--ink-muted)",
         }}
       >
-        <span>{T.kasetLcd}</span>
+        <span>{lirikAktif ? T.lirik : T.kasetLcd}</span>
         <span>
           {status === "playing"
-            ? T.memutar
+            ? adaLirik
+              ? T.lirikTersinkron
+              : T.memutar
             : status === "loading"
               ? T.memuat
               : status === "error"

@@ -156,8 +156,8 @@ Pemetaan elemen:
 
 ## 5. Integrasi Dua Fitur
 
-- [ ] **I1 — LCD kaset menampilkan baris lirik aktif** (dan romanisasi bila aktif). Dikerjakan **setelah L3 dan K4** selesai. Tanpa lirik, LCD kembali ke judul bergulir.
-- [ ] Mode `kaset` dan `lirik` tidak saling bergantung: masing-masing berfungsi sendiri; integrasi hanya menambah.
+- [x] **I1 — LCD kaset menampilkan baris lirik aktif** (dan romanisasi bila aktif). Dikerjakan **setelah L3 dan K4** selesai. Tanpa lirik, LCD kembali ke judul bergulir.
+- [x] Mode `kaset` dan `lirik` tidak saling bergantung: masing-masing berfungsi sendiri; integrasi hanya menambah.
 
 ## 6. Urutan Pengerjaan yang Disarankan
 
