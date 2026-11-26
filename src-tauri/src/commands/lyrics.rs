@@ -87,8 +87,8 @@ pub async fn lyrics_import_file(
 ) -> AppResult<LyricsResponse> {
     let metadata = std::fs::metadata(&path)?;
     if metadata.len() > 1_048_576 {
-        return Err(crate::error::AppError::Validation(
-            "Ukuran berkas lirik melebihi batas 1 MB".into(),
+        return Err(crate::error::AppError::invalid(
+            "Ukuran berkas lirik melebihi batas 1 MB",
         ));
     }
 
@@ -101,8 +101,8 @@ pub async fn lyrics_import_file(
 
     let parsed = parse_lrc(&text);
     if parsed.lines.is_empty() {
-        return Err(crate::error::AppError::Validation(
-            "Berkas lirik tidak memiliki baris teks yang dapat dibaca".into(),
+        return Err(crate::error::AppError::invalid(
+            "Berkas lirik tidak memiliki baris teks yang dapat dibaca",
         ));
     }
 
