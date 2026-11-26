@@ -17,7 +17,8 @@ Terakhir diperbarui: commit `6872dfe`, branch `main`, repo `github.com/Greeezzz/
 | Fase 4 — Stats + Smart Shuffle | **8/8 (selesai)** |
 | Fase 5 — Import Playlist | **5/5 (selesai)** |
 | Fase 6 — Login + Sync | 0/3 |
-| **Total** | **55/71 item (77%)** |
+| Fase 7 (V3) — Mode Kaset & Lirik Engine | **11/11 (K1-K4, L1-L6, I1 selesai, L7 dilewati)** |
+| **Total** | **66/82 item (80%)** |
 
 Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **215 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
 
@@ -124,6 +125,27 @@ Terverifikasi di aplikasi 1100×720: sidebar 268px, panel kanan 336px, main
 496 ↔ 832 saat panel dibuka/ditutup, tombol play 52×52 `rgb(255,230,0)` dengan
 ikon hitam, seek bar 10 segmen setinggi 4px, dan tidak ada scroll horizontal di
 panel mana pun.
+
+## Fase 7 (V3) — Mode Kaset (Tape Mode) dan Lyrics Engine — SELESAI
+
+Mengikuti `FEATURES-V3.md`. Fitur Mode Kaset dan Lirik telah selesai diimplementasikan 100%:
+
+| Tahap | Fitur | Deskripsi | Status |
+|---|---|---|---|
+| K1 | Kerangka Mode Kaset | Mode switcher (Standar/Kaset), container Now Playing retro | Selesai |
+| K2 | SVG Kaset & Label Generatif | Visual kaset Endfield, label unik deterministik FNV-1a | Selesai |
+| K3 | Animasi Reel & Pita | Rotasi reel GPU sesuai playback, radius pita dinamis | Selesai |
+| K4 | Dek Penuh & LCD Player | Dek hardware lengkap, counter waktu, LED VU, tombol chamfer | Selesai |
+| I1 | Integrasi LCD + Lirik | Layar LCD kaset menampilkan baris lirik aktif realtime | Selesai |
+| L1 | Model Data & Parser LRC | Migrasi SQLite `0008_lyrics.sql`, parser timestamp LRC di Rust | Selesai |
+| L2 | Impor Berkas Manual | Dialog native file `.lrc`, drag-and-drop file lirik | Selesai |
+| L3 | Tampilan Lirik Sinkron | Sorotan baris kuning Endfield, auto-scroll, seek-by-click, offset ±100ms | Selesai |
+| L4 | Tampilan Penuh (Fullscreen) | Layar penuh lirik, scaling font (kecil/sedang/besar), dimmed mode, Esc | Selesai |
+| L5 | Integrasi LRCLIB Opt-in | Auto-fetch lirik dari `lrclib.net`, filter kolaborator & durasi | Selesai |
+| L6 | Romanisasi CJK Lokal | Transliterasi offline Rust (Korea Hangul, Jepang Kana Hepburn, Mandarin Pinyin) | Selesai |
+| L7 | Terjemahan Mesin BYOK | Opsional; dilewati/ditunda sesuai konfirmasi pemilik proyek | Dilewati |
+
+---
 
 ## Sisa Fase 1 (3 item — semua Desktop polish)
 

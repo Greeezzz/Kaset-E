@@ -148,11 +148,9 @@ Pemetaan elemen:
 - **Catatan akurasi (dokumentasikan di UI/README):** kanji punya banyak bacaan dan lirik sering memakai bacaan non-standar (ateji), jadi romaji otomatis bisa berbeda dari yang dinyanyikan.
 - **Selesai bila:** tes per bahasa hijau; lagu Korea/Mandarin/Jepang nyata menampilkan romanisasi yang masuk akal; mematikan opsi menghapus semua beban.
 
-### L7 — Terjemahan (opsional, paling akhir; **tanya pemilik proyek dulu**)
-- [ ] Model **BYOK** (pengguna memakai kunci API sendiri), dipanggil langsung dari app, tanpa server proyek. **Keputusan penyimpanan kunci** (keychain OS atau lainnya) harus dikonfirmasi pemilik proyek sebelum implementasi.
-- [ ] Default mati; teks jelas bahwa lirik dikirim ke penyedia yang dipilih; label **"terjemahan mesin"**.
-- [ ] Cache per (`video_id`, bahasa target); batas kuota/biaya ditampilkan; kegagalan jinak.
-- **Selesai bila:** tanpa kunci tidak ada permintaan; dengan kunci terjemahan tampil sebagai baris ketiga yang bisa dimatikan.
+### L7 — Terjemahan (opsional, paling akhir; **Dilewati / Ditunda**)
+- [x] **Dilewati (Skip):** Sesuai kesepakatan dengan pemilik proyek, fitur L7 (terjemahan mesin BYOK dengan API key eksternal) dilewati/ditunda untuk menjaga kesederhanaan aplikasi tanpa dependensi kuota/kunci API pihak ketiga.
+- Status: Tidak dikerjakan pada rilis V3. Lirik asli dan romanisasi CJK (L6) tetap menjadi fokus utama yang berjalan sepenuhnya lokal & offline tanpa API key.
 
 ## 5. Integrasi Dua Fitur
 
@@ -164,13 +162,13 @@ Pemetaan elemen:
 Bergantian agar nilai terlihat cepat, tiap langkah bisa dijalankan dan dites:
 
 ```
-K1 → K2 → K3        kaset tampil dan berputar (tanpa lirik)
-L1 → L2 → L3        lirik: data, impor, tampilan
-K4 → I1             dek penuh + lirik di LCD
-L4                  lirik layar penuh
-L5                  LRCLIB opt-in
-L6                  romanisasi (Korea → Mandarin → Jepang)
-L7                  terjemahan BYOK (opsional)
+K1 → K2 → K3        kaset tampil dan berputar (tanpa lirik) [SELESAI]
+L1 → L2 → L3        lirik: data, impor, tampilan            [SELESAI]
+K4 → I1             dek penuh + lirik di LCD                [SELESAI]
+L4                  lirik layar penuh                       [SELESAI]
+L5                  LRCLIB opt-in                           [SELESAI]
+L6                  romanisasi (Korea → Mandarin → Jepang)  [SELESAI]
+L7                  terjemahan BYOK (dilewati / skip)       [-]
 ```
 
 Berhenti dan laporkan setelah **setiap** tahap; jangan melompat.
