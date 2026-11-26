@@ -3,6 +3,7 @@ pub mod commands;
 pub mod db;
 pub mod error;
 pub mod import;
+pub mod lyrics;
 pub mod models;
 pub mod paths;
 pub mod playlist_cover;
@@ -146,6 +147,10 @@ pub fn run() {
             commands::play_playlist,
             commands::export_library,
             commands::import_library,
+            commands::lyrics_get,
+            commands::lyrics_set_from_text,
+            commands::lyrics_set_offset,
+            commands::lyrics_delete,
         ])
         .run(tauri::generate_context!())
         .expect("gagal menjalankan Kaset");
@@ -169,6 +174,7 @@ mod tests {
             "settings",
             "covers",
             "search_history",
+            "lyrics",
         ] {
             assert!(
                 tables.iter().any(|t| t == expected),
@@ -192,7 +198,7 @@ mod tests {
     fn versi_skema_terakhir_tercatat() {
         let db = Db::open_in_memory().expect("buka db in-memory");
         let v = db.schema_version().expect("versi");
-        assert_eq!(v.as_deref(), Some("0007"));
+        assert_eq!(v.as_deref(), Some("0008"));
     }
 
     #[test]

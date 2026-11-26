@@ -53,3 +53,23 @@ export interface SearchResults {
   artists: { id: string; name: string; coverKey: string }[];
   playlists: { id: string; title: string; coverKey: string }[];
 }
+
+export interface LyricLine {
+  time_ms: number;
+  text: string;
+}
+
+export interface ParsedLyrics {
+  is_synced: boolean;
+  file_offset_ms: number;
+  lines: LyricLine[];
+}
+
+export interface LyricsResponse {
+  video_id: string;
+  lrc: string;
+  sumber: "impor" | "lrclib" | string;
+  offset_ms: number;
+  diambil_pada: number;
+  parsed: ParsedLyrics;
+}

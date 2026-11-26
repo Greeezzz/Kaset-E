@@ -1,5 +1,6 @@
 pub mod export;
 pub mod library;
+pub mod lyrics;
 pub(crate) mod migrations;
 pub mod playlist;
 pub mod listen;

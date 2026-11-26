@@ -6,7 +6,7 @@
  * mendeteksi ketiadaan Tauri dan jatuh ke mock in-memory yang bisa juga
  * disuruh gagal — prasyarat untuk menguji backoff/circuit breaker di Fase 1.
  */
-import type { PlayerState, QueueItem, SearchResults, Track } from "../types";
+import type { LyricsResponse, PlayerState, QueueItem, SearchResults, Track } from "../types";
 
 type UnlistenFn = () => void;
 
@@ -104,6 +104,7 @@ const mockLib = {
   listenTotalMs: 0,
   listenVids: [] as string[],
   seq: 0,
+  lyrics: new Map<string, LyricsResponse>(),
 };
 
 /** Pengaturan tiruan untuk mode browser. */
@@ -538,6 +539,47 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         pl.coverKeys = list.slice(0, 4).map((x) => x.coverKey);
       }
       return { favoritesAdded, playlistsCreated, tracksAdded } as T;
+    }
+    case "lyrics_get": {
+      const vid = args?.videoId as string;
+      const found = mockLib.lyrics.get(vid);
+      return (found ?? null) as T;
+    }
+    case "lyrics_set_from_text": {
+      const vid = args?.videoId as string;
+      const text = args?.text as string;
+      const offsetMs = (args?.offsetMs as number) ?? 0;
+      const res: LyricsResponse = {
+        video_id: vid,
+        lrc: text,
+        sumber: (args?.sumber as string) ?? "impor",
+        offset_ms: offsetMs,
+        diambil_pada: Date.now(),
+        parsed: {
+          is_synced: false,
+          file_offset_ms: 0,
+          lines: text
+            .split("\n")
+            .filter((l) => l.trim().length > 0)
+            .map((t) => ({ time_ms: 0, text: t.trim() })),
+        },
+      };
+      mockLib.lyrics.set(vid, res);
+      return res as T;
+    }
+    case "lyrics_set_offset": {
+      const vid = args?.videoId as string;
+      const offsetMs = (args?.offsetMs as number) ?? 0;
+      const found = mockLib.lyrics.get(vid);
+      if (found) {
+        found.offset_ms = offsetMs;
+        return true as T;
+      }
+      return false as T;
+    }
+    case "lyrics_delete": {
+      const vid = args?.videoId as string;
+      return mockLib.lyrics.delete(vid) as T;
     }
     default:
       return null as T;

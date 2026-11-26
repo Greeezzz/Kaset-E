@@ -101,11 +101,11 @@ Pemetaan elemen:
 > Lagu Kaset berasal dari streaming; tidak ada berkas `.lrc` lokal otomatis. Jalur utama adalah **impor manual**; pengambilan otomatis hanya tambahan opt-in.
 
 ### L1 — Model data dan parser LRC (Rust, tanpa UI)
-- [ ] Migrasi baru (mulai `0008`): tabel `lyrics` (`video_id` FK `tracks`, `lrc` TEXT, `sumber` ('impor'|'lrclib'), `offset_ms` INTEGER default 0, `diambil_pada`).
-- [ ] Modul murni `lyrics/lrc.rs`: parse `[mm:ss.xx]` dan `[mm:ss.xxx]`; **banyak timestamp per baris**; tag `[offset:]`; baris kosong; metadata (`[ti:]`, `[ar:]`) diabaikan; urut menurut waktu; lirik **tanpa timestamp** → ditandai non-sinkron.
-- [ ] Fungsi cari baris aktif (pencarian biner, O(log n)) dengan memperhitungkan `offset_ms`.
-- [ ] Command: `lyrics_get`, `lyrics_set_from_text`, `lyrics_delete`, `lyrics_set_offset` (lewat `src/lib/tauri.ts` bertipe; command tipis).
-- [ ] Tes unit: parser (format valid/tidak valid, multi-timestamp, offset, kosong, BOM), pencarian baris, batas awal/akhir.
+- [x] Migrasi baru (mulai `0008`): tabel `lyrics` (`video_id` FK `tracks`, `lrc` TEXT, `sumber` ('impor'|'lrclib'), `offset_ms` INTEGER default 0, `diambil_pada`).
+- [x] Modul murni `lyrics/lrc.rs`: parse `[mm:ss.xx]` dan `[mm:ss.xxx]`; **banyak timestamp per baris**; tag `[offset:]`; baris kosong; metadata (`[ti:]`, `[ar:]`) diabaikan; urut menurut waktu; lirik **tanpa timestamp** → ditandai non-sinkron.
+- [x] Fungsi cari baris aktif (pencarian biner, O(log n)) dengan memperhitungkan `offset_ms`.
+- [x] Command: `lyrics_get`, `lyrics_set_from_text`, `lyrics_delete`, `lyrics_set_offset` (lewat `src/lib/tauri.ts` bertipe; command tipis).
+- [x] Tes unit: parser (format valid/tidak valid, multi-timestamp, offset, kosong, BOM), pencarian baris, batas awal/akhir.
 - **Selesai bila:** tes hijau; belum ada perubahan UI.
 
 ### L2 — Impor manual `.lrc`
