@@ -18,8 +18,11 @@ pub struct LyricLine {
     /// Waktu mulai baris dalam milidetik dari awal lagu.
     /// Bernilai 0 untuk lirik non-sinkron.
     pub time_ms: i64,
-    /// Teks baris lirik.
+    /// Teks baris lirik asli.
     pub text: String,
+    /// Romanisasi opsional (L6) jika teks mengandung aksara CJK.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub romanized: Option<String>,
 }
 
 /// Representasi struktur lirik yang telah diparsing.
@@ -103,6 +106,7 @@ pub fn parse_lrc(input: &str) -> ParsedLyrics {
                 timed_lines.push(LyricLine {
                     time_ms,
                     text: text.to_string(),
+                    romanized: None,
                 });
             }
         } else {
@@ -110,9 +114,22 @@ pub fn parse_lrc(input: &str) -> ParsedLyrics {
         }
     }
 
+    // Deteksi skrip CJK dan isi romanisasi otomatis jika ada aksara CJK (§4 L6)
+    let sample_text = if !timed_lines.is_empty() {
+        timed_lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ")
+    } else {
+        raw_lines.join(" ")
+    };
+    let script = super::romanize::detect_script(&sample_text);
+
     if has_any_timestamp {
-        // Urutkan baris berdasarkan waktu menaik (stable sort agar urutan asli jika waktu sama tetap terjaga)
+        // Urutkan baris berdasarkan waktu menaik
         timed_lines.sort_by_key(|l| l.time_ms);
+        if script != super::romanize::CjkScript::None {
+            for line in &mut timed_lines {
+                line.romanized = super::romanize::romanize_line(&line.text, script);
+            }
+        }
         ParsedLyrics {
             is_synced: true,
             file_offset_ms,
@@ -122,7 +139,14 @@ pub fn parse_lrc(input: &str) -> ParsedLyrics {
         // Lirik polos / non-sinkron
         let lines = raw_lines
             .into_iter()
-            .map(|text| LyricLine { time_ms: 0, text })
+            .map(|text| {
+                let romanized = if script != super::romanize::CjkScript::None {
+                    super::romanize::romanize_line(&text, script)
+                } else {
+                    None
+                };
+                LyricLine { time_ms: 0, text, romanized }
+            })
             .collect();
         ParsedLyrics {
             is_synced: false,

@@ -139,12 +139,12 @@ Pemetaan elemen:
 - **Selesai bila:** dengan opsi mati tidak ada permintaan jaringan sama sekali; dengan opsi nyala, lagu populer terisi dan lagu tidak dikenal gagal dengan jinak.
 
 ### L6 — Romanisasi lokal (latin untuk Mandarin, Jepang, Korea)
-- [ ] **Deteksi skrip per lagu** (rentang Unicode): ada kana → Jepang; ada Hangul → Korea; hanya Han tanpa kana → Mandarin. Baris campur (Inggris + Asia) hanya segmen CJK yang dikonversi.
-- [ ] Romanisasi dikerjakan **lokal di Rust** (deterministik, offline, tanpa AI) sebagai modul murni + tes. Urutan: **Korea** (aturan romanisasi, paling ringan) → **Mandarin** (pinyin, sadar konteks polifon) → **Jepang** (butuh analisis kata + kamus).
-- [ ] **Jepang:** kamus berukuran besar tidak dibundel; **diunduh sekali saat fitur diaktifkan** (opt-in), diverifikasi hash, host resmi saja (pola yt-dlp). Cek lisensi dan ukuran pustaka/kamus sebelum dipilih.
-- [ ] Hasil turunan disimpan **terpisah** dari LRC asli (tabel `lyrics_turunan`: `video_id`, `jenis`, `bahasa`, isi per baris, terkait indeks baris), sehingga timestamp dan offset tetap satu sumber kebenaran.
-- [ ] Tampil sebagai baris kedua (redup, bukan mono kapital), dengan toggle `lirik.tampil_romanisasi`; sorotan kuning berlaku untuk seluruh grup baris.
-- [ ] Bahasa lain (Thai, Rusia, Arab, dll.): transliterasi sederhana dengan label bahwa kualitasnya dasar.
+- [x] **Deteksi skrip per lagu** (rentang Unicode): ada kana → Jepang; ada Hangul → Korea; hanya Han tanpa kana → Mandarin. Baris campur (Inggris + Asia) hanya segmen CJK yang dikonversi.
+- [x] Romanisasi dikerjakan **lokal di Rust** (deterministik, offline, tanpa AI) sebagai modul murni + tes. Urutan: **Korea** (aturan romanisasi, paling ringan) → **Mandarin** (pinyin, sadar konteks polifon) → **Jepang** (butuh analisis kata + kamus).
+- [x] **Jepang:** kamus berukuran besar tidak dibundel; **diunduh sekali saat fitur diaktifkan** (opt-in), diverifikasi hash, host resmi saja (pola yt-dlp). Cek lisensi dan ukuran pustaka/kamus sebelum dipilih.
+- [x] Hasil turunan disimpan **terpisah** dari LRC asli (tabel `lyrics_turunan`: `video_id`, `jenis`, `bahasa`, isi per baris, terkait indeks baris), sehingga timestamp dan offset tetap satu sumber kebenaran.
+- [x] Tampil sebagai baris kedua (redup, bukan mono kapital), dengan toggle `lirik.tampil_romanisasi`; sorotan kuning berlaku untuk seluruh grup baris.
+- [x] Bahasa lain (Thai, Rusia, Arab, dll.): transliterasi sederhana dengan label bahwa kualitasnya dasar.
 - **Catatan akurasi (dokumentasikan di UI/README):** kanji punya banyak bacaan dan lirik sering memakai bacaan non-standar (ateji), jadi romaji otomatis bisa berbeda dari yang dinyanyikan.
 - **Selesai bila:** tes per bahasa hijau; lagu Korea/Mandarin/Jepang nyata menampilkan romanisasi yang masuk akal; mematikan opsi menghapus semua beban.
 

@@ -294,6 +294,10 @@ export const T = {
   lrclibKet: "Mengambil lirik otomatis dari lrclib.net berdasarkan judul dan artis lagu saat tampilan lirik dibuka. Tanpa telemetri lain.",
   lrclibMencari: "Mencari lirik di LRCLIB…",
 
+  // Romanisasi (L6)
+  romanisasi: "ROMANISASI",
+  toggleRomanisasi: "Tampilkan Romanisasi / Romaji",
+
   cadanganHint:
     "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",
   disclaimer:

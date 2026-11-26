@@ -57,6 +57,7 @@ export interface SearchResults {
 export interface LyricLine {
   time_ms: number;
   text: string;
+  romanized?: string | null;
 }
 
 export interface ParsedLyrics {

@@ -88,7 +88,14 @@ export function useActiveLyric(videoId: string | undefined, isPlaying: boolean) 
         }
       }
 
-      const nextText = targetIdx >= 0 ? lines[targetIdx].text : null;
+      // Jika lagu sudah berjalan tetapi waktu belum mencapai baris pertama (intro musik)
+      const nextText =
+        targetIdx >= 0
+          ? lines[targetIdx].text
+          : lines.length > 0 && lines[0].time_ms > 2000
+            ? "♪ (Intro) ♪"
+            : null;
+
       if (nextText !== lastActiveTextRef.current) {
         lastActiveTextRef.current = nextText;
         setActiveLineText(nextText);

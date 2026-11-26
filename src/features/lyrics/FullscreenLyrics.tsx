@@ -45,6 +45,7 @@ export function FullscreenLyrics({
 }) {
   const [ukuranFont, setUkuranFont] = useState<UkuranFont>("sedang");
   const [modeRedup, setModeRedup] = useState(false);
+  const [tampilRomanisasi, setTampilRomanisasi] = useState(true);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [userScrolled, setUserScrolled] = useState(false);
 
@@ -233,6 +234,24 @@ export function FullscreenLyrics({
             })}
           </div>
 
+          {/* Toggle Romanisasi */}
+          <button
+            type="button"
+            onClick={() => setTampilRomanisasi((r) => !r)}
+            aria-pressed={tampilRomanisasi}
+            className="mono"
+            style={{
+              padding: "4px 8px",
+              fontSize: 10,
+              border: tampilRomanisasi ? "1px solid var(--accent)" : "1px solid var(--line)",
+              background: tampilRomanisasi ? "var(--accent)" : "transparent",
+              color: tampilRomanisasi ? "var(--accent-ink)" : "var(--ink-muted)",
+              cursor: "pointer",
+            }}
+          >
+            {T.romanisasi}
+          </button>
+
           {/* Toggle Mode Redup */}
           <button
             type="button"
@@ -332,7 +351,22 @@ export function FullscreenLyrics({
                   borderLeft: aktif ? "4px solid var(--accent)" : "4px solid transparent",
                 }}
               >
-                {line.text}
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span>{line.text}</span>
+                  {tampilRomanisasi && line.romanized && (
+                    <span
+                      style={{
+                        fontSize: `calc(${fontSizeVal} * 0.65)`,
+                        lineHeight: 1.3,
+                        opacity: 0.8,
+                        fontStyle: "italic",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {line.romanized}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })

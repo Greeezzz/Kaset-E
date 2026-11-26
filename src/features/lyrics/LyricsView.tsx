@@ -564,15 +564,28 @@ export function LyricsView({
                       {formatDuration(line.time_ms)}
                     </span>
                   )}
-                  <span
-                    style={{
-                      fontSize: 14,
-                      lineHeight: 1.45,
-                      flexGrow: 1,
-                    }}
-                  >
-                    {line.text}
-                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {line.text}
+                    </span>
+                    {line.romanized && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          lineHeight: 1.3,
+                          opacity: 0.75,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {line.romanized}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
