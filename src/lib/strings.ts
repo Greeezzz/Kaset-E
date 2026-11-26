@@ -283,6 +283,10 @@ export const T = {
   kembaliKeBarisAktif: "KEMBALI KE BARIS AKTIF",
   offset: "OFFSET",
   lirikOffsetHint: "Atur sinkronisasi waktu",
+  fullscreenLirik: "LAYAR PENUH",
+  keluarFullscreen: "KELUAR LAYAR PENUH (Esc)",
+  ukuranFontLirik: "UKURAN TEKS",
+  modeRedup: "MODE REDUP",
 
   cadanganHint:
     "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",

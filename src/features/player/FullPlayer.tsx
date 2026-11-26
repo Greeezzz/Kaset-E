@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import type { PlayerState, QueueItem } from "../../types";
+import { lazy, Suspense, useState } from "react";
+import type { LyricsResponse, PlayerState, QueueItem } from "../../types";
 import type { ModeNowPlaying } from "../../hooks/useModeNowPlaying";
 import { CoverArt } from "../../components/CoverArt";
 import { EmptyState } from "../../components/EmptyState";
@@ -19,6 +19,9 @@ import { T } from "../../lib/strings";
  */
 const KasetMode = lazy(() => import("./KasetMode").then((m) => ({ default: m.KasetMode })));
 const LyricsView = lazy(() => import("../lyrics/LyricsView").then((m) => ({ default: m.LyricsView })));
+const FullscreenLyrics = lazy(() =>
+  import("../lyrics/FullscreenLyrics").then((m) => ({ default: m.FullscreenLyrics })),
+);
 
 export function FullPlayer({
   state,
@@ -48,6 +51,9 @@ export function FullPlayer({
   onPrevious?: () => void;
   onSeek?: (positionMs: number) => void;
 }) {
+  const [fullscreenLirik, setFullscreenLirik] = useState(false);
+  const [cachedLyrics, setCachedLyrics] = useState<LyricsResponse | null>(null);
+
   const progress = state.durationMs > 0 ? Math.min(1, state.positionMs / state.durationMs) : 0;
 
   return (
@@ -158,6 +164,8 @@ export function FullPlayer({
                     track={state.track}
                     onSeek={onSeek}
                     isPlaying={state.status === "playing"}
+                    onLyricsLoaded={setCachedLyrics}
+                    onOpenFullscreen={() => setFullscreenLirik(true)}
                   />
                 </Suspense>
               </div>
@@ -166,6 +174,22 @@ export function FullPlayer({
             <EmptyState title={T.belumAdaLagu} hint={T.pilihLaguDariCari} />
           )}
         </div>
+      )}
+
+      {/* Modal / Overlay Fullscreen Lirik (L4) */}
+      {fullscreenLirik && (
+        <Suspense fallback={null}>
+          <FullscreenLyrics
+            track={state.track}
+            lyricsData={cachedLyrics}
+            isPlaying={state.status === "playing"}
+            onClose={() => setFullscreenLirik(false)}
+            onSeek={onSeek}
+            onToggle={onToggle}
+            onNext={onNext}
+            onPrevious={onPrevious}
+          />
+        </Suspense>
       )}
 
       <div aria-hidden="true" style={{ height: 4, background: "var(--panel-2)" }}>

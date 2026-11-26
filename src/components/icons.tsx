@@ -233,3 +233,21 @@ export function IkonRepeat({ size = 18, satu = false, ...rest }: IkonProps & { s
     </Svg>
   );
 }
+
+/** Fullscreen: empat sudut mengembang ke luar. */
+export function IkonFullscreen({ size = 18, ...rest }: IkonProps) {
+  return (
+    <Svg size={size} {...rest}>
+      <path d="M15 3h6v6M9 21H3v-6M21 9V3m0 0l-7 7M3 15v6m0 0l7-7" />
+    </Svg>
+  );
+}
+
+/** Tutup Fullscreen: empat sudut menciut ke dalam. */
+export function IkonFullscreenExit({ size = 18, ...rest }: IkonProps) {
+  return (
+    <Svg size={size} {...rest}>
+      <path d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7" />
+    </Svg>
+  );
+}

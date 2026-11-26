@@ -3,6 +3,7 @@ import type { LyricsResponse, Track } from "../../types";
 import { audioEngine } from "../../lib/audio";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
+import { IkonFullscreen } from "../../components/icons";
 import { invoke, runningInTauri } from "../../lib/tauri";
 
 /**
@@ -28,11 +29,13 @@ export function LyricsView({
   onSeek,
   isPlaying = false,
   onLyricsLoaded,
+  onOpenFullscreen,
 }: {
   track: Track | null;
   onSeek?: (positionMs: number) => void;
   isPlaying?: boolean;
   onLyricsLoaded?: (data: LyricsResponse | null) => void;
+  onOpenFullscreen?: () => void;
 }) {
   const [data, setData] = useState<LyricsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -418,6 +421,26 @@ export function LyricsView({
                     +
                   </button>
                 </div>
+              )}
+
+              {onOpenFullscreen && (
+                <button
+                  type="button"
+                  onClick={onOpenFullscreen}
+                  title={T.fullscreenLirik}
+                  aria-label={T.fullscreenLirik}
+                  style={{
+                    display: "grid",
+                    placeItems: "center",
+                    padding: "3px 6px",
+                    border: "1px solid var(--line)",
+                    background: "transparent",
+                    color: "var(--ink)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <IkonFullscreen size={14} />
+                </button>
               )}
 
               <button

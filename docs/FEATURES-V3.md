@@ -125,8 +125,8 @@ Pemetaan elemen:
 - **Selesai bila:** sorotan tepat pada baris yang sedang dinyanyikan saat memutar, seek lewat klik akurat, dan CPU tidak naik berarti.
 
 ### L4 — Tampilan penuh (fullscreen) lirik
-- [ ] Tampilan lirik layar penuh yang nyaman dibaca: tipografi besar, kontras tinggi, `Esc` untuk keluar, ukuran font dapat diatur (`lirik.ukuran_font`), mode redup.
-- [ ] Kontrol minimal (play/pause, seek, tutup) tetap terjangkau.
+- [x] Tampilan lirik layar penuh yang nyaman dibaca: tipografi besar, kontras tinggi, `Esc` untuk keluar, ukuran font dapat diatur (`lirik.ukuran_font`), mode redup.
+- [x] Kontrol minimal (play/pause, seek, tutup) tetap terjangkau.
 - **Selesai bila:** nyaman dibaca dari jarak dekat maupun jauh di kedua tema; keyboard lengkap.
 
 ### L5 — LRCLIB (opsional, opt-in)
