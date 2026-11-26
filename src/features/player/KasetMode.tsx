@@ -52,6 +52,7 @@ export function KasetMode({
   onSeek?: (positionMs: number) => void;
 }) {
   const [jenisLabel, setJenisLabel] = useState<JenisLabel>("generatif");
+  const [isDocked, setIsDocked] = useState(false);
 
   // Berputar hanya saat lagu BENAR-BENAR berbunyi dan jendela terlihat.
   // `loading` sengaja tidak memutar: reel yang berputar saat buffer terasa
@@ -96,17 +97,60 @@ export function KasetMode({
         display: "grid",
         gap: "var(--s-4)",
         padding: "var(--s-4)",
-        border: "1px solid var(--line)",
+        border: "1px solid var(--line-strong)",
         background: "var(--panel)",
-        // `minWidth: 0` wajib: tanpa ini grid item menolak menyusut di bawah
-        // lebar isinya, dan SVG 420px akan memaksa scroll horizontal di layar
-        // sempit (§K4: tidak boleh ada scroll horizontal).
         minWidth: 0,
         width: "100%",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
       }}
     >
+      {/* Strip Hazard Atas Industrial ala Referensi HTML */}
+      <div
+        style={{
+          height: 6,
+          background: "repeating-linear-gradient(-45deg, #FFE600 0 8px, #111111 8px 16px)",
+          margin: "-8px -8px 4px -8px",
+          borderBottom: "1px solid #111111",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Header telemetry kaset */}
+      <div
+        className="mono muted"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          borderBottom: "1px solid var(--line)",
+          paddingBottom: "var(--s-2)",
+        }}
+      >
+        <span>┌─ 01 / ANALOG TAPE TERMINAL ──────────────────────</span>
+        <button
+          type="button"
+          onClick={() => setIsDocked((d) => !d)}
+          className="k-btn k-btn-quiet"
+          style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 9 }}
+          title="Ubah posisi kaset miring atau masuk slot"
+        >
+          {isDocked ? "⇅ SLOT [DOCKED]" : "⇅ TILT [STANDBY]"}
+        </button>
+      </div>
+
       <div className="kaset-layout">
-        <div className="kaset-panggung">
+        <div
+          className="kaset-panggung"
+          style={{
+            transform: isDocked ? "rotate(0deg) translateY(6px)" : "rotate(-2deg)",
+            transition: "transform var(--t-base) var(--ease)",
+            cursor: "pointer",
+          }}
+          onClick={onToggle}
+          title="Klik kaset untuk memutar atau menjeda"
+        >
           {jenisLabel === "cover" ? (
             <KasetSvgBercover
               track={state.track}
@@ -125,6 +169,26 @@ export function KasetMode({
         </div>
 
         <div className="kaset-dek">
+          {/* Groove dekoratif slot kaset */}
+          <div
+            style={{
+              height: 10,
+              background: "var(--bg)",
+              border: "1px solid var(--line-strong)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: -4,
+            }}
+          >
+            <span
+              className="mono muted"
+              style={{ fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase" }}
+            >
+              ▼ TAPE DECK SLOT // HEAD ENGAGED ▼
+            </span>
+          </div>
+
           <Lcd
             status={state.status}
             judul={state.track?.title ?? T.belumAdaLagu}
@@ -133,6 +197,7 @@ export function KasetMode({
             adaLirik={hasSyncedLyrics}
             kurangiGerak={kurangiGerak}
             terlihat={terlihat}
+            memutar={memutar}
           />
 
           {/* Counter mono: posisi / durasi. Angka tabular (kelas `.mono`)
@@ -305,6 +370,7 @@ function Lcd({
   adaLirik,
   kurangiGerak,
   terlihat,
+  memutar = false,
 }: {
   status: PlayerState["status"];
   judul: string;
@@ -313,6 +379,7 @@ function Lcd({
   adaLirik?: boolean;
   kurangiGerak: boolean;
   terlihat: boolean;
+  memutar?: boolean;
 }) {
   const kotakRef = useRef<HTMLDivElement | null>(null);
   const teksRef = useRef<HTMLSpanElement | null>(null);
@@ -353,20 +420,64 @@ function Lcd({
       style={{
         padding: "var(--s-2) var(--s-3)",
         display: "grid",
-        gap: 2,
-        minHeight: 58,
+        gap: 4,
+        minHeight: 76,
         alignContent: "center",
+        border: "1px solid var(--accent-edge)",
+        position: "relative",
       }}
     >
-      <div ref={kotakRef} style={{ overflow: "hidden", minWidth: 0 }}>
+      <div
+        className="mono"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          color: "var(--ink-muted)",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: memutar ? "var(--accent)" : "var(--ink-muted)",
+              display: "inline-block",
+            }}
+          />
+          {lirikAktif ? "SYS//LYRICS · ACTIVE" : "SYS//PLAYBACK · DECK"}
+        </span>
+        <span>
+          {status === "playing"
+            ? adaLirik
+              ? T.lirikTersinkron
+              : T.memutar
+            : status === "loading"
+              ? T.memuat
+              : status === "error"
+                ? T.gagal
+                : T.dijeda}
+        </span>
+      </div>
+
+      <div ref={kotakRef} style={{ overflow: "hidden", minWidth: 0, padding: "2px 0" }}>
         <span
           ref={teksRef}
           className={gulir ? "kaset-marquee" : "kaset-marquee-diam"}
           style={gulir ? ({ "--marquee-jarak": `${jarak}px` } as React.CSSProperties) : undefined}
         >
           {lirikAktif ? (
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>
-              {lirikAktif}
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "var(--accent)",
+                letterSpacing: "0.02em",
+              }}
+            >
+              「 {lirikAktif} 」
             </span>
           ) : (
             <>
@@ -380,28 +491,36 @@ function Lcd({
         </span>
       </div>
 
+      {/* Visualizer segmen bar 24 kolom di dalam LCD Recessed ala Referensi HTML */}
       <div
-        className="mono"
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 9,
-          letterSpacing: "0.12em",
-          color: "var(--ink-muted)",
+          display: "grid",
+          gridTemplateColumns: "repeat(24, 1fr)",
+          gap: 2,
+          height: 8,
+          alignItems: "flex-end",
+          marginTop: 2,
+          borderTop: "1px solid rgba(255, 230, 0, 0.15)",
+          paddingTop: 2,
         }}
+        aria-hidden="true"
       >
-        <span>{lirikAktif ? T.lirik : T.kasetLcd}</span>
-        <span>
-          {status === "playing"
-            ? adaLirik
-              ? T.lirikTersinkron
-              : T.memutar
-            : status === "loading"
-              ? T.memuat
-              : status === "error"
-                ? T.gagal
-                : T.dijeda}
-        </span>
+        {Array.from({ length: 24 }).map((_, i) => {
+          // Pola tinggi deterministik pseudo-visualizer saat bermain
+          const patternHeight = memutar ? 2 + ((i * 7 + (status === "playing" ? 5 : 0)) % 7) : 2;
+          return (
+            <span
+              key={i}
+              style={{
+                width: "100%",
+                height: patternHeight,
+                backgroundColor: memutar ? "var(--accent)" : "var(--line)",
+                opacity: memutar ? 0.85 : 0.25,
+                transition: "height 120ms ease",
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );

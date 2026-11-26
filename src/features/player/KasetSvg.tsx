@@ -152,21 +152,30 @@ export function KasetSvg({
           </text>
 
           {/* Metadata kanan: sisi + kode pita + seri */}
+          <rect
+            x="328"
+            y={label.stripDiAtas ? 26 : 14}
+            width="42"
+            height="18"
+            fill="var(--accent)"
+            stroke="var(--line-strong)"
+            strokeWidth="1"
+          />
           <text
-            x="368"
-            y={label.stripDiAtas ? 48 : 36}
-            textAnchor="end"
-            fill="var(--ink)"
+            x="349"
+            y={label.stripDiAtas ? 39 : 27}
+            textAnchor="middle"
+            fill="var(--accent-ink)"
             fontFamily="var(--font-mono)"
-            fontSize="11"
+            fontSize="10"
             fontWeight="700"
-            letterSpacing="1.5"
+            letterSpacing="1"
           >
             SIDE {label.sisi}
           </text>
           <text
             x="368"
-            y={label.stripDiAtas ? 62 : 50}
+            y={label.stripDiAtas ? 58 : 46}
             textAnchor="end"
             fill="var(--ink-muted)"
             fontFamily="var(--font-mono)"
@@ -175,21 +184,73 @@ export function KasetSvg({
           >
             {label.kode} · {label.seri}
           </text>
+          <rect
+            x="326"
+            y={label.stripDiAtas ? 104 : 92}
+            width="44"
+            height="16"
+            fill="var(--panel-2)"
+            stroke="var(--line)"
+          />
           <text
-            x="368"
-            y={label.stripDiAtas ? 120 : 108}
-            textAnchor="end"
-            fill="var(--ink-muted)"
+            x="348"
+            y={label.stripDiAtas ? 116 : 104}
+            textAnchor="middle"
+            fill="var(--ink)"
             fontFamily="var(--font-mono)"
             fontSize="9"
-            letterSpacing="1.2"
+            fontWeight="600"
+            letterSpacing="1"
           >
             {durasi}
           </text>
         </g>
 
-        {/* Jendela reel: cekungan gelap dengan dua hub bergigi */}
+        {/* Jendela reel: cekungan gelap dengan dua hub bergigi & skala meteran pita 100 | 50 | 0 */}
         <rect x="96" y="146" width="228" height="76" fill="var(--bg)" stroke="var(--line)" />
+
+        {/* Skala meteran pita 100 | 50 | 0 di tengah jendela */}
+        <g opacity="0.45" aria-hidden="true">
+          {/* Garis tick tengah */}
+          <line x1="200" y1="149" x2="200" y2="157" stroke="var(--ink)" strokeWidth="1" />
+          <line x1="205" y1="149" x2="205" y2="154" stroke="var(--ink)" strokeWidth="0.8" />
+          <line x1="210" y1="149" x2="210" y2="160" stroke="var(--accent)" strokeWidth="1.2" />
+          <line x1="215" y1="149" x2="215" y2="154" stroke="var(--ink)" strokeWidth="0.8" />
+          <line x1="220" y1="149" x2="220" y2="157" stroke="var(--ink)" strokeWidth="1" />
+
+          {/* Label angka skala */}
+          <text
+            x="180"
+            y="157"
+            fill="var(--ink)"
+            fontFamily="var(--font-mono)"
+            fontSize="7"
+            textAnchor="middle"
+          >
+            100
+          </text>
+          <text
+            x="210"
+            y="169"
+            fill="var(--accent)"
+            fontFamily="var(--font-mono)"
+            fontSize="7"
+            fontWeight="bold"
+            textAnchor="middle"
+          >
+            50
+          </text>
+          <text
+            x="240"
+            y="157"
+            fill="var(--ink)"
+            fontFamily="var(--font-mono)"
+            fontSize="7"
+            textAnchor="middle"
+          >
+            0
+          </text>
+        </g>
 
         {/* Gulungan pita di belakang hub — inilah yang membuat "sisa pita"
             terlihat berpindah dari kiri ke kanan seiring lagu berjalan. */}

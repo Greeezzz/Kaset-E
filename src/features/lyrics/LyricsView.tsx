@@ -42,10 +42,13 @@ export function LyricsView({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // State sinkronisasi L3
+  // State sinkronisasi L3 & kontrol tampilan ala Referensi HTML
   const [activeIndex, setActiveIndex] = useState<number>(-1);
   const [userScrolled, setUserScrolled] = useState(false);
   const [offsetMs, setOffsetMs] = useState(0);
+  const [showRomaji, setShowRomaji] = useState(true);
+  const [syncToolsOpen, setSyncToolsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -74,7 +77,9 @@ export function LyricsView({
       setActiveIndex(-1);
       setUserScrolled(false);
       try {
-        let res = await invoke<LyricsResponse | null>("lyrics_get", { videoId: currentTrack.videoId });
+        let res = await invoke<LyricsResponse | null>("lyrics_get", {
+          videoId: currentTrack.videoId,
+        });
         if (!res && runningInTauri) {
           // Lirik belum ada di DB lokal -> Coba ambil otomatis dari LRCLIB (hanya jika lirik.lrclib diaktifkan)
           res = await invoke<LyricsResponse | null>("lyrics_fetch_lrclib", {
@@ -339,7 +344,7 @@ export function LyricsView({
         </p>
       ) : data ? (
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-          {/* Header Panel Lirik */}
+          {/* Header Panel Lirik Industrial ala Referensi HTML */}
           <div
             style={{
               display: "flex",
@@ -352,85 +357,62 @@ export function LyricsView({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", fontWeight: 600 }}>
-                {T.lirik}
+              <span
+                className="mono"
+                style={{ fontSize: 11, letterSpacing: "0.1em", fontWeight: 700 }}
+              >
+                02 / LYRICS
               </span>
               <span
-                className="mono muted"
                 style={{
-                  fontSize: 9,
-                  border: "1px solid var(--line)",
-                  padding: "1px 6px",
-                  background: "var(--panel-2)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  background: data.parsed.is_synced ? "var(--accent)" : "var(--panel-2)",
+                  color: data.parsed.is_synced ? "var(--accent-ink)" : "var(--ink-muted)",
+                  fontWeight: 700,
+                  border: "1px solid var(--line-strong)",
                 }}
               >
-                {data.parsed.is_synced ? T.lirikTersinkron : T.lirikTeksBiasa}
+                {data.parsed.is_synced ? "SYNCED" : "TEXT"}
               </span>
+              {offsetMs !== 0 && (
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 6px",
+                    border: "1px solid var(--line-strong)",
+                    color: "var(--ink)",
+                  }}
+                >
+                  {offsetMs >= 0 ? `+${offsetMs}ms` : `${offsetMs}ms`}
+                </span>
+              )}
             </div>
 
-            {/* Kontrol Offset & Aksi */}
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
-              {data.parsed.is_synced && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    background: "var(--panel-2)",
-                    padding: "2px 4px",
-                    border: "1px solid var(--line)",
-                  }}
-                  title={T.lirikOffsetHint}
-                >
-                  <button
-                    type="button"
-                    onClick={() => void ubahOffset(-100)}
-                    aria-label="Kurangi offset 100ms"
-                    className="mono"
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      color: "var(--ink)",
-                      cursor: "pointer",
-                      padding: "0 4px",
-                      fontSize: 10,
-                    }}
-                  >
-                    -
-                  </button>
-                  <span
-                    onClick={() => void ubahOffset(0)}
-                    title="Klik untuk reset offset ke 0"
-                    className="mono"
-                    style={{
-                      fontSize: 9,
-                      cursor: "pointer",
-                      minWidth: 46,
-                      textAlign: "center",
-                      color: offsetMs !== 0 ? "var(--accent)" : "var(--ink-muted)",
-                      fontWeight: offsetMs !== 0 ? 600 : 400,
-                    }}
-                  >
-                    {offsetMs >= 0 ? `+${offsetMs}ms` : `${offsetMs}ms`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void ubahOffset(100)}
-                    aria-label="Tambah offset 100ms"
-                    className="mono"
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      color: "var(--ink)",
-                      cursor: "pointer",
-                      padding: "0 4px",
-                      fontSize: 10,
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-              )}
+            {/* Utility Toolbar: [ROMAJI] [SYNC TOOLS] [LAYAR PENUH] [⋯] */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setShowRomaji((r) => !r)}
+                aria-pressed={showRomaji}
+                className={`k-btn ${showRomaji ? "k-btn-accent" : ""}`}
+                style={{ minHeight: 32, height: 32, padding: "0 8px", fontSize: 10 }}
+                title="Tampilkan atau sembunyikan baris Romanisasi / Romaji"
+              >
+                ROMAJI
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSyncToolsOpen((o) => !o)}
+                aria-expanded={syncToolsOpen}
+                className={`k-btn ${syncToolsOpen ? "k-btn-accent" : ""}`}
+                style={{ minHeight: 32, height: 32, padding: "0 8px", fontSize: 10 }}
+              >
+                SYNC TOOLS
+              </button>
 
               {onOpenFullscreen && (
                 <button
@@ -438,52 +420,156 @@ export function LyricsView({
                   onClick={onOpenFullscreen}
                   title={T.fullscreenLirik}
                   aria-label={T.fullscreenLirik}
-                  style={{
-                    display: "grid",
-                    placeItems: "center",
-                    padding: "3px 6px",
-                    border: "1px solid var(--line)",
-                    background: "transparent",
-                    color: "var(--ink)",
-                    cursor: "pointer",
-                  }}
+                  className="k-btn"
+                  style={{ minHeight: 32, height: 32, width: 32, padding: 0 }}
                 >
                   <IkonFullscreen size={14} />
                 </button>
               )}
 
+              {/* Overflow Menu Dropdown [⋯] */}
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((m) => !m)}
+                  className="k-btn"
+                  style={{ minHeight: 32, height: 32, width: 32, padding: 0, fontSize: 14 }}
+                  aria-label="Menu opsi lirik lainnya"
+                >
+                  ⋯
+                </button>
+                {menuOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      marginTop: 4,
+                      width: 160,
+                      background: "var(--panel)",
+                      border: "1px solid var(--line-strong)",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                      zIndex: 30,
+                      display: "flex",
+                      flexDirection: "column",
+                      padding: "4px 0",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void ubahOffset(0);
+                        setMenuOpen(false);
+                      }}
+                      className="mono"
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      <span>RESET OFFSET</span>
+                      <span className="muted">0ms</span>
+                    </button>
+                    <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleHapus();
+                        setMenuOpen(false);
+                      }}
+                      className="mono"
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--danger)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <span>HAPUS LIRIK</span>
+                      <span>✕</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Drawer SYNC TOOLS (Collapsible) */}
+          {syncToolsOpen && (
+            <div
+              className="page-enter"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "var(--s-2)",
+                padding: "var(--s-2) var(--s-3)",
+                background: "var(--bg)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="mono muted" style={{ fontSize: 10 }}>
+                  OFFSET:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void ubahOffset(-100)}
+                  className="k-btn"
+                  style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 10 }}
+                >
+                  -100ms
+                </button>
+                <span
+                  onClick={() => void ubahOffset(0)}
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    minWidth: 54,
+                    textAlign: "center",
+                    padding: "3px 6px",
+                    background: "var(--panel)",
+                    border: "1px solid var(--line)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  title="Klik untuk reset offset ke 0ms"
+                >
+                  {offsetMs >= 0 ? `+${offsetMs}ms` : `${offsetMs}ms`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void ubahOffset(100)}
+                  className="k-btn"
+                  style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 10 }}
+                >
+                  +100ms
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={handlePilihBerkas}
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  padding: "3px 8px",
-                  border: "1px solid var(--line)",
-                  background: "transparent",
-                  color: "var(--ink)",
-                  cursor: "pointer",
-                }}
+                className="k-btn k-btn-quiet"
+                style={{ minHeight: 28, height: 28, padding: "0 10px", fontSize: 10 }}
               >
                 {T.imporLrc}
               </button>
-              <button
-                type="button"
-                onClick={handleHapus}
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  padding: "3px 8px",
-                  border: "1px solid var(--danger)",
-                  background: "transparent",
-                  color: "var(--danger)",
-                  cursor: "pointer",
-                }}
-              >
-                {T.hapusLirik}
-              </button>
             </div>
-          </div>
+          )}
 
           {errorMsg && (
             <p className="mono" style={{ fontSize: 10, color: "var(--danger)" }}>
@@ -491,19 +577,20 @@ export function LyricsView({
             </p>
           )}
 
-          {/* Area Lirik yang Bisa Di-scroll */}
+          {/* Area Lirik yang Bisa Di-scroll dengan Top & Bottom Fade Mask */}
           <div
             ref={containerRef}
             onWheel={() => setUserScrolled(true)}
             onTouchMove={() => setUserScrolled(true)}
+            className="lyrics-scroll-mask"
             style={{
-              maxHeight: 280,
-              minHeight: 180,
+              maxHeight: 320,
+              minHeight: 200,
               overflowY: "auto",
               display: "flex",
               flexDirection: "column",
               gap: 8,
-              padding: "var(--s-4) 0",
+              padding: "var(--s-6) 0",
               position: "relative",
               scrollBehavior: "smooth",
             }}
@@ -535,51 +622,55 @@ export function LyricsView({
                     display: "flex",
                     alignItems: "flex-start",
                     gap: 12,
-                    padding: "6px 10px",
+                    padding: aktif ? "10px 14px" : "6px 12px",
                     cursor: data.parsed.is_synced ? "pointer" : "default",
-                    transition: "all 0.15s ease",
-                    background: aktif ? "var(--accent)" : "transparent",
+                    transition: "all 0.18s cubic-bezier(0.2, 0, 0, 1)",
+                    background: aktif ? "var(--panel)" : "transparent",
                     color: aktif
-                      ? "var(--accent-ink)"
+                      ? "var(--ink)"
                       : data.parsed.is_synced && activeIndex >= 0
                         ? "var(--ink-muted)"
                         : "var(--ink)",
-                    fontWeight: aktif ? 600 : 400,
-                    opacity: aktif ? 1 : data.parsed.is_synced && activeIndex >= 0 ? 0.45 : 0.9,
-                    borderLeft: aktif ? "3px solid var(--ink)" : "3px solid transparent",
+                    opacity: aktif ? 1 : data.parsed.is_synced && activeIndex >= 0 ? 0.35 : 0.85,
+                    borderLeft: aktif ? "4px solid var(--accent)" : "4px solid transparent",
                   }}
                 >
                   {data.parsed.is_synced && (
                     <span
-                      className="mono"
                       style={{
-                        fontSize: 9,
-                        width: 36,
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        padding: "2px 6px",
                         flexShrink: 0,
-                        opacity: aktif ? 0.85 : 0.6,
                         letterSpacing: "0.04em",
-                        lineHeight: 1.6,
+                        lineHeight: 1.5,
+                        background: aktif ? "var(--accent)" : "transparent",
+                        color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
+                        fontWeight: aktif ? 700 : 400,
+                        border: aktif ? "1px solid #111111" : "1px solid transparent",
                       }}
                     >
                       {formatDuration(line.time_ms)}
                     </span>
                   )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flexGrow: 1 }}>
                     <span
                       style={{
-                        fontSize: 14,
-                        lineHeight: 1.45,
+                        fontSize: aktif ? "1.25rem" : "1rem",
+                        fontWeight: aktif ? 700 : 500,
+                        lineHeight: 1.4,
+                        transition: "font-size 0.18s ease, font-weight 0.18s ease",
                       }}
                     >
                       {line.text}
                     </span>
-                    {line.romanized && (
+                    {showRomaji && line.romanized && (
                       <span
+                        className="mono muted"
                         style={{
                           fontSize: 11,
                           lineHeight: 1.3,
-                          opacity: 0.75,
-                          fontStyle: "italic",
+                          letterSpacing: "0.02em",
                         }}
                       >
                         {line.romanized}
@@ -603,17 +694,13 @@ export function LyricsView({
               <button
                 type="button"
                 onClick={scrollToActive}
-                className="mono"
+                className="k-btn k-btn-accent"
                 style={{
+                  minHeight: 32,
+                  height: 32,
+                  padding: "0 16px",
                   fontSize: 10,
-                  letterSpacing: "0.08em",
-                  padding: "4px 12px",
-                  border: "1px solid var(--accent)",
-                  background: "var(--accent)",
-                  color: "var(--accent-ink)",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                 }}
               >
                 {T.kembaliKeBarisAktif}
@@ -623,7 +710,9 @@ export function LyricsView({
         </div>
       ) : (
         /* Keadaan Kosong (Empty State) */
-        <div style={{ textAlign: "center", display: "grid", gap: "var(--s-3)", placeItems: "center" }}>
+        <div
+          style={{ textAlign: "center", display: "grid", gap: "var(--s-3)", placeItems: "center" }}
+        >
           <p className="muted" style={{ fontSize: 12 }}>
             {T.lirikTidakAda}
           </p>
