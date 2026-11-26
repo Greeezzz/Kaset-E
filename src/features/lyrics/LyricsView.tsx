@@ -368,10 +368,10 @@ export function LyricsView({
                   fontFamily: "var(--font-mono)",
                   fontSize: 10,
                   padding: "2px 6px",
-                  background: data.parsed.is_synced ? "var(--accent)" : "var(--panel-2)",
-                  color: data.parsed.is_synced ? "var(--accent-ink)" : "var(--ink-muted)",
-                  fontWeight: 700,
-                  border: "1px solid var(--line-strong)",
+                  background: "transparent",
+                  color: data.parsed.is_synced ? "var(--ok)" : "var(--ink-muted)",
+                  fontWeight: 600,
+                  border: data.parsed.is_synced ? "1px solid var(--ok)" : "1px solid var(--line)",
                 }}
               >
                 {data.parsed.is_synced ? "SYNCED" : "TEXT"}

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LyricsResponse, Track } from "../../types";
 import { audioEngine } from "../../lib/audio";
 import { T } from "../../lib/strings";
+import { CoverArt } from "../../components/CoverArt";
+import { useCover } from "../../hooks/useCover";
+import { SeekBar } from "../player/SeekBar";
 import {
   IkonFullscreenExit,
   IkonNext,
@@ -14,15 +17,14 @@ import { invoke, runningInTauri } from "../../lib/tauri";
 type UkuranFont = "kecil" | "sedang" | "besar";
 
 /**
- * Tampilan Layar Penuh (Fullscreen) Lirik — L4 `FEATURES-V3.md`.
+ * Tampilan Layar Penuh (Fullscreen) Lirik — Refactor Spec §4 B.
  *
- * Spesifikasi (§4 L4):
- * - Tampilan nyaman dibaca dari jarak dekat maupun jauh (tipografi besar, kontras tinggi).
- * - Tombol `Esc` untuk menutup layar penuh.
- * - Pengaturan ukuran font: Kecil (18px), Sedang (24px), Besar (32px), disimpan ke DB `lirik.ukuran_font`.
- * - Mode redup (dimmed mode) untuk mendengarkan santai tanpa silau.
- * - Kontrol playback minimal (Play/Pause/Prev/Next/SeekBar).
- * - Click line to seek.
+ * Fitur:
+ * - Ambient cover art blur 80px + opacity 0.08 di belakang grid 24x24px.
+ * - Header: Info lagu ringkas (Cover kecil + Judul + Artis) di kiri atas, kontrol font/romaji/redup/close di kanan atas.
+ * - Lirik: Tipografi nyaman (Sedang 28px, Besar 36px), scrollbar visual tersembunyi, kontainer max-width 820px.
+ * - Footer: Control Deck lengkap (Progress Bar bersegmen + timestamp kiri/kanan + tombol Prev, Play/Pause, Next).
+ * - Keyboard: Esc untuk keluar, Space untuk play/pause.
  */
 export function FullscreenLyrics({
   track,
@@ -33,6 +35,8 @@ export function FullscreenLyrics({
   onToggle,
   onNext,
   onPrevious,
+  positionMs = 0,
+  durationMs = 0,
 }: {
   track: Track | null;
   lyricsData: LyricsResponse | null;
@@ -42,6 +46,8 @@ export function FullscreenLyrics({
   onToggle?: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
+  positionMs?: number;
+  durationMs?: number;
 }) {
   const [ukuranFont, setUkuranFont] = useState<UkuranFont>("sedang");
   const [modeRedup, setModeRedup] = useState(false);
@@ -57,7 +63,9 @@ export function FullscreenLyrics({
   const dataRef = useRef(lyricsData);
   dataRef.current = lyricsData;
 
-  // Baca setting ukuran font tersimpan saat dibuka
+  const coverUrl = useCover(track?.coverKey);
+
+  // Baca setting ukuran font tersimpan
   useEffect(() => {
     if (!runningInTauri) return;
     invoke<string | null>("setting_get", { key: "lirik.ukuran_font" })
@@ -76,7 +84,7 @@ export function FullscreenLyrics({
     }
   };
 
-  // Tutup dengan keyboard Esc
+  // Keyboard shortcut Esc & Space
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -105,12 +113,12 @@ export function FullscreenLyrics({
         return;
       }
 
-      const current = dataRef.current;
-      if (!current || !current.parsed.is_synced) return;
+      const currentData = dataRef.current;
+      if (!currentData || !currentData.parsed.is_synced) return;
 
-      const lines = current.parsed.lines;
+      const lines = currentData.parsed.lines;
       const currentPos = audioEngine.positionMs();
-      const effectivePos = currentPos + current.parsed.file_offset_ms + current.offset_ms;
+      const effectivePos = currentPos + currentData.parsed.file_offset_ms + currentData.offset_ms;
 
       let low = 0;
       let high = lines.length - 1;
@@ -126,14 +134,18 @@ export function FullscreenLyrics({
         }
       }
 
-      setActiveIndex(targetIdx);
-
-      if (!userScrolledRef.current && targetIdx >= 0) {
-        const el = lineRefs.current[targetIdx];
-        if (el && containerRef.current) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setActiveIndex((prev) => {
+        if (targetIdx !== prev) {
+          if (!userScrolledRef.current && targetIdx >= 0) {
+            const el = lineRefs.current[targetIdx];
+            if (el && containerRef.current) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }
+          return targetIdx;
         }
-      }
+        return prev;
+      });
 
       rafId = requestAnimationFrame(tick);
     };
@@ -152,265 +164,275 @@ export function FullscreenLyrics({
     }
   }, [activeIndex]);
 
-  const fontSizeVal =
-    ukuranFont === "kecil" ? "18px" : ukuranFont === "besar" ? "32px" : "24px";
-  const lineHeightVal =
-    ukuranFont === "kecil" ? 1.6 : ukuranFont === "besar" ? 1.4 : 1.5;
+  const fontSizeMap: Record<UkuranFont, { main: number; romaji: number }> = {
+    kecil: { main: 20, romaji: 13 },
+    sedang: { main: 28, romaji: 16 },
+    besar: { main: 36, romaji: 19 },
+  };
+
+  const { main: fsMain, romaji: fsRomaji } = fontSizeMap[ukuranFont];
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={T.fullscreenLirik}
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 1000,
-        background: modeRedup ? "#050505" : "var(--bg)",
+        zIndex: 100,
+        background: modeRedup ? "#080809" : "var(--bg)",
         color: "var(--ink)",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        backdropFilter: "blur(20px)",
+        overflow: "hidden",
+        backgroundImage: `linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px)`,
+        backgroundSize: "24px 24px",
       }}
     >
-      {/* Header Bar */}
+      {/* Ambient Cover Art Blur di belakang */}
+      {coverUrl && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(${coverUrl})`,
+            backgroundPosition: "center",
+            backgroundSize: "cover",
+            filter: "blur(80px)",
+            opacity: 0.08,
+            pointerEvents: "none",
+            transform: "scale(1.2)",
+          }}
+        />
+      )}
+
+      {/* Header Fullscreen: Info Lagu Kiri Atas & Kontrol Kanan Atas */}
       <header
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
-          padding: "var(--s-4) var(--s-5)",
+          justifyContent: "space-between",
+          padding: "var(--s-4) var(--s-6)",
           borderBottom: "1px solid var(--line)",
-          background: "var(--panel)",
+          background: "rgba(0,0,0,0.3)",
+          backdropFilter: "blur(8px)",
+          flex: "0 0 auto",
+          zIndex: 10,
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 18,
-              fontWeight: 600,
-              color: "var(--ink)",
-            }}
-          >
-            {track?.title ?? T.belumAdaLagu}
-          </span>
-          <span className="muted" style={{ fontSize: 13 }}>
-            {track?.artist ?? "—"}
-          </span>
+        {/* Info lagu kiri atas */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", minWidth: 0 }}>
+          {track && (
+            <div
+              className="bracketed"
+              style={{ padding: 2, background: "var(--panel)", border: "1px solid var(--line)" }}
+            >
+              <CoverArt coverKey={track.coverKey} title={track.title} size={44} radius={0} />
+            </div>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <h1
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                margin: 0,
+                color: "var(--ink)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 420,
+              }}
+            >
+              {track?.title ?? T.belumAdaLagu}
+            </h1>
+            <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>
+              {track?.artist ?? "—"}
+            </p>
+          </div>
         </div>
 
-        {/* Toolbar Pengaturan Fullscreen */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
-          {/* Opsi Ukuran Font */}
-          <div
-            role="group"
-            aria-label={T.ukuranFontLirik}
-            style={{ display: "flex", gap: 2, background: "var(--panel-2)", padding: 2 }}
-          >
-            {(["kecil", "sedang", "besar"] as const).map((u) => {
-              const aktif = ukuranFont === u;
-              return (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => gantiUkuran(u)}
-                  aria-pressed={aktif}
-                  className="mono"
-                  style={{
-                    padding: "4px 8px",
-                    fontSize: 10,
-                    border: aktif ? "1px solid var(--accent)" : "1px solid transparent",
-                    background: aktif ? "var(--accent)" : "transparent",
-                    color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
-                    fontWeight: aktif ? 600 : 400,
-                    cursor: "pointer",
-                  }}
-                >
-                  {u.toUpperCase()}
-                </button>
-              );
-            })}
-          </div>
-
+        {/* Kontrol kanan atas */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
           {/* Toggle Romanisasi */}
           <button
             type="button"
             onClick={() => setTampilRomanisasi((r) => !r)}
-            aria-pressed={tampilRomanisasi}
-            className="mono"
-            style={{
-              padding: "4px 8px",
-              fontSize: 10,
-              border: tampilRomanisasi ? "1px solid var(--accent)" : "1px solid var(--line)",
-              background: tampilRomanisasi ? "var(--accent)" : "transparent",
-              color: tampilRomanisasi ? "var(--accent-ink)" : "var(--ink-muted)",
-              cursor: "pointer",
-            }}
+            className={`k-btn ${tampilRomanisasi ? "k-btn-accent" : "k-btn-quiet"}`}
+            style={{ minHeight: 32, height: 32, padding: "0 10px", fontSize: 10 }}
+            title="Tampilkan Romaji"
           >
-            {T.romanisasi}
+            ROMAJI
           </button>
 
-          {/* Toggle Mode Redup */}
+          {/* Toggle Ukuran Font */}
+          <div
+            style={{ display: "flex", border: "1px solid var(--line)", background: "var(--panel)" }}
+          >
+            {(["kecil", "sedang", "besar"] as const).map((uk) => (
+              <button
+                key={uk}
+                type="button"
+                onClick={() => gantiUkuran(uk)}
+                className="mono"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: 10,
+                  border: "none",
+                  background: ukuranFont === uk ? "var(--accent)" : "transparent",
+                  color: ukuranFont === uk ? "var(--accent-ink)" : "var(--ink-muted)",
+                  fontWeight: ukuranFont === uk ? 700 : 400,
+                  cursor: "pointer",
+                }}
+              >
+                {uk === "kecil" ? "S" : uk === "sedang" ? "M" : "L"}
+              </button>
+            ))}
+          </div>
+
+          {/* Mode Redup */}
           <button
             type="button"
-            onClick={() => setModeRedup((r) => !r)}
-            aria-pressed={modeRedup}
-            className="mono"
-            style={{
-              padding: "4px 8px",
-              fontSize: 10,
-              border: modeRedup ? "1px solid var(--accent)" : "1px solid var(--line)",
-              background: modeRedup ? "var(--accent)" : "transparent",
-              color: modeRedup ? "var(--accent-ink)" : "var(--ink-muted)",
-              cursor: "pointer",
-            }}
+            onClick={() => setModeRedup((m) => !m)}
+            className={`k-btn ${modeRedup ? "k-btn-accent" : "k-btn-quiet"}`}
+            style={{ minHeight: 32, height: 32, padding: "0 10px", fontSize: 10 }}
+            title="Mode Redup"
           >
             {T.modeRedup}
           </button>
 
-          {/* Tombol Tutup / Esc */}
+          {/* Tutup Fullscreen (Esc) */}
           <button
             type="button"
             onClick={onClose}
-            aria-label={T.keluarFullscreen}
-            title={T.keluarFullscreen}
-            style={{
-              width: 36,
-              height: 36,
-              display: "grid",
-              placeItems: "center",
-              border: "1px solid var(--line)",
-              background: "transparent",
-              color: "var(--ink)",
-              cursor: "pointer",
-            }}
+            className="k-btn"
+            style={{ minHeight: 32, height: 32, padding: "0 10px", fontSize: 11 }}
+            title="Keluar Layar Penuh (Esc)"
           >
-            <IkonFullscreenExit size={20} />
+            <IkonFullscreenExit size={16} />
+            <span style={{ marginLeft: 4 }}>ESC</span>
           </button>
         </div>
       </header>
 
-      {/* Konten Lirik Tengah */}
+      {/* Main Container Lirik Tengah: Mask Fade + Max Width 820px */}
       <main
         ref={containerRef}
         onWheel={() => setUserScrolled(true)}
         onTouchMove={() => setUserScrolled(true)}
+        className="lyrics-scroll-mask"
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "var(--s-6) var(--s-5)",
           display: "flex",
           flexDirection: "column",
-          gap: 20,
+          alignItems: "center",
+          padding: "var(--s-12) var(--s-6)",
           scrollBehavior: "smooth",
-          maxWidth: 900,
-          margin: "0 auto",
-          width: "100%",
+          zIndex: 10,
+          scrollbarWidth: "none",
         }}
       >
         {lyricsData && lyricsData.parsed.lines.length > 0 ? (
-          lyricsData.parsed.lines.map((line, idx) => {
-            const aktif = lyricsData.parsed.is_synced && idx === activeIndex;
-
-            return (
-              <div
-                key={idx}
-                ref={(el) => {
-                  lineRefs.current[idx] = el;
-                }}
-                onClick={() => {
-                  if (lyricsData.parsed.is_synced && onSeek) {
-                    const targetSeek = Math.max(
-                      0,
-                      line.time_ms - lyricsData.parsed.file_offset_ms - lyricsData.offset_ms,
-                    );
-                    onSeek(targetSeek);
-                    setUserScrolled(false);
-                  }
-                }}
-                role={lyricsData.parsed.is_synced ? "button" : undefined}
-                tabIndex={lyricsData.parsed.is_synced ? 0 : undefined}
-                style={{
-                  fontSize: fontSizeVal,
-                  lineHeight: lineHeightVal,
-                  fontWeight: aktif ? 700 : 500,
-                  transition: "all 0.2s ease",
-                  cursor: lyricsData.parsed.is_synced ? "pointer" : "default",
-                  color: aktif
-                    ? "var(--accent)"
-                    : modeRedup
-                      ? "rgba(255, 255, 255, 0.25)"
-                      : "var(--ink-muted)",
-                  opacity: aktif ? 1 : modeRedup ? 0.35 : 0.65,
-                  transform: aktif ? "scale(1.03)" : "scale(1)",
-                  transformOrigin: "left center",
-                  padding: "8px 16px",
-                  borderRadius: 0,
-                  borderLeft: aktif ? "4px solid var(--accent)" : "4px solid transparent",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span>{line.text}</span>
-                  {tampilRomanisasi && line.romanized && (
-                    <span
-                      style={{
-                        fontSize: `calc(${fontSizeVal} * 0.65)`,
-                        lineHeight: 1.3,
-                        opacity: 0.8,
-                        fontStyle: "italic",
-                        fontWeight: 400,
-                      }}
-                    >
-                      {line.romanized}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        ) : (
           <div
             style={{
-              flex: 1,
-              display: "grid",
-              placeItems: "center",
-              textAlign: "center",
+              width: "100%",
+              maxWidth: 820,
+              display: "flex",
+              flexDirection: "column",
+              gap: ukuranFont === "besar" ? 28 : ukuranFont === "sedang" ? 20 : 14,
             }}
           >
-            <p className="muted" style={{ fontSize: 16 }}>
+            {lyricsData.parsed.lines.map((line, idx) => {
+              const aktif = lyricsData.parsed.is_synced && idx === activeIndex;
+
+              return (
+                <div
+                  key={idx}
+                  ref={(el) => {
+                    lineRefs.current[idx] = el;
+                  }}
+                  onClick={() => {
+                    if (lyricsData.parsed.is_synced && onSeek) {
+                      const targetSeek = Math.max(
+                        0,
+                        line.time_ms - lyricsData.parsed.file_offset_ms - lyricsData.offset_ms,
+                      );
+                      onSeek(targetSeek);
+                      setUserScrolled(false);
+                    }
+                  }}
+                  role={lyricsData.parsed.is_synced ? "button" : undefined}
+                  tabIndex={lyricsData.parsed.is_synced ? 0 : undefined}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 16,
+                    padding: "6px 16px",
+                    cursor: lyricsData.parsed.is_synced ? "pointer" : "default",
+                    transition: "all 0.2s ease",
+                    borderLeft: aktif ? "4px solid var(--accent)" : "4px solid transparent",
+                    opacity: aktif ? 1 : activeIndex >= 0 ? 0.35 : 0.85,
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                    <span
+                      style={{
+                        fontSize: fsMain,
+                        fontWeight: aktif ? 700 : 500,
+                        lineHeight: 1.35,
+                        color: aktif ? (modeRedup ? "var(--accent)" : "var(--ink)") : "var(--ink)",
+                        transition: "font-size 0.2s ease",
+                      }}
+                    >
+                      {line.text}
+                    </span>
+                    {tampilRomanisasi && line.romanized && (
+                      <span
+                        className="mono muted"
+                        style={{
+                          fontSize: fsRomaji,
+                          lineHeight: 1.3,
+                          letterSpacing: "0.02em",
+                          opacity: aktif ? 0.9 : 0.6,
+                        }}
+                      >
+                        {line.romanized}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ margin: "auto", textAlign: "center" }}>
+            <p className="muted" style={{ fontSize: 18 }}>
               {T.lirikTidakAda}
             </p>
           </div>
         )}
       </main>
 
-      {/* Floating Button: Kembali ke baris aktif */}
+      {/* Floating: Kembali ke baris aktif */}
       {userScrolled && activeIndex >= 0 && (
         <div
           style={{
             position: "absolute",
-            bottom: 90,
+            bottom: 96,
             left: "50%",
             transform: "translateX(-50%)",
-            zIndex: 10,
+            zIndex: 20,
           }}
         >
           <button
             type="button"
             onClick={scrollToActive}
-            className="mono"
+            className="k-btn k-btn-accent"
             style={{
+              padding: "0 18px",
+              minHeight: 36,
+              height: 36,
               fontSize: 11,
-              letterSpacing: "0.08em",
-              padding: "8px 16px",
-              border: "1px solid var(--accent)",
-              background: "var(--accent)",
-              color: "var(--accent-ink)",
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
             }}
           >
             {T.kembaliKeBarisAktif}
@@ -418,74 +440,79 @@ export function FullscreenLyrics({
         </div>
       )}
 
-      {/* Footer Minimal Transport Control */}
+      {/* Footer: Control Deck Lengkap (Progress bar bersegmen + Transport) */}
       <footer
         style={{
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "var(--s-4)",
-          padding: "var(--s-3) var(--s-5)",
+          flexDirection: "column",
+          gap: "var(--s-2)",
+          padding: "var(--s-3) var(--s-8)",
           borderTop: "1px solid var(--line)",
-          background: "var(--panel)",
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(10px)",
+          flex: "0 0 auto",
+          zIndex: 10,
         }}
       >
-        <button
-          type="button"
-          onClick={onPrevious}
-          disabled={!onPrevious}
-          aria-label={T.laguSebelumnya}
+        <div
           style={{
-            width: 44,
-            height: 44,
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid var(--line)",
-            background: "transparent",
-            color: "var(--ink)",
-            cursor: "pointer",
+            maxWidth: 720,
+            width: "100%",
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          <IkonPrev size={18} />
-        </button>
+          <SeekBar
+            positionMs={positionMs}
+            durationMs={durationMs}
+            onSeek={(ms) => onSeek?.(ms)}
+            disabled={!track || !onSeek}
+          />
 
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={!onToggle}
-          aria-label={isPlaying ? T.jeda : T.putar}
-          style={{
-            width: 50,
-            height: 50,
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid var(--accent)",
-            background: "var(--accent)",
-            color: "var(--accent-ink)",
-            cursor: "pointer",
-          }}
-        >
-          {isPlaying ? <IkonPause size={22} /> : <IkonPlay size={22} />}
-        </button>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "var(--s-3)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              aria-label={T.laguSebelumnya}
+              className="k-btn"
+              style={{ width: 44, height: 44 }}
+            >
+              <IkonPrev size={18} />
+            </button>
 
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!onNext}
-          aria-label={T.laguBerikutnya}
-          style={{
-            width: 44,
-            height: 44,
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid var(--line)",
-            background: "transparent",
-            color: "var(--ink)",
-            cursor: "pointer",
-          }}
-        >
-          <IkonNext size={18} />
-        </button>
+            <button
+              type="button"
+              onClick={onToggle}
+              disabled={!onToggle}
+              aria-label={isPlaying ? T.jeda : T.putar}
+              className="k-btn k-btn-accent"
+              style={{ width: 52, height: 52 }}
+            >
+              {isPlaying ? <IkonPause size={22} /> : <IkonPlay size={22} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label={T.laguBerikutnya}
+              className="k-btn"
+              style={{ width: 44, height: 44 }}
+            >
+              <IkonNext size={18} />
+            </button>
+          </div>
+        </div>
       </footer>
     </div>
   );

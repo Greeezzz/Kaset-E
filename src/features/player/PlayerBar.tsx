@@ -3,15 +3,24 @@ import { CoverArt } from "../../components/CoverArt";
 import { SeekBar } from "./SeekBar";
 import { VolumeControl } from "./VolumeControl";
 import { T } from "../../lib/strings";
-import { IkonPlay, IkonPause, IkonPrev, IkonNext } from "../../components/icons";
+import {
+  IkonPlay,
+  IkonPause,
+  IkonPrev,
+  IkonNext,
+  IkonKaset,
+  IkonLirikMic,
+  IkonQueueLayers,
+  IkonExpandDiagonal,
+} from "../../components/icons";
 
 /**
  * Player bar tiga zona ("control deck", DESIGN-LAYOUT §6, DESIGN-ENDFIELD §6).
  *
- * Hirarki yang dipegang: tombol play/pause adalah elemen paling besar dan
- * satu-satunya yang berlatar kuning chamfer penuh. Kontrol lain tanpa latar
- * kecuali saat aktif/hover supaya mata langsung jatuh ke satu tempat. Tinggi
- * bar tetap (88px) agar perubahan state tidak pernah menggeser layout.
+ * Hirarki:
+ * - Zona kiri: cover 56px + identitas lagu.
+ * - Zona tengah: transport controls + seek bar.
+ * - Zona kanan: Deretan aksi ikon SVG (Kaset, Mic/Lirik, Queue/Layers, Divider, Volume, Fullscreen/Expand).
  */
 export function PlayerBar({
   state,
@@ -20,9 +29,12 @@ export function PlayerBar({
   onPrevious,
   onSeek,
   onVolume,
+  onToggleKaset,
+  onToggleLyrics,
   onToggleQueue,
-  onOpenNowPlaying,
-  onOpenFullPlayer,
+  onOpenFullscreen,
+  kasetActive = false,
+  lyricsActive = false,
   queueOpen = false,
 }: {
   state: PlayerState;
@@ -31,17 +43,12 @@ export function PlayerBar({
   onPrevious?: () => void;
   onSeek?: (positionMs: number) => void;
   onVolume?: (volume: number) => void;
+  onToggleKaset?: () => void;
+  onToggleLyrics?: () => void;
   onToggleQueue?: () => void;
-  onOpenNowPlaying?: () => void;
-  /**
-   * Buka pemutar penuh (layar Now Playing) — K1 `FEATURES-V3.md`.
-   *
-   * Dipisah dari `onOpenNowPlaying` yang membuka PANEL KANAN. Di desktop,
-   * panel kanan sudah terlihat, jadi satu-satunya cara masuk ke layar penuh
-   * adalah lewat cover ini. Tanpa ini, mode kaset mustahil dijangkau di
-   * desktop — dan itu memang yang dicatat sebagai kekurangan di K1.
-   */
-  onOpenFullPlayer?: () => void;
+  onOpenFullscreen?: () => void;
+  kasetActive?: boolean;
+  lyricsActive?: boolean;
   queueOpen?: boolean;
 }) {
   const playing = state.status === "playing";
@@ -58,8 +65,7 @@ export function PlayerBar({
         borderTop: "1px solid var(--line)",
         background: "var(--panel)",
         display: "grid",
-        // minmax(0, ...) supaya judul panjang tidak mendorong kolom lain keluar.
-        gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 2.2fr) minmax(0, 1fr)",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 2.2fr) minmax(0, 1.25fr)",
         alignItems: "center",
         gap: "var(--s-4)",
         padding: "0 var(--s-4)",
@@ -67,12 +73,7 @@ export function PlayerBar({
       }}
     >
       {/* Zona kiri: cover 56px dengan corner brackets + identitas lagu. */}
-      <button
-        type="button"
-        onClick={onOpenFullPlayer ?? onOpenNowPlaying}
-        disabled={!onOpenFullPlayer && !onOpenNowPlaying}
-        aria-label={onOpenFullPlayer ? T.bukaPemutarPenuh : T.bukaSedangDiputar}
-        title={onOpenFullPlayer ? T.bukaPemutarPenuh : T.bukaSedangDiputar}
+      <div
         style={{
           display: "flex",
           alignItems: "center",
@@ -80,7 +81,6 @@ export function PlayerBar({
           minWidth: 0,
           textAlign: "left",
           padding: 0,
-          cursor: onOpenNowPlaying ? "pointer" : "default",
         }}
       >
         <span
@@ -101,112 +101,90 @@ export function PlayerBar({
               radius={0}
             />
           ) : (
-            <CoverArt coverKey={null} title="Kaset" size={56} radius={0} />
+            <span
+              style={{
+                width: 56,
+                height: 56,
+                display: "block",
+                background: "var(--panel-2)",
+              }}
+              aria-hidden="true"
+            />
           )}
         </span>
 
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
+          <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--s-2)",
-              minWidth: 0,
-            }}
-          >
-            <span
-              className={ada ? undefined : "mono"}
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: ada ? 14 : 12,
-                letterSpacing: ada ? undefined : "0.1em",
-                fontWeight: 600,
-                color: ada ? "var(--ink)" : "var(--ink-muted)",
-              }}
-            >
-              {state.track?.title ?? T.standby}
-            </span>
-
-            {/* Tampilkan label status HANYA saat loading/error (tanpa teks debug idle). */}
-            {loading && (
-              <span
-                className="mono"
-                style={{
-                  flex: "0 0 auto",
-                  fontSize: 10,
-                  letterSpacing: "0.08em",
-                  padding: "1px 5px",
-                  border: "1px solid var(--line)",
-                  color: "var(--ink-muted)",
-                }}
-              >
-                {T.memuat}
-              </span>
-            )}
-            {failed && (
-              <span
-                className="mono"
-                style={{
-                  flex: "0 0 auto",
-                  fontSize: 10,
-                  letterSpacing: "0.08em",
-                  padding: "1px 5px",
-                  border: "1px solid var(--danger)",
-                  color: "var(--danger)",
-                }}
-              >
-                {T.gagal}
-              </span>
-            )}
-          </span>
-
-          <span
-            className="muted"
-            style={{
-              display: "block",
-              fontSize: 13,
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--ink)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
-            {state.track?.artist ?? "\u2014"}
-          </span>
-        </span>
-      </button>
+            {state.track?.title ?? T.belumAdaLagu}
+          </div>
+          <div
+            className="muted"
+            style={{
+              fontSize: 12,
+              marginTop: 2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {failed ? "Gagal memutar audio" : (state.track?.artist ?? "\u2014")}
+          </div>
+        </div>
+      </div>
 
-      {/* Zona tengah: transport + progress bersegmen */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+      {/* Zona tengah: kontrol transport + seek bar. */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "var(--s-1)",
+          minWidth: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
           <TombolIkon label={T.laguSebelumnya} onClick={onPrevious} disabled={!ada || !onPrevious}>
             <IkonPrev size={16} />
           </TombolIkon>
 
-          {/* Elemen paling mencolok di bar: blok kuning chamfer, ikon hitam. */}
           <button
             type="button"
             onClick={onToggle}
             disabled={!ada}
             aria-label={playing ? T.jeda : T.putar}
+            title={playing ? T.jeda : T.putar}
             style={{
-              width: 48,
-              height: 44,
+              width: 52,
+              height: 52,
+              background: "var(--accent)",
+              color: "var(--accent-ink)",
+              border: "1px solid #111111",
               display: "grid",
               placeItems: "center",
-              fontSize: 16,
-              fontWeight: 700,
-              border: ada ? "none" : "1px solid var(--line)",
-              background: ada ? "var(--accent)" : "var(--panel-2)",
-              color: ada ? "var(--accent-ink)" : "var(--ink-muted)",
-              clipPath: ada
-                ? "polygon(var(--cut-sm) 0, 100% 0, 100% calc(100% - var(--cut-sm)), calc(100% - var(--cut-sm)) 100%, 0 100%, 0 var(--cut-sm))"
-                : undefined,
               cursor: ada ? "pointer" : "not-allowed",
+              opacity: ada ? 1 : 0.5,
+              clipPath:
+                "polygon(var(--cut-sm) 0, 100% 0, 100% calc(100% - var(--cut-sm)), calc(100% - var(--cut-sm)) 100%, 0 100%, 0 var(--cut-sm))",
             }}
           >
-            {loading ? "\u2026" : playing ? <IkonPause size={18} /> : <IkonPlay size={18} />}
+            {loading ? (
+              <span aria-hidden="true" style={{ fontSize: 18, letterSpacing: 1 }}>
+                {"\u2026"}
+              </span>
+            ) : playing ? (
+              <IkonPause size={20} />
+            ) : (
+              <IkonPlay size={20} />
+            )}
           </button>
 
           <TombolIkon label={T.laguBerikutnya} onClick={onNext} disabled={!ada || !onNext}>
@@ -223,43 +201,64 @@ export function PlayerBar({
         />
       </div>
 
-      {/* Zona kanan: tombol ANTREAN + volume */}
+      {/* Zona kanan: Icon-Only SVG Controls (Kaset, Mic, Queue, Divider, Volume, Expand) */}
       <div
         style={{
           display: "flex",
           justifyContent: "flex-end",
           alignItems: "center",
-          gap: "var(--s-2)",
+          gap: 6,
           minWidth: 0,
         }}
       >
-        {onToggleQueue ? (
-          <button
-            type="button"
-            onClick={onToggleQueue}
-            aria-label={T.antrean}
-            aria-pressed={queueOpen}
-            title={`${T.antrean} (Ctrl+Q)`}
-            style={{
-              minHeight: 44,
-              padding: "0 var(--s-3)",
-              display: "flex",
-              alignItems: "center",
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              letterSpacing: "0.08em",
-              fontWeight: queueOpen ? 600 : 400,
-              // Tanpa latar saat pasif; blok kuning + teks hitam saat aktif.
-              background: queueOpen ? "var(--accent)" : "transparent",
-              color: queueOpen ? "var(--accent-ink)" : "var(--ink)",
-              border: queueOpen ? "1px solid var(--accent)" : "1px solid transparent",
-              cursor: "pointer",
-            }}
+        {/* 1. Mode Kaset */}
+        {onToggleKaset && (
+          <TombolAksiIkon
+            label="Mode Kaset"
+            aktif={kasetActive}
+            onClick={onToggleKaset}
+            title="Tampilkan Mode Kaset"
           >
-            {T.antrean}
-          </button>
-        ) : null}
+            <IkonKaset size={18} />
+          </TombolAksiIkon>
+        )}
 
+        {/* 2. Lirik (Mic) */}
+        {onToggleLyrics && (
+          <TombolAksiIkon
+            label="Lirik Lagu"
+            aktif={lyricsActive}
+            onClick={onToggleLyrics}
+            title="Tampilkan Lirik"
+          >
+            <IkonLirikMic size={18} />
+          </TombolAksiIkon>
+        )}
+
+        {/* 3. Panel Kanan (Queue/Layers) */}
+        {onToggleQueue && (
+          <TombolAksiIkon
+            label="Panel Antrean & Sedang Diputar"
+            aktif={queueOpen}
+            onClick={onToggleQueue}
+            title="Buka / Tutup Panel Kanan (Ctrl+Q)"
+          >
+            <IkonQueueLayers size={18} />
+          </TombolAksiIkon>
+        )}
+
+        {/* Divider Vertikal */}
+        <div
+          style={{
+            width: 1,
+            height: 20,
+            background: "var(--line)",
+            margin: "0 2px",
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Volume */}
         {onVolume ? (
           <VolumeControl volume={state.volume} onChange={onVolume} />
         ) : (
@@ -267,14 +266,69 @@ export function PlayerBar({
             {Math.round(state.volume * 100)}%
           </span>
         )}
+
+        {/* 4. Fullscreen / Expand */}
+        {onOpenFullscreen && (
+          <TombolAksiIkon
+            label="Layar Penuh"
+            aktif={false}
+            onClick={onOpenFullscreen}
+            title="Layar Penuh (Fullscreen)"
+          >
+            <IkonExpandDiagonal size={18} />
+          </TombolAksiIkon>
+        )}
       </div>
     </footer>
   );
 }
 
 /**
- * Tombol ikon tanpa latar (area sentuh 44x44px, DESIGN-LAYOUT §6 & §8).
- * Disabled dibedakan jelas lewat warna muted dan cursor not-allowed.
+ * Tombol aksi ikon SVG kanan bawah dengan status aktif kuning Endfield.
+ */
+function TombolAksiIkon({
+  children,
+  label,
+  title,
+  aktif = false,
+  onClick,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  label: string;
+  title?: string;
+  aktif?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={aktif}
+      title={title ?? label}
+      style={{
+        width: 36,
+        height: 36,
+        minWidth: 36,
+        display: "grid",
+        placeItems: "center",
+        background: aktif ? "var(--accent)" : "transparent",
+        color: aktif ? "var(--accent-ink)" : "var(--ink-muted)",
+        border: aktif ? "1px solid #111111" : "1px solid transparent",
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "background var(--t-fast) var(--ease), color var(--t-fast) var(--ease)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Tombol ikon tanpa latar (area sentuh 44x44px).
  */
 function TombolIkon({
   children,

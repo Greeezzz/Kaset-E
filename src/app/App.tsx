@@ -1,17 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Route } from "./routes";
 import { invoke, listen } from "../lib/tauri";
-import type { PlayerState, Track } from "../types";
+import type { LyricsResponse, PlayerState, Track } from "../types";
 import { Sidebar } from "./layout/Sidebar";
 import { BottomNav } from "./layout/BottomNav";
 import { MiniPlayer } from "./layout/MiniPlayer";
 import { PlayerBar } from "../features/player/PlayerBar";
 import { useMenyiapkanPemutar } from "../hooks/useMenyiapkanPemutar";
-import { useModeNowPlaying } from "../hooks/useModeNowPlaying";
 import { T } from "../lib/strings";
 
-import { FullPlayer } from "../features/player/FullPlayer";
-import { RightPanel, type RightPanelTab } from "../features/queue/RightPanel";
+import { RightPanel } from "../features/queue/RightPanel";
 import { Search } from "../features/search/Search";
 import { Library } from "../features/library/Library";
 import { Settings } from "../features/settings/Settings";
@@ -32,6 +30,16 @@ import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
 import { PlaylistDetailDialog } from "../features/library/PlaylistDetailDialog";
 import { ImportDialog } from "../features/library/ImportDialog";
+
+const KasetMode = lazy(() =>
+  import("../features/player/KasetMode").then((m) => ({ default: m.KasetMode })),
+);
+const LyricsView = lazy(() =>
+  import("../features/lyrics/LyricsView").then((m) => ({ default: m.LyricsView })),
+);
+const FullscreenLyrics = lazy(() =>
+  import("../features/lyrics/FullscreenLyrics").then((m) => ({ default: m.FullscreenLyrics })),
+);
 /**
  * Kapan prefetch lagu berikutnya dipicu, dihitung dari posisi lagu aktif.
  *
@@ -53,21 +61,14 @@ function errMessage(err: unknown, fallback: string): string {
 
 export function App() {
   const menyiapkanPemutar = useMenyiapkanPemutar();
-  const {
-    mode: modeNowPlaying,
-    setMode: setModeNowPlaying,
-    muatUlang: muatUlangMode,
-  } = useModeNowPlaying();
   const [route, setRoute] = useState<Route>("search");
-  // Mode tampilan dibaca ulang tiap kali layar Now Playing dibuka, supaya
-  // perubahan dari Pengaturan langsung terlihat tanpa restart.
-  useEffect(() => {
-    if (route === "queue") muatUlangMode();
-  }, [route, muatUlangMode]);
-  // Panel kanan: default TERTUTUP (DESIGN-LAYOUT bagian 1). Pilihan terakhir
-  // diingat supaya user yang selalu membukanya tidak perlu membuka tiap start.
-  const [queueOpen, setQueueOpen] = useState(false);
-  const [rightTab, setRightTab] = useState<RightPanelTab>("queue");
+  // Mode panggung tengah: null = rute biasa (Search, Library, Stats, dll); "kaset" = KasetMode; "lyrics" = LyricsView
+  const [centerMode, setCenterMode] = useState<"kaset" | "lyrics" | null>(null);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [cachedLyrics, setCachedLyrics] = useState<LyricsResponse | null>(null);
+
+  // Panel kanan: default TERBUKA di desktop (3-column layout)
+  const [queueOpen, setQueueOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [libTab, setLibTab] = useState<"Playlist" | "Favorit" | "History">("Playlist");
   // Playlist yang sedang dipilih di sidebar (null = Lagu Disukai).
@@ -208,21 +209,13 @@ export function App() {
     };
   }, []);
 
-  /** Buka tab tertentu di panel kanan; kalau tab itu sudah terbuka, tutup. */
-  function toggleRightTab(tab: RightPanelTab) {
-    if (queueOpen && rightTab === tab) {
-      setQueueOpen(false);
-      void invoke("setting_set", { key: "queue_open", value: "0" }).catch(() => {});
-      return;
-    }
-    setRightTab(tab);
-    setQueueOpen(true);
-    void invoke("setting_set", { key: "queue_open", value: "1" }).catch(() => {});
-  }
-
-  function closeRightPanel() {
-    setQueueOpen(false);
-    void invoke("setting_set", { key: "queue_open", value: "0" }).catch(() => {});
+  // Toggle panel kanan dengan persistensi
+  function toggleQueue() {
+    setQueueOpen((buka) => {
+      const baru = !buka;
+      void invoke("setting_set", { key: "queue_open", value: baru ? "1" : "0" }).catch(() => {});
+      return baru;
+    });
   }
 
   // Sinkronisasi awal: kalau antrean dipulihkan dari SQLite saat start,
@@ -298,14 +291,7 @@ export function App() {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key.toLowerCase() === "q") {
         e.preventDefault();
-        setRightTab("queue");
-        setQueueOpen((buka) => {
-          const baru = !buka;
-          void invoke("setting_set", { key: "queue_open", value: baru ? "1" : "0" }).catch(
-            () => {},
-          );
-          return baru;
-        });
+        toggleQueue();
       }
       if (e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -645,61 +631,106 @@ export function App() {
 
         {/* minWidth 0 wajib: tanpa itu kolom tengah menolak menyusut dan
             memaksa scroll horizontal saat panel kanan dibuka. */}
-        <main ref={mainRef} style={{ minWidth: 0, overflowY: "auto", overflowX: "hidden" }}>
-          {route === "search" && (
-            <Search
-              onPlay={handlePlay}
-              onQueue={(t) => void queue.add(t)}
-              onFavorite={(t) => void lib.toggleFavorite(t)}
-              favoriteIds={new Set(lib.favorites.map((f) => f.videoId))}
-              onAddToPlaylist={(t) => setPickTarget(t)}
-              activeVideoId={state.track?.videoId ?? null}
-              query={query}
-              setQuery={setQuery}
-            />
-          )}
-          {route === "library" && (
-            <Library
-              tab={libTab}
-              setTab={setLibTab}
-              lib={lib}
-              isWide={isWide}
-              scrollContainerRef={mainRef}
-              selectedPlaylistId={selectedPlaylistId}
-              onSelectPlaylist={setSelectedPlaylistId}
-              activeVideoId={state.track?.videoId ?? null}
-              isPlaying={state.status === "playing"}
-              playingSourceId={playingSourceId}
-              shuffle={queue.view.shuffle}
-              onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
-              onTogglePlay={togglePlay}
-              onPlayTracks={(tracks, startIdx, srcId) =>
-                void playTrackList(tracks, startIdx, srcId)
+        <main
+          ref={mainRef}
+          style={{
+            minWidth: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {centerMode === "kaset" ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{ padding: 24, color: "var(--ink-muted)", fontFamily: "var(--font-mono)" }}
+                >
+                  MEMUAT DECK KASET...
+                </div>
               }
-              onQueue={(t) => void queue.add(t)}
-              onPickPlaylist={(t) => setPickTarget(t)}
-              onRenamePlaylist={handleRenamePlaylist}
-              onDeletePlaylist={handleDeletePlaylist}
-              onGoSearch={() => setRoute("search")}
-            />
-          )}
-          {route === "stats" && <Stats />}
-          {route === "settings" && <Settings onLibraryChanged={() => void lib.refreshAll()} />}
-          {/* Mobile: tap mini player membuka layar penuh (DESIGN.md §3).
-              Tanpa cabang ini, route 'queue' akan merender layar kosong. */}
-          {route === "queue" && (
-            <FullPlayer
-              state={state}
-              queue={queue.view.items}
-              onClose={() => setRoute("search")}
-              mode={modeNowPlaying}
-              onModeChange={setModeNowPlaying}
-              /* Handler yang sama persis dengan PlayerBar (§K4). */
-              onToggle={togglePlay}
-              onNext={() => void playNextInQueue()}
-              onPrevious={() => void playPreviousInQueue()}
-              onSeek={handleSeek}
-            />
+            >
+              <KasetMode
+                state={state}
+                onToggle={togglePlay}
+                onNext={() => void playNextInQueue()}
+                onPrevious={() => void playPreviousInQueue()}
+                onSeek={handleSeek}
+              />
+            </Suspense>
+          ) : centerMode === "lyrics" ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{ padding: 24, color: "var(--ink-muted)", fontFamily: "var(--font-mono)" }}
+                >
+                  MEMUAT LIRIK...
+                </div>
+              }
+            >
+              <LyricsView
+                track={state.track}
+                isPlaying={state.status === "playing"}
+                onSeek={handleSeek}
+                onLyricsLoaded={setCachedLyrics}
+                onOpenFullscreen={() => setFullscreenOpen(true)}
+              />
+            </Suspense>
+          ) : (
+            <>
+              {route === "search" && (
+                <Search
+                  onPlay={handlePlay}
+                  onQueue={(t) => void queue.add(t)}
+                  onFavorite={(t) => void lib.toggleFavorite(t)}
+                  favoriteIds={new Set(lib.favorites.map((f) => f.videoId))}
+                  onAddToPlaylist={(t) => setPickTarget(t)}
+                  activeVideoId={state.track?.videoId ?? null}
+                  query={query}
+                  setQuery={setQuery}
+                />
+              )}
+              {route === "library" && (
+                <Library
+                  tab={libTab}
+                  setTab={setLibTab}
+                  lib={lib}
+                  isWide={isWide}
+                  scrollContainerRef={mainRef}
+                  selectedPlaylistId={selectedPlaylistId}
+                  onSelectPlaylist={setSelectedPlaylistId}
+                  activeVideoId={state.track?.videoId ?? null}
+                  isPlaying={state.status === "playing"}
+                  playingSourceId={playingSourceId}
+                  shuffle={queue.view.shuffle}
+                  onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
+                  onTogglePlay={togglePlay}
+                  onPlayTracks={(tracks, startIdx, srcId) =>
+                    void playTrackList(tracks, startIdx, srcId)
+                  }
+                  onQueue={(t) => void queue.add(t)}
+                  onPickPlaylist={(t) => setPickTarget(t)}
+                  onRenamePlaylist={handleRenamePlaylist}
+                  onDeletePlaylist={handleDeletePlaylist}
+                  onGoSearch={() => setRoute("search")}
+                />
+              )}
+              {route === "stats" && <Stats />}
+              {route === "settings" && <Settings onLibraryChanged={() => void lib.refreshAll()} />}
+              {/* Fallback jika route "queue" dipanggil dari mobile */}
+              {route === "queue" && (
+                <Suspense fallback={null}>
+                  <KasetMode
+                    state={state}
+                    onToggle={togglePlay}
+                    onNext={() => void playNextInQueue()}
+                    onPrevious={() => void playPreviousInQueue()}
+                    onSeek={handleSeek}
+                  />
+                </Suspense>
+              )}
+            </>
           )}
         </main>
 
@@ -708,7 +739,7 @@ export function App() {
             {/* Bottom sheet (<600px): latar gelap menutup panel saat diketuk. */}
             {sheetPanel && (
               <div
-                onClick={closeRightPanel}
+                onClick={() => setQueueOpen(false)}
                 aria-hidden="true"
                 style={{
                   position: "fixed",
@@ -754,9 +785,7 @@ export function App() {
               }
             >
               <RightPanel
-                tab={rightTab}
-                onTabChange={setRightTab}
-                onClose={closeRightPanel}
+                onClose={() => setQueueOpen(false)}
                 playerState={state}
                 view={queue.view}
                 onPlayIndex={(pos) => void playQueueIndex(pos)}
@@ -772,6 +801,10 @@ export function App() {
                 onToggleShuffle={() => void queue.setShuffle(!queue.view.shuffle)}
                 onToggleShufflePintar={() => void queue.setShufflePintar(!queue.view.shufflePintar)}
                 onCycleRepeat={cycleRepeat}
+                onFavorite={(t) => void lib.toggleFavorite(t)}
+                isFavorite={Boolean(
+                  state.track && lib.favorites.some((f) => f.videoId === state.track?.videoId),
+                )}
               />
             </div>
           </>
@@ -809,10 +842,13 @@ export function App() {
             onPrevious={() => void playPreviousInQueue()}
             onSeek={handleSeek}
             onVolume={handleVolume}
-            onToggleQueue={() => toggleRightTab("queue")}
-            onOpenNowPlaying={() => toggleRightTab("now")}
-            onOpenFullPlayer={() => setRoute("queue")}
-            queueOpen={queueOpen && rightTab === "queue"}
+            onToggleKaset={() => setCenterMode((prev) => (prev === "kaset" ? null : "kaset"))}
+            onToggleLyrics={() => setCenterMode((prev) => (prev === "lyrics" ? null : "lyrics"))}
+            onToggleQueue={() => setQueueOpen((prev) => !prev)}
+            onOpenFullscreen={() => setFullscreenOpen(true)}
+            kasetActive={centerMode === "kaset"}
+            lyricsActive={centerMode === "lyrics"}
+            queueOpen={queueOpen}
           />
         </>
       ) : (
@@ -820,10 +856,27 @@ export function App() {
           track={state.track}
           playing={state.status === "playing"}
           onToggle={togglePlay}
-          onOpen={() => setRoute("queue")}
+          onOpen={() => setCenterMode("kaset")}
         />
       )}
       {!adaPlayerBar(bp) && <BottomNav route={route} onNavigate={setRoute} />}
+
+      {fullscreenOpen && (
+        <Suspense fallback={null}>
+          <FullscreenLyrics
+            track={state.track}
+            lyricsData={cachedLyrics}
+            isPlaying={state.status === "playing"}
+            positionMs={state.positionMs}
+            durationMs={state.durationMs}
+            onSeek={handleSeek}
+            onToggle={togglePlay}
+            onNext={() => void playNextInQueue()}
+            onPrevious={() => void playPreviousInQueue()}
+            onClose={() => setFullscreenOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* Toast untuk error ringan (DESIGN.md §5): tidak memblokir UI. */}
       {detailId !== null &&

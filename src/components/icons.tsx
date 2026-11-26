@@ -251,3 +251,103 @@ export function IkonFullscreenExit({ size = 18, ...rest }: IkonProps) {
     </Svg>
   );
 }
+
+/** Ikon Kaset: tape shell retro */
+export function IkonKaset({ size = 18, style, className }: IkonProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      style={{ display: "block", flex: "0 0 auto", ...style }}
+    >
+      <rect x="2" y="5" width="20" height="14" />
+      <circle cx="8" cy="11" r="2" />
+      <circle cx="16" cy="11" r="2" />
+      <line x1="8" y1="11" x2="16" y2="11" />
+      <path d="M6 19L8 15H16L18 19" />
+    </svg>
+  );
+}
+
+/** Ikon Lirik: mikrofon industrial */
+export function IkonLirikMic({ size = 18, style, className }: IkonProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      style={{ display: "block", flex: "0 0 auto", ...style }}
+    >
+      <rect x="9" y="2" width="6" height="11" />
+      <path d="M5 10V11C5 14.866 8.134 18 12 18C15.866 18 19 14.866 19 11V10" />
+      <line x1="12" y1="18" x2="12" y2="22" />
+      <line x1="8" y1="22" x2="16" y2="22" />
+    </svg>
+  );
+}
+
+/** Ikon Antrean: lapisan / layers */
+export function IkonQueueLayers({ size = 18, style, className }: IkonProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      style={{ display: "block", flex: "0 0 auto", ...style }}
+    >
+      <polygon points="12 3 2 8 12 13 22 8 12 3" />
+      <polyline points="2 13 12 18 22 13" />
+      <polyline points="2 18 12 23 22 18" />
+    </svg>
+  );
+}
+
+/** Ikon Besarkan: expand diagonal */
+export function IkonExpandDiagonal({ size = 18, style, className }: IkonProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      style={{ display: "block", flex: "0 0 auto", ...style }}
+    >
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <line x1="21" y1="3" x2="14" y2="10" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </svg>
+  );
+}
