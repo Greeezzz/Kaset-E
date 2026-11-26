@@ -27,13 +27,33 @@ const TINGGI = 268;
 export function KasetSvg({
   track,
   ukuran = 1,
+  berputar = false,
+  progres = 0,
+  kurangiGerak = false,
 }: {
   track: Track | null;
   /** Pengali ukuran; 1 = 420x268. */
   ukuran?: number;
+  /**
+   * Reel berputar (K3). Hanya true saat lagu berbunyi DAN halaman terlihat —
+   * keputusan itu dibuat `useAnimasiKaset`, bukan di sini, supaya komponen ini
+   * tetap murni dan bisa dirender di tes.
+   */
+  berputar?: boolean;
+  /** 0..1 posisi lagu. Menggerakkan radius gulungan pita. */
+  progres?: number;
+  /** `prefers-reduced-motion`: tanpa putaran, radius tetap berubah. */
+  kurangiGerak?: boolean;
 }) {
   const label = useMemo(() => labelKaset(track?.videoId ?? "kaset"), [track?.videoId]);
   const strip = polaStrip(label.pola);
+
+  // Radius gulungan pita mengikuti progres: kiri mengecil saat lagu berjalan,
+  // kanan membesar. Dijepit di 7..22 supaya hub tidak pernah "hilang" di
+  // progres 0% atau menutupi tepi jendela di 100%.
+  const p = Math.min(1, Math.max(0, progres));
+  const radiusKiri = 22 - 15 * p;
+  const radiusKanan = 7 + 15 * p;
 
   const judul = pangkas(track?.title ?? "Tidak ada lagu", 26);
   const artis = pangkas(track?.artist ?? "—", 30);
@@ -166,10 +186,17 @@ export function KasetSvg({
 
         {/* Jendela reel: cekungan gelap dengan dua hub bergigi */}
         <rect x="96" y="146" width="228" height="76" fill="var(--bg)" stroke="var(--line)" />
-        <Hub cx={136} cy={184} />
-        <Hub cx={284} cy={184} />
-        {/* Jendela pita di antara hub */}
-        <rect x="158" y="176" width="104" height="16" fill="var(--panel-2)" stroke="var(--line)" />
+
+        {/* Gulungan pita di belakang hub — inilah yang membuat "sisa pita"
+            terlihat berpindah dari kiri ke kanan seiring lagu berjalan. */}
+        <circle cx={136} cy={184} r={radiusKiri} fill="var(--panel-2)" opacity="0.55" />
+        <circle cx={284} cy={184} r={radiusKanan} fill="var(--panel-2)" opacity="0.55" />
+
+        {/* Pita yang menghubungkan kedua gulungan, mengikuti radius masing-masing */}
+        <Pita y={184} kiri={136 + radiusKiri} kanan={284 - radiusKanan} aktif={berputar} />
+
+        <Hub cx={136} cy={184} berputar={berputar} kurangiGerak={kurangiGerak} />
+        <Hub cx={284} cy={184} berputar={berputar} kurangiGerak={kurangiGerak} />
 
         {/* Bagian bawah trapesium + lubang sekrup tengah */}
         <path
@@ -185,8 +212,30 @@ export function KasetSvg({
   );
 }
 
-/** Hub reel bergigi. `aria-hidden` diwarisi dari grup induk. */
-function Hub({ cx, cy }: { cx: number; cy: number }) {
+/**
+ * Hub reel bergigi (K3: berputar saat lagu berbunyi).
+ *
+ * Putaran memakai kelas CSS, bukan `requestAnimationFrame`: animasi CSS
+ * dikomposit GPU tanpa menyentuh thread utama, jadi lagu yang sedang diputar
+ * tidak ikut terganggu walau UI sedang sibuk. Itu syarat §0.3 dokumen —
+ * "animasi hanya jalan saat terlihat dan sedang playing", dan nol biaya saat
+ * tidak.
+ *
+ * `transform-box: fill-box` (di `global.css`) wajib untuk SVG: tanpa itu titik
+ * pusat rotasi mengikuti kotak elemen induk, bukan hub itu sendiri, dan hub
+ * akan mengorbit alih-alih berputar.
+ */
+function Hub({
+  cx,
+  cy,
+  berputar,
+  kurangiGerak,
+}: {
+  cx: number;
+  cy: number;
+  berputar: boolean;
+  kurangiGerak: boolean;
+}) {
   const gigi = Array.from({ length: 6 }, (_, i) => {
     const sudut = (i * Math.PI) / 3;
     return {
@@ -196,21 +245,85 @@ function Hub({ cx, cy }: { cx: number; cy: number }) {
       y2: cy + Math.sin(sudut) * 21,
     };
   });
+  const aktif = berputar && !kurangiGerak;
+
   return (
     <g>
-      <circle cx={cx} cy={cy} r="24" fill="var(--ink)" stroke="var(--line)" />
-      {gigi.map((g, i) => (
-        <line
-          key={i}
-          x1={g.x1}
-          y1={g.y1}
-          x2={g.x2}
-          y2={g.y2}
-          stroke="var(--ink-muted)"
-          strokeWidth="3"
-        />
-      ))}
+      {/* Badan hub: berputar lebih lambat, kesan massa */}
+      <g className={`kaset-reel${aktif ? " kaset-reel-aktif" : ""}`}>
+        <circle cx={cx} cy={cy} r="24" fill="var(--ink)" stroke="var(--line)" />
+      </g>
+      {/* Gigi: lebih cepat, supaya gigi terlihat "mengejar" badan hub */}
+      <g className={`kaset-reel-gigi${aktif ? " kaset-reel-gigi-aktif" : ""}`}>
+        {gigi.map((g, i) => (
+          <line
+            key={i}
+            x1={g.x1}
+            y1={g.y1}
+            x2={g.x2}
+            y2={g.y2}
+            stroke="var(--ink-muted)"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        ))}
+      </g>
+      {/* Poros tengah: tidak ikut berputar, seperti benda nyata */}
       <circle cx={cx} cy={cy} r="7" fill="var(--bg)" stroke="var(--line)" />
+      <circle cx={cx} cy={cy} r="2" fill="var(--ink-muted)" />
+    </g>
+  );
+}
+
+/**
+ * Pita yang menghubungkan kedua gulungan.
+ *
+ * Lebar mengikuti radius masing-masing gulungan, jadi saat lagu berjalan pita
+ * terlihat "tergulung" dari kiri ke kanan — itu informasi nyata (progres), bukan
+ * hiasan. Kilau yang bergerak menandakan pita sedang berjalan.
+ */
+function Pita({
+  y,
+  kiri,
+  kanan,
+  aktif,
+}: {
+  y: number;
+  kiri: number;
+  kanan: number;
+  aktif: boolean;
+}) {
+  const lebar = Math.max(0, kanan - kiri);
+  if (lebar <= 0) return null;
+  return (
+    <g>
+      <rect
+        x={kiri}
+        y={y - 7}
+        width={lebar}
+        height="14"
+        fill="var(--panel-2)"
+        stroke="var(--line)"
+      />
+      {aktif && (
+        // `clipPath` per instance supaya kilau tidak keluar dari jendela pita.
+        <g clipPath={`url(#pita-${Math.round(kiri)}-${Math.round(kanan)})`}>
+          <rect
+            className="kaset-pita-kilau"
+            x={kiri}
+            y={y - 7}
+            width={lebar * 0.45}
+            height="14"
+            fill="var(--accent)"
+            opacity="0.5"
+          />
+        </g>
+      )}
+      <defs>
+        <clipPath id={`pita-${Math.round(kiri)}-${Math.round(kanan)}`}>
+          <rect x={kiri} y={y - 7} width={lebar} height="14" />
+        </clipPath>
+      </defs>
     </g>
   );
 }
@@ -257,15 +370,43 @@ function StripWarna({
  * (aturan `THUMBNAILS.md`). Kalau cover belum siap, kaset tetap tampil dengan
  * label generatif — tidak ada kotak kosong.
  */
-export function KasetSvgBercover({ track, ukuran = 1 }: { track: Track | null; ukuran?: number }) {
+export function KasetSvgBercover({
+  track,
+  ukuran = 1,
+  berputar = false,
+  progres = 0,
+  kurangiGerak = false,
+}: {
+  track: Track | null;
+  ukuran?: number;
+  berputar?: boolean;
+  progres?: number;
+  kurangiGerak?: boolean;
+}) {
   const url = useCover(track?.coverKey);
-  if (!url) return <KasetSvg track={track} ukuran={ukuran} />;
+  if (!url) {
+    return (
+      <KasetSvg
+        track={track}
+        ukuran={ukuran}
+        berputar={berputar}
+        progres={progres}
+        kurangiGerak={kurangiGerak}
+      />
+    );
+  }
 
   // Cover ditempel di jendela reel sebagai "foto di label", bukan menggantikan
   // seluruh kaset: cangkang dan label tetap khas Kaset.
   return (
     <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-      <KasetSvg track={track} ukuran={ukuran} />
+      <KasetSvg
+        track={track}
+        ukuran={ukuran}
+        berputar={berputar}
+        progres={progres}
+        kurangiGerak={kurangiGerak}
+      />
       <img
         src={url}
         alt=""

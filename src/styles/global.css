@@ -225,6 +225,101 @@ h3 {
   animation: kaset-scan 1.1s linear infinite;
 }
 
+/* ---------- Mode Kaset (FEATURES-V3 K3) ----------
+ *
+ * Semua animasi di sini memakai `transform`/`opacity` saja — properti yang
+ * dikomposit GPU, jadi tidak memicu layout atau paint ulang tiap frame. Tidak
+ * ada animasi pada `width`/`height`/`top`/`left`: itu yang membuat animasi SVG
+ * terasa berat di laptop lama.
+ *
+ * Putaran reel dijeda lewat kelas (bukan hanya `animation-play-state`) supaya
+ * saat lagu dijeda tidak ada kerja render sama sekali.
+ */
+
+/* Reel berputar. Arah sama untuk kedua hub karena pita berjalan satu arah
+ * melewati kepala baca — dua hub yang berputar berlawanan arah terlihat salah
+ * secara mekanis. */
+@keyframes kaset-reel {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.kaset-reel {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.kaset-reel-aktif {
+  animation: kaset-reel 2.4s linear infinite;
+}
+
+/* Gigi reel lebih lambat dari badannya supaya ada kesan massa: hub kecil
+ * berputar lebih cepat daripada lingkar luar pita. */
+.kaset-reel-gigi {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.kaset-reel-gigi-aktif {
+  animation: kaset-reel 1.6s linear infinite;
+}
+
+/* Kilau pita: garis terang bergerak di jendela pita, menandakan pita berjalan. */
+@keyframes kaset-pita {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.kaset-pita-kilau {
+  animation: kaset-pita 1.8s linear infinite;
+}
+
+/* LED: berdenyut halus saat memutar. `opacity` saja, tanpa box-shadow yang
+ * mahal. */
+@keyframes kaset-led {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.kaset-led-aktif {
+  animation: kaset-led 1.6s ease-in-out infinite;
+}
+
+/* Denyut lambat untuk LED mode memuat. */
+@keyframes kaset-led-muat {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.kaset-led-muat {
+  animation: kaset-led-muat 0.9s ease-in-out infinite;
+}
+
+/* Bayangan lembut di bawah kaset saat memutar: kaset terasa "hidup". */
+.kaset-bayang {
+  transition: opacity var(--t-base) var(--ease);
+}
+
 /* Hormati preferensi pengguna (DESIGN-ENDFIELD §8). */
 @media (prefers-reduced-motion: reduce) {
   *,
