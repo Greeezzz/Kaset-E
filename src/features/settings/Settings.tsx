@@ -26,6 +26,7 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
   const [statsAktif, setStatsAktif] = useState(true);
   const [statsMsg, setStatsMsg] = useState<string | null>(null);
   const [modeNp, setModeNp] = useState<"standar" | "kaset">("standar");
+  const [lrclibAktif, setLrclibAktif] = useState(false);
 
   async function ekspor() {
     setBackupBusy(true);
@@ -139,6 +140,9 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
     void invoke<string | null>("setting_get", { key: "listen_stats" })
       .then((v) => setStatsAktif(v !== "0"))
       .catch(() => setStatsAktif(true));
+    void invoke<string | null>("setting_get", { key: "lirik.lrclib" })
+      .then((v) => setLrclibAktif(v === "1"))
+      .catch(() => setLrclibAktif(false));
   }, []);
 
   async function ubahPencatatan(aktif: boolean) {
@@ -250,6 +254,47 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
               </button>
             ))}
           </div>
+        </dd>
+
+        <dt className="muted">{T.pengaturanLirik}</dt>
+        <dd style={{ margin: 0 }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "var(--s-3)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={lrclibAktif}
+              onChange={async (e) => {
+                const checked = e.target.checked;
+                setLrclibAktif(checked);
+                try {
+                  await invoke("setting_set", {
+                    key: "lirik.lrclib",
+                    value: checked ? "1" : "0",
+                  });
+                } catch {
+                  setLrclibAktif(!checked);
+                }
+              }}
+              style={{
+                width: 18,
+                height: 18,
+                accentColor: "var(--accent)",
+                marginTop: 2,
+              }}
+            />
+            <div style={{ display: "grid", gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>{T.lrclibAktif}</span>
+              <span className="muted" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                {T.lrclibKet}
+              </span>
+            </div>
+          </label>
         </dd>
 
         <dt className="muted">{T.pengaturanData}</dt>

@@ -152,6 +152,7 @@ pub fn run() {
             commands::lyrics_set_offset,
             commands::lyrics_delete,
             commands::lyrics_import_file,
+            commands::lyrics_fetch_lrclib,
         ])
         .run(tauri::generate_context!())
         .expect("gagal menjalankan Kaset");

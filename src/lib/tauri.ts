@@ -601,6 +601,27 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       mockLib.lyrics.set(vid, res);
       return res as T;
     }
+    case "lyrics_fetch_lrclib": {
+      const vid = args?.videoId as string;
+      const title = args?.title as string;
+      const res: LyricsResponse = {
+        video_id: vid,
+        lrc: `[00:01.00]${title} - Lirik otomatis dari LRCLIB\n[00:05.00]Baris kedua otomatis`,
+        sumber: "lrclib",
+        offset_ms: 0,
+        diambil_pada: Date.now(),
+        parsed: {
+          is_synced: true,
+          file_offset_ms: 0,
+          lines: [
+            { time_ms: 1000, text: `${title} - Lirik otomatis dari LRCLIB` },
+            { time_ms: 5000, text: "Baris kedua otomatis" },
+          ],
+        },
+      };
+      mockLib.lyrics.set(vid, res);
+      return res as T;
+    }
     default:
       return null as T;
   }

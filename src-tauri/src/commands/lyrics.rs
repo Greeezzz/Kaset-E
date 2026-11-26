@@ -6,6 +6,7 @@ use tauri::State;
 use crate::db::lyrics;
 use crate::error::AppResult;
 use crate::lyrics::lrc::{parse_lrc, ParsedLyrics};
+use crate::lyrics::lrclib::fetch_lrclib;
 use crate::state::AppState;
 
 /// Hasil pengembalian saat UI meminta lirik:
@@ -75,6 +76,66 @@ pub async fn lyrics_set_offset(
 #[tauri::command]
 pub async fn lyrics_delete(state: State<'_, AppState>, video_id: String) -> AppResult<bool> {
     lyrics::delete_lyrics(&state.db, &video_id)
+}
+
+/// Mengambil lirik dari LRCLIB jika setting `lirik.lrclib` bernilai "1" (§4 L5).
+/// Jika berhasil ditemukan, otomatis disimpan ke database SQLite sebagai sumber "lrclib".
+#[tauri::command]
+pub async fn lyrics_fetch_lrclib(
+    state: State<'_, AppState>,
+    video_id: String,
+    title: String,
+    artist: String,
+    duration_secs: Option<f64>,
+) -> AppResult<Option<LyricsResponse>> {
+    // 1. Cek setting privasi (opt-in)
+    let opt_in = crate::db::get_setting(&state.db, "lirik.lrclib")?.unwrap_or_else(|| "0".into());
+    if opt_in != "1" {
+        return Ok(None);
+    }
+
+    // 2. Cek apakah di database sudah ada lirik (hindari network request ganda)
+    if let Some(existing) = lyrics::get_lyrics(&state.db, &video_id)? {
+        let parsed = parse_lrc(&existing.lrc);
+        return Ok(Some(LyricsResponse {
+            video_id: existing.video_id,
+            lrc: existing.lrc,
+            sumber: existing.sumber,
+            offset_ms: existing.offset_ms,
+            diambil_pada: existing.diambil_pada,
+            parsed,
+        }));
+    }
+
+    // 3. Panggil API LRCLIB
+    match fetch_lrclib(&title, &artist, duration_secs).await {
+        Ok(Some(text)) => {
+            let parsed = parse_lrc(&text);
+            if parsed.lines.is_empty() {
+                return Ok(None);
+            }
+
+            // Simpan otomatis ke DB
+            lyrics::set_lyrics_text(&state.db, &video_id, &text, "lrclib", None)?;
+
+            let raw = lyrics::get_lyrics(&state.db, &video_id)?
+                .ok_or_else(|| crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into()))?;
+
+            Ok(Some(LyricsResponse {
+                video_id: raw.video_id,
+                lrc: raw.lrc,
+                sumber: raw.sumber,
+                offset_ms: raw.offset_ms,
+                diambil_pada: raw.diambil_pada,
+                parsed,
+            }))
+        }
+        Ok(None) => Ok(None),
+        Err(e) => {
+            tracing::warn!(error = %e, "LRCLIB fetch error");
+            Ok(None)
+        }
+    }
 }
 
 /// Impor berkas lirik dari path lokal (dialog native).

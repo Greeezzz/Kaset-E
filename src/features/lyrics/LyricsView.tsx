@@ -66,15 +66,24 @@ export function LyricsView({
 
   const videoId = track?.videoId;
 
-  // Muat lirik dari DB saat lagu berubah
+  // Muat lirik dari DB saat lagu berubah, fallback ke LRCLIB jika opt-in aktif (§4 L5)
   const muatLirik = useCallback(
-    async (vid: string) => {
+    async (currentTrack: Track) => {
       setLoading(true);
       setErrorMsg(null);
       setActiveIndex(-1);
       setUserScrolled(false);
       try {
-        const res = await invoke<LyricsResponse | null>("lyrics_get", { videoId: vid });
+        let res = await invoke<LyricsResponse | null>("lyrics_get", { videoId: currentTrack.videoId });
+        if (!res && runningInTauri) {
+          // Lirik belum ada di DB lokal -> Coba ambil otomatis dari LRCLIB (hanya jika lirik.lrclib diaktifkan)
+          res = await invoke<LyricsResponse | null>("lyrics_fetch_lrclib", {
+            videoId: currentTrack.videoId,
+            title: currentTrack.title,
+            artist: currentTrack.artist,
+            durationSecs: currentTrack.durationMs ? currentTrack.durationMs / 1000 : null,
+          });
+        }
         setData(res);
         setOffsetMs(res?.offset_ms ?? 0);
         onLyricsLoaded?.(res);
@@ -88,13 +97,13 @@ export function LyricsView({
   );
 
   useEffect(() => {
-    if (!videoId) {
+    if (!track) {
       setData(null);
       onLyricsLoaded?.(null);
       return;
     }
-    void muatLirik(videoId);
-  }, [videoId, muatLirik, onLyricsLoaded]);
+    void muatLirik(track);
+  }, [track, muatLirik, onLyricsLoaded]);
 
   // Efek Sinkronisasi Hemat Energi (§4 L3):
   // Menghitung baris aktif via rAF loop hanya saat memutar & tersinkron.

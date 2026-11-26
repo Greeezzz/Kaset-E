@@ -288,6 +288,12 @@ export const T = {
   ukuranFontLirik: "UKURAN TEKS",
   modeRedup: "MODE REDUP",
 
+  // LRCLIB (L5)
+  pengaturanLirik: "Lirik",
+  lrclibAktif: "Ambil lirik otomatis (LRCLIB)",
+  lrclibKet: "Mengambil lirik otomatis dari lrclib.net berdasarkan judul dan artis lagu saat tampilan lirik dibuka. Tanpa telemetri lain.",
+  lrclibMencari: "Mencari lirik di LRCLIB…",
+
   cadanganHint:
     "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",
   disclaimer:

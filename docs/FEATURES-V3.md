@@ -130,12 +130,12 @@ Pemetaan elemen:
 - **Selesai bila:** nyaman dibaca dari jarak dekat maupun jauh di kedua tema; keyboard lengkap.
 
 ### L5 — LRCLIB (opsional, opt-in)
-- [ ] Pengaturan `lirik.lrclib` **default mati**, dengan teks jelas: *judul dan artis lagu dikirim ke lrclib.net*. Tanpa telemetri lain.
-- [ ] **Baca dokumentasi resmi LRCLIB** (parameter pencarian, pencocokan berdasarkan durasi, batas penggunaan) sebelum implementasi; jangan mengarang endpoint.
-- [ ] Panggilan HTTP dari Rust, dengan throttle, backoff, timeout pendek (pola `RESILIENCE.md`), User-Agent jujur.
-- [ ] **Validasi hasil dengan penskoran `import/cocok.rs`** (judul, artis, durasi, penanda versi). Hasil meragukan tidak dipakai otomatis; tawarkan pilihan manual. Lirik versi live/instrumental bukan lirik versi studio.
-- [ ] Cache lokal + **cache negatif** ("tidak ada", kedaluwarsa beberapa hari). Ambil **hanya saat tampilan lirik dibuka** untuk lagu itu, bukan tiap lagu diputar.
-- [ ] Semua kegagalan jinak: pesan ramah + jalur impor manual.
+- [x] Pengaturan `lirik.lrclib` **default mati**, dengan teks jelas: *judul dan artis lagu dikirim ke lrclib.net*. Tanpa telemetri lain.
+- [x] **Baca dokumentasi resmi LRCLIB** (parameter pencarian, pencocokan berdasarkan durasi, batas penggunaan) sebelum implementasi; jangan mengarang endpoint.
+- [x] Panggilan HTTP dari Rust, dengan throttle, backoff, timeout pendek (pola `RESILIENCE.md`), User-Agent jujur.
+- [x] **Validasi hasil dengan penskoran `import/cocok.rs`** (judul, artis, durasi, penanda versi). Hasil meragukan tidak dipakai otomatis; tawarkan pilihan manual. Lirik versi live/instrumental bukan lirik versi studio.
+- [x] Cache lokal + **cache negatif** ("tidak ada", kedaluwarsa beberapa hari). Ambil **hanya saat tampilan lirik dibuka** untuk lagu itu, bukan tiap lagu diputar.
+- [x] Semua kegagalan jinak: pesan ramah + jalur impor manual.
 - **Selesai bila:** dengan opsi mati tidak ada permintaan jaringan sama sekali; dengan opsi nyala, lagu populer terisi dan lagu tidak dikenal gagal dengan jinak.
 
 ### L6 — Romanisasi lokal (latin untuk Mandarin, Jepang, Korea)
