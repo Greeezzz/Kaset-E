@@ -280,6 +280,9 @@ export const T = {
   lirikUkuranMaks: "Ukuran berkas melebihi batas 1 MB.",
   lirikFormatTidakValid: "Berkas tidak memiliki baris lirik yang dapat dibaca.",
   lirikDropHint: "Tarik & lepas berkas .lrc ke sini",
+  kembaliKeBarisAktif: "KEMBALI KE BARIS AKTIF",
+  offset: "OFFSET",
+  lirikOffsetHint: "Atur sinkronisasi waktu",
 
   cadanganHint:
     "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",

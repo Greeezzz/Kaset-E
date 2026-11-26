@@ -154,7 +154,11 @@ export function FullPlayer({
                     </p>
                   }
                 >
-                  <LyricsView track={state.track} />
+                  <LyricsView
+                    track={state.track}
+                    onSeek={onSeek}
+                    isPlaying={state.status === "playing"}
+                  />
                 </Suspense>
               </div>
             </>

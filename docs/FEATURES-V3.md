@@ -115,13 +115,13 @@ Pemetaan elemen:
 - **Selesai bila:** impor, hapus, dan pemulihan setelah restart bekerja; berkas rusak tidak membuat app crash.
 
 ### L3 — Tampilan lirik tersinkron
-- [ ] Komponen `LyricsView` (dimuat malas): baris aktif **disorot kuning** (aturan kontras: kuning hanya sebagai latar dengan teks hitam, atau di atas latar gelap), baris lain redup.
-- [ ] Auto-scroll halus ke baris aktif; berhenti saat pengguna scroll manual, dengan tombol `KEMBALI KE BARIS AKTIF`.
-- [ ] **Klik baris → seek** ke timestamp baris itu (pakai fungsi seek yang sudah ada, memperhitungkan offset).
-- [ ] Kontrol offset ±100 ms (tersimpan per lagu).
-- [ ] **Sinkronisasi hemat:** `requestAnimationFrame` hanya saat tampilan terlihat; baca posisi lewat getter baca-saja `audioEngine`; render ulang **hanya saat indeks baris berubah**.
-- [ ] Lirik non-sinkron tampil sebagai teks biasa yang bisa di-scroll.
-- [ ] Keadaan kosong: `LIRIK TIDAK ADA` + tombol impor.
+- [x] Komponen `LyricsView` (dimuat malas): baris aktif **disorot kuning** (aturan kontras: kuning hanya sebagai latar dengan teks hitam, atau di atas latar gelap), baris lain redup.
+- [x] Auto-scroll halus ke baris aktif; berhenti saat pengguna scroll manual, dengan tombol `KEMBALI KE BARIS AKTIF`.
+- [x] **Klik baris → seek** ke timestamp baris itu (pakai fungsi seek yang sudah ada, memperhitungkan offset).
+- [x] Kontrol offset ±100 ms (tersimpan per lagu).
+- [x] **Sinkronisasi hemat:** `requestAnimationFrame` hanya saat tampilan terlihat; baca posisi lewat getter baca-saja `audioEngine`; render ulang **hanya saat indeks baris berubah**.
+- [x] Lirik non-sinkron tampil sebagai teks biasa yang bisa di-scroll.
+- [x] Keadaan kosong: `LIRIK TIDAK ADA` + tombol impor.
 - **Selesai bila:** sorotan tepat pada baris yang sedang dinyanyikan saat memutar, seek lewat klik akurat, dan CPU tidak naik berarti.
 
 ### L4 — Tampilan penuh (fullscreen) lirik
