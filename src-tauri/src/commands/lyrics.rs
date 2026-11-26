@@ -76,3 +76,47 @@ pub async fn lyrics_set_offset(
 pub async fn lyrics_delete(state: State<'_, AppState>, video_id: String) -> AppResult<bool> {
     lyrics::delete_lyrics(&state.db, &video_id)
 }
+
+/// Impor berkas lirik dari path lokal (dialog native).
+/// Membaca berkas (maks 1MB), memvalidasi teks UTF-8 / decode, menyimpan ke DB, dan mengembalikan parsed lirik.
+#[tauri::command]
+pub async fn lyrics_import_file(
+    state: State<'_, AppState>,
+    video_id: String,
+    path: String,
+) -> AppResult<LyricsResponse> {
+    let metadata = std::fs::metadata(&path)?;
+    if metadata.len() > 1_048_576 {
+        return Err(crate::error::AppError::Validation(
+            "Ukuran berkas lirik melebihi batas 1 MB".into(),
+        ));
+    }
+
+    let bytes = std::fs::read(&path)?;
+    // Coba konversi UTF-8; jika bukan UTF-8 murni, gunakan lossy decode
+    let text = match String::from_utf8(bytes.clone()) {
+        Ok(s) => s,
+        Err(_) => String::from_utf8_lossy(&bytes).to_string(),
+    };
+
+    let parsed = parse_lrc(&text);
+    if parsed.lines.is_empty() {
+        return Err(crate::error::AppError::Validation(
+            "Berkas lirik tidak memiliki baris teks yang dapat dibaca".into(),
+        ));
+    }
+
+    lyrics::set_lyrics_text(&state.db, &video_id, &text, "impor", None)?;
+
+    let raw = lyrics::get_lyrics(&state.db, &video_id)?
+        .ok_or_else(|| crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into()))?;
+
+    Ok(LyricsResponse {
+        video_id: raw.video_id,
+        lrc: raw.lrc,
+        sumber: raw.sumber,
+        offset_ms: raw.offset_ms,
+        diambil_pada: raw.diambil_pada,
+        parsed,
+    })
+}

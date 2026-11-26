@@ -581,6 +581,26 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       const vid = args?.videoId as string;
       return mockLib.lyrics.delete(vid) as T;
     }
+    case "lyrics_import_file": {
+      const vid = args?.videoId as string;
+      const res: LyricsResponse = {
+        video_id: vid,
+        lrc: "[00:01.00]Lirik contoh dari berkas impor\n[00:04.00]Baris kedua",
+        sumber: "impor",
+        offset_ms: 0,
+        diambil_pada: Date.now(),
+        parsed: {
+          is_synced: true,
+          file_offset_ms: 0,
+          lines: [
+            { time_ms: 1000, text: "Lirik contoh dari berkas impor" },
+            { time_ms: 4000, text: "Baris kedua" },
+          ],
+        },
+      };
+      mockLib.lyrics.set(vid, res);
+      return res as T;
+    }
     default:
       return null as T;
   }

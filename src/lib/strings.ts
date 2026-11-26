@@ -269,6 +269,18 @@ export const T = {
   imporPilih: "Pilih",
   selesai: "SELESAI",
 
+  // Lirik (FEATURES-V3 §4)
+  lirik: "LIRIK",
+  lirikTidakAda: "Lirik belum ada untuk lagu ini",
+  imporLrc: "IMPOR .LRC",
+  hapusLirik: "HAPUS LIRIK",
+  lirikTersinkron: "Tersinkron",
+  lirikTeksBiasa: "Teks polos",
+  lirikGagalBaca: "Gagal membaca berkas lirik.",
+  lirikUkuranMaks: "Ukuran berkas melebihi batas 1 MB.",
+  lirikFormatTidakValid: "Berkas tidak memiliki baris lirik yang dapat dibaca.",
+  lirikDropHint: "Tarik & lepas berkas .lrc ke sini",
+
   cadanganHint:
     "Simpan favorit dan playlist sebagai berkas JSON untuk cadangan atau dipindah ke perangkat lain. Impor menggabungkan data tanpa menghapus yang sudah ada.",
   disclaimer:

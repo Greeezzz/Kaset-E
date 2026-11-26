@@ -109,9 +109,9 @@ Pemetaan elemen:
 - **Selesai bila:** tes hijau; belum ada perubahan UI.
 
 ### L2 — Impor manual `.lrc`
-- [ ] Tombol `IMPOR .LRC` (dialog berkas native lewat `tauri-plugin-dialog` yang sudah ada) dan **drag-drop** ke tampilan lirik.
-- [ ] Validasi: ukuran maks ±1 MB, UTF-8 (BOM didukung; fallback aman bila bukan UTF-8), tolak berkas tanpa baris yang bisa dibaca dengan pesan ramah.
-- [ ] Simpan ke DB per `video_id`; tombol hapus lirik.
+- [x] Tombol `IMPOR .LRC` (dialog berkas native lewat `tauri-plugin-dialog` yang sudah ada) dan **drag-drop** ke tampilan lirik.
+- [x] Validasi: ukuran maks ±1 MB, UTF-8 (BOM didukung; fallback aman bila bukan UTF-8), tolak berkas tanpa baris yang bisa dibaca dengan pesan ramah.
+- [x] Simpan ke DB per `video_id`; tombol hapus lirik.
 - **Selesai bila:** impor, hapus, dan pemulihan setelah restart bekerja; berkas rusak tidak membuat app crash.
 
 ### L3 — Tampilan lirik tersinkron

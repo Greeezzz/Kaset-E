@@ -18,6 +18,7 @@ import { T } from "../../lib/strings";
  * tidak boleh membebani jalur yang tidak memakainya.
  */
 const KasetMode = lazy(() => import("./KasetMode").then((m) => ({ default: m.KasetMode })));
+const LyricsView = lazy(() => import("../lyrics/LyricsView").then((m) => ({ default: m.LyricsView })));
 
 export function FullPlayer({
   state,
@@ -142,6 +143,19 @@ export function FullPlayer({
                   {state.track.title}
                 </div>
                 <div className="muted">{state.track.artist}</div>
+              </div>
+
+              {/* Lirik Lagu (L2/L3) */}
+              <div style={{ width: "100%", maxWidth: 440 }}>
+                <Suspense
+                  fallback={
+                    <p className="mono muted" style={{ textAlign: "center", fontSize: 11 }}>
+                      {T.memuat}
+                    </p>
+                  }
+                >
+                  <LyricsView track={state.track} />
+                </Suspense>
               </div>
             </>
           ) : (
