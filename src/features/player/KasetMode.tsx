@@ -4,6 +4,7 @@ import type { PlayerState } from "../../types";
 import { T } from "../../lib/strings";
 import { invoke, runningInTauri } from "../../lib/tauri";
 import { useAnimasiKaset } from "../../hooks/useAnimasiKaset";
+import { useProgresKaset } from "../../hooks/useProgresKaset";
 import { KasetSvg, KasetSvgBercover } from "./KasetSvg";
 
 /**
@@ -30,8 +31,8 @@ export function KasetMode({ state }: { state: PlayerState }) {
   // seperti aplikasi yang bohong.
   const { berputar, kurangiGerak, terlihat } = useAnimasiKaset(state.status === "playing");
 
-  const progres =
-    state.durationMs > 0 ? Math.min(1, Math.max(0, state.positionMs / state.durationMs)) : 0;
+  // Di-throttle 1 detik (§K3): radius pita tidak boleh dihitung tiap frame.
+  const progres = useProgresKaset(state.positionMs, state.durationMs, state.track?.videoId);
 
   useEffect(() => {
     if (!runningInTauri) return;
