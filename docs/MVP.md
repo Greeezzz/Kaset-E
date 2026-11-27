@@ -256,7 +256,7 @@ Tiga bug ditemukan karena mengukur pada data nyata, bukan lewat unit test: favor
 
 - [x] Parser CSV/JSON + tes. CSV Exportify + CSV/JSON generik. Menangani BOM UTF-8, tanda kutip bersarang, artis ganda (`;`), judul non-ASCII, dedupe. 13 tes.
 - [x] Normalisasi + skor kecocokan + tes. Modul murni `import/cocok.rs`, 12 tes: judul 65% + artis 35%, bonus/penalti durasi dan penanda versi. Ambang 0,80 otomatis / 0,60 review.
-- [ ] Import dari link playlist YouTube Music (publik) — belum; butuh akses playlist publik, ditunda.
+- [x] Import dari link playlist YouTube Music (publik) — `import_tautan`: tautan divalidasi dulu (https, host YouTube, parameter `list`), lalu satu panggilan `yt-dlp --flat-playlist --dump-single-json` (metadata saja, tanpa unduhan dan tanpa pencarian per lagu). Entri dihapus/privat dilewati dan dihitung, `videoId` dobel dibuang, penyimpanan satu transaksi.
 - [x] Layar review + ringkasan. Dialog 4 tahap (pilih berkas → progress → review dengan filter/filter checkbox → hasil). Baris `review` TIDAK tercentang otomatis.
 - [x] Batalkan/lanjutkan job. Tombol batal memeriksa tanda setiap lagu; job kedua ditolak supaya tidak berebut katalog; timeout 15 detik per pencarian.
 

@@ -429,6 +429,78 @@ pub fn label_keputusan(k: Keputusan) -> &'static str {
     sebut_keputusan(k)
 }
 
+/// Payload impor dari tautan playlist YouTube.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermintaanTautan {
+    pub tautan: String,
+    /// Kosong = buat playlist baru dari judul playlist YouTube.
+    #[serde(default)]
+    pub playlist_id: Option<i64>,
+    /// Menimpa judul playlist sumber kalau diisi.
+    #[serde(default)]
+    pub nama_playlist: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HasilTautan {
+    pub playlist_id: i64,
+    /// Judul playlist di YouTube (atau "Playlist YouTube" kalau kosong).
+    pub judul: String,
+    pub ditambahkan: usize,
+    /// Dobel: muncul dua kali di sumber, atau sudah ada di playlist tujuan.
+    pub dobel: usize,
+    /// Entri dihapus/privat/tanpa judul yang tidak bisa disimpan.
+    pub dilewati: usize,
+}
+
+/// Impor playlist YouTube dari tautan (Fase 5).
+///
+/// Satu perjalanan ke yt-dlp untuk seluruh playlist (`--flat-playlist`), lalu
+/// satu transaksi database. Tidak ada pencarian per lagu dan tidak ada unduhan:
+/// yang disimpan hanya metadata, sama seperti hasil impor CSV.
+#[tauri::command]
+pub async fn import_tautan(
+    state: State<'_, AppState>,
+    permintaan: PermintaanTautan,
+) -> AppResult<HasilTautan> {
+    let tautan = crate::import::tautan::parse(&permintaan.tautan)?;
+    let hasil = crate::import::ytplaylist::ambil(&tautan.url).await?;
+
+    if hasil.lagu.is_empty() {
+        return Err(AppError::invalid(
+            "playlist itu tidak berisi lagu yang bisa diimpor",
+        ));
+    }
+
+    let nama = permintaan
+        .nama_playlist
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&hasil.judul);
+
+    let simpan =
+        crate::db::playlist::impor_lagu(&state.db, permintaan.playlist_id, nama, &hasil.lagu)?;
+
+    tracing::info!(
+        playlist_id = simpan.playlist_id,
+        ditambahkan = simpan.ditambahkan,
+        dobel = simpan.dobel + hasil.dobel,
+        dilewati = hasil.dilewati,
+        "impor playlist dari tautan selesai"
+    );
+
+    Ok(HasilTautan {
+        playlist_id: simpan.playlist_id,
+        judul: hasil.judul,
+        ditambahkan: simpan.ditambahkan,
+        dobel: simpan.dobel + hasil.dobel,
+        dilewati: hasil.dilewati,
+    })
+}
+
 #[cfg(test)]
 mod tests_csv {
     use super::*;

@@ -66,6 +66,34 @@ Dua bug yang hanya ketemu lewat pengujian di aplikasi: job kedua tidak bisa
 membatalkan job pertama (tanda batal di-reset di awal), dan tidak ada timeout
 per pencarian sehingga satu pencarian menggantung menahan seluruh job.
 
+### Impor dari tautan playlist
+
+Jalur kedua di dialog yang sama: tempel tautan playlist YouTube/YouTube Music,
+tidak perlu berkas dan tidak ada tahap pencocokan — lagunya sudah dari YouTube.
+
+- **Validasi sebelum proses anak.** `import/tautan.rs` hanya menerima `https://`,
+  host `youtube.com`/`www`/`m`/`music.youtube.com`, jalur `playlist` atau
+  `watch`, dan parameter `list` sepanjang 10–100 karakter `[A-Za-z0-9_-]`.
+  Mix otomatis (`RD…`) ditolak karena isinya tidak tetap. Tanpa ini, satu
+  tautan sembarang menghabiskan batas waktu 180 detik sebelum gagal.
+- **Satu proses, metadata saja.** `import/ytplaylist.rs` menjalankan
+  `yt-dlp --flat-playlist --dump-single-json --ignore-errors` sekali untuk
+  seluruh playlist. Tidak ada unduhan, tidak ada pencarian per lagu, tidak ada
+  cover baru — sama seperti impor CSV. Playlist 500 lagu selesai dalam puluhan
+  detik, bukan jam.
+- **Entri rusak dihitung, bukan disimpan.** Judul `[Deleted video]`,
+  `[Private video]`, entri tanpa id/judul, dan `null` dari yt-dlp dilewati;
+  `videoId` yang muncul dua kali di sumber dibuang. Ketiganya dilaporkan
+  terpisah ke UI (ditambahkan / dobel / dilewati).
+- **Satu transaksi.** `db::playlist::impor_lagu` memanggil `ensure_tracks` di
+  luar lock (lock bersarang pernah jadi jalan buntu di proyek ini), lalu
+  menulis playlist baru, seluruh `playlist_tracks`, dan `updated_at` dalam satu
+  transaksi. Aplikasi yang ditutup di tengah jalan tidak meninggalkan playlist
+  separuh terisi.
+- **Error jelas.** yt-dlp tidak ada → pesan dari `ensure_available`; playlist
+  privat/dihapus → `NotFound` dengan pesan yang bisa ditindaklanjuti; masalah
+  jaringan → `Network` (layak dicoba lagi).
+
 ## Redesign layout — 10 dari 10 langkah — SELESAI
 
 Mengikuti `DESIGN-LAYOUT.md` §10. Seluruh sepuluh langkah sudah selesai dikerjakan.

@@ -331,11 +331,120 @@ pub fn tracks(db: &crate::db::Db, playlist_id: i64) -> AppResult<Vec<Track>> {
     })
 }
 
+/// Hasil menambahkan sekumpulan lagu ke playlist dalam satu transaksi.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HasilImpor {
+    pub playlist_id: i64,
+    pub ditambahkan: usize,
+    /// Sudah ada di playlist tujuan (atau dobel di daftar sumber).
+    pub dobel: usize,
+}
+
+/// Tambahkan banyak lagu ke playlist sekaligus, transaksional.
+///
+/// Dipakai impor dari tautan playlist YouTube, di mana satu playlist bisa
+/// berisi ratusan lagu. Menulis satu per satu lewat `add_track` berarti ratusan
+/// transaksi terpisah; kalau aplikasi ditutup di tengah jalan, playlist berisi
+/// separuh data tanpa penjelasan. Di sini seluruh penulisan (playlist baru,
+/// baris `playlist_tracks`, `updated_at`) berada dalam satu transaksi: berhasil
+/// semua, atau tidak sama sekali.
+///
+/// `ensure_tracks` sengaja dipanggil SEBELUM lock diambil. Fungsi itu membuka
+/// lock-nya sendiri, dan memanggilnya di dalam `db.with` akan membuat lock
+/// bersarang — jalan buntu yang sudah pernah terjadi di proyek ini.
+///
+/// `playlist_id` kosong berarti playlist baru dibuat dari `nama`.
+pub fn impor_lagu(
+    db: &crate::db::Db,
+    playlist_id: Option<i64>,
+    nama: &str,
+    lagu: &[Track],
+) -> AppResult<HasilImpor> {
+    if lagu.is_empty() {
+        return Err(AppError::invalid("tidak ada lagu untuk disimpan"));
+    }
+    crate::db::ensure_tracks(db, lagu)?;
+
+    let nama: String = nama.trim().chars().take(80).collect();
+    let nama = if nama.is_empty() {
+        "Hasil impor".to_string()
+    } else {
+        nama
+    };
+
+    db.with(|c| {
+        let tx = c.unchecked_transaction()?;
+        let now = now_ms();
+
+        let pid = match playlist_id {
+            Some(id) => {
+                let ada: bool = tx
+                    .prepare("SELECT 1 FROM playlists WHERE id = ?1")?
+                    .exists([id])?;
+                if !ada {
+                    return Err(AppError::NotFound(format!("playlist {id} tidak ada")));
+                }
+                id
+            }
+            None => {
+                tx.execute(
+                    "INSERT INTO playlists (name, created_at, updated_at) VALUES (?1, ?2, ?2)",
+                    params![nama, now],
+                )?;
+                tx.last_insert_rowid()
+            }
+        };
+
+        let mut posisi: i64 = tx.query_row(
+            "SELECT COALESCE(MAX(position) + 1, 0) FROM playlist_tracks WHERE playlist_id = ?1",
+            [pid],
+            |r| r.get(0),
+        )?;
+
+        let mut ditambahkan = 0usize;
+        let mut dobel = 0usize;
+        {
+            let mut sudah = tx.prepare(
+                "SELECT 1 FROM playlist_tracks WHERE playlist_id = ?1 AND video_id = ?2",
+            )?;
+            let mut sisip = tx.prepare(
+                "INSERT INTO playlist_tracks (playlist_id, video_id, position, added_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+            )?;
+            for t in lagu {
+                if sudah.exists(params![pid, t.video_id])? {
+                    dobel += 1;
+                    continue;
+                }
+                sisip.execute(params![pid, t.video_id, posisi, now])?;
+                posisi += 1;
+                ditambahkan += 1;
+            }
+        }
+
+        // Hanya sentuh `updated_at` kalau memang ada yang berubah; playlist
+        // yang seluruh isinya dobel tidak perlu naik ke atas daftar terbaru.
+        if ditambahkan > 0 {
+            tx.execute(
+                "UPDATE playlists SET updated_at = ?1 WHERE id = ?2",
+                params![now, pid],
+            )?;
+        }
+
+        tx.commit()?;
+        Ok(HasilImpor {
+            playlist_id: pid,
+            ditambahkan,
+            dobel,
+        })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::Db;
-
     fn track(id: &str, title: &str) -> Track {
         Track {
             video_id: id.to_string(),
@@ -462,5 +571,69 @@ mod tests {
         let shifted = vec!["v:b", "v:c", "v:d", "v:e"];
         assert_eq!(get(&db, p.id).unwrap().cover_keys, shifted);
         assert_eq!(list(&db).unwrap()[0].cover_keys, shifted);
+    }
+
+    #[test]
+    fn impor_lagu_membuat_playlist_dan_menghitung_dobel() {
+        let db = Db::open_in_memory().unwrap();
+        let lagu = vec![track("a", "A"), track("b", "B"), track("a", "A")];
+
+        let hasil = impor_lagu(&db, None, "  Dari tautan  ", &lagu).unwrap();
+        assert_eq!(hasil.ditambahkan, 2, "yang dobel di daftar sumber dihitung");
+        assert_eq!(hasil.dobel, 1);
+
+        let p = get(&db, hasil.playlist_id).unwrap();
+        assert_eq!(p.name, "Dari tautan", "nama dirapikan dan dipotong");
+        assert_eq!(p.track_count, 2);
+
+        let isi = tracks(&db, hasil.playlist_id).unwrap();
+        assert_eq!(
+            isi.iter().map(|t| t.video_id.as_str()).collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
+    }
+
+    #[test]
+    fn impor_lagu_menambah_setelah_lagu_lama_tanpa_menggandakan() {
+        let db = Db::open_in_memory().unwrap();
+        let p = create(&db, "Tujuan").unwrap();
+        add_track(&db, p.id, &track("lama", "Lama")).unwrap();
+
+        let hasil = impor_lagu(
+            &db,
+            Some(p.id),
+            "diabaikan",
+            &[track("lama", "Lama"), track("baru", "Baru")],
+        )
+        .unwrap();
+        assert_eq!(hasil.playlist_id, p.id);
+        assert_eq!(hasil.ditambahkan, 1);
+        assert_eq!(hasil.dobel, 1);
+
+        let isi = tracks(&db, p.id).unwrap();
+        assert_eq!(
+            isi.iter().map(|t| t.video_id.as_str()).collect::<Vec<_>>(),
+            vec!["lama", "baru"]
+        );
+    }
+
+    #[test]
+    fn impor_lagu_menolak_playlist_tujuan_yang_tidak_ada() {
+        let db = Db::open_in_memory().unwrap();
+        let hasil = impor_lagu(&db, Some(999), "x", &[track("a", "A")]);
+        assert!(matches!(hasil, Err(AppError::NotFound(_))));
+        assert!(
+            list(&db).unwrap().is_empty(),
+            "tidak boleh ada playlist yatim"
+        );
+    }
+
+    #[test]
+    fn impor_lagu_menolak_daftar_kosong() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(matches!(
+            impor_lagu(&db, None, "x", &[]),
+            Err(AppError::Invalid(_))
+        ));
     }
 }

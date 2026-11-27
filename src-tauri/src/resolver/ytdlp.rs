@@ -23,7 +23,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 ///
 /// Di platform lain fungsi ini tidak melakukan apa pun; hanya Windows yang
 /// punya masalah jendela konsol untuk proses anak.
-fn tanpa_jendela(cmd: &mut Command) -> &mut Command {
+pub(crate) fn tanpa_jendela(cmd: &mut Command) -> &mut Command {
     // `tokio::process::Command` punya `creation_flags` sendiri di Windows,
     // jadi tidak perlu mengimpor `std::os::windows::process::CommandExt`.
     #[cfg(windows)]

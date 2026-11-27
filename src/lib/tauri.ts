@@ -221,6 +221,30 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       mockLib.items.set(p.id, []);
       return p as T;
     }
+    case "import_tautan": {
+      // Mock tidak bisa memanggil yt-dlp; cukup buat playlist kosong dengan
+      // nama dari tautan supaya alur dialog bisa dicoba di browser.
+      const p = {
+        id: ++mockLib.seq,
+        name: "Playlist dari tautan",
+        trackCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        coverKeys: [] as string[],
+        description: null as string | null,
+        coverMode: "auto" as const,
+        coverPath: null as string | null,
+      };
+      mockLib.playlists.unshift(p);
+      mockLib.items.set(p.id, []);
+      return {
+        playlistId: p.id,
+        judul: p.name,
+        ditambahkan: 0,
+        dobel: 0,
+        dilewati: 0,
+      } as T;
+    }
     case "rename_playlist": {
       const p = mockLib.playlists.find((x) => x.id === Number(args?.id));
       if (p) {
