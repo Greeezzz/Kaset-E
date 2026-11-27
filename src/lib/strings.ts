@@ -319,6 +319,18 @@ export const T = {
   lrclibKet:
     "Mengambil lirik otomatis dari lrclib.net berdasarkan judul dan artis lagu saat tampilan lirik dibuka. Tanpa telemetri lain.",
   lrclibMencari: "Mencari lirik di LRCLIB…",
+  lrclibCari: "CARI LIRIK",
+  lrclibCariManual: "CARI LIRIK (LRCLIB)",
+  lrclibQueryLabel: "Kata kunci",
+  lrclibQueryHint: "Judul lagu, atau artis - judul",
+  lrclibTombolCari: "CARI",
+  lrclibKosong: "Tidak ada hasil. Coba kata kunci lain.",
+  lrclibGagal: "Gagal mencari lirik di LRCLIB.",
+  lrclibGagalSimpan: "Lirik ditemukan tapi gagal disimpan.",
+  lrclibHasilJudul: "JUDUL",
+  lrclibHasilArtis: "ARTIS",
+  lrclibHasilDurasi: "DURASI",
+  lrclibHasilStatus: "STATUS",
 
   // Romanisasi (L6)
   romanisasi: "ROMANISASI",

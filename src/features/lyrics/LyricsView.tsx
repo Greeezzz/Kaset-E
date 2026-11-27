@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LyricsResponse, Track } from "../../types";
+import type { LrclibCandidate, LrclibMetadata, LyricsResponse, Track } from "../../types";
 import { audioEngine } from "../../lib/audio";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
@@ -50,6 +50,14 @@ export function LyricsView({
   const [syncToolsOpen, setSyncToolsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Panel pencarian manual LRCLIB (§4 L5): jalur terakhir saat judul video
+  // terlalu tidak standar untuk pencarian otomatis.
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualQuery, setManualQuery] = useState("");
+  const [manualResults, setManualResults] = useState<LrclibCandidate[]>([]);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -76,6 +84,11 @@ export function LyricsView({
       setErrorMsg(null);
       setActiveIndex(-1);
       setUserScrolled(false);
+      // Panel manual selalu mulai bersih saat lagu berganti.
+      setManualOpen(false);
+      setManualQuery("");
+      setManualResults([]);
+      setManualError(null);
       try {
         let res = await invoke<LyricsResponse | null>("lyrics_get", {
           videoId: currentTrack.videoId,
@@ -209,6 +222,76 @@ export function LyricsView({
     [videoId, offsetMs],
   );
 
+  // Buka panel pencarian manual dan isi kolom dengan judul yang sudah bersih.
+  const bukaCariManual = useCallback(async () => {
+    setSyncToolsOpen(true);
+    setManualOpen(true);
+    setManualError(null);
+    if (manualQuery.trim() || !track) return;
+    try {
+      const meta = await invoke<LrclibMetadata>("lyrics_metadata_lirik", {
+        title: track.title,
+        artist: track.artist,
+      });
+      setManualQuery(meta.judul_bersih || track.title);
+    } catch (err) {
+      console.warn("Gagal membersihkan metadata lirik:", err);
+      setManualQuery(track.title);
+    }
+  }, [manualQuery, track]);
+
+  // Cari manual: user yang menentukan kata kunci, bukan sanitizer otomatis.
+  const jalankanCariManual = useCallback(async () => {
+    const q = manualQuery.trim();
+    if (!q) return;
+    setManualLoading(true);
+    setManualError(null);
+    try {
+      const hasil = await invoke<LrclibCandidate[]>("lyrics_search_lrclib", {
+        query: q,
+        durationSecs: track?.durationMs ? track.durationMs / 1000 : null,
+      });
+      setManualResults(hasil);
+      if (hasil.length === 0) setManualError(T.lrclibKosong);
+    } catch (err) {
+      console.warn("Gagal mencari lirik manual:", err);
+      setManualResults([]);
+      setManualError(T.lrclibGagal);
+    } finally {
+      setManualLoading(false);
+    }
+  }, [manualQuery, track]);
+
+  // Terapkan kandidat pilihan user. Tersimpan per videoId, jadi pilihan yang
+  // sama otomatis dipakai lagi saat video ini diputar ulang (§5 cache).
+  const terapkanKandidat = useCallback(
+    async (kandidat: LrclibCandidate) => {
+      if (!videoId) return;
+      setManualError(null);
+      try {
+        const res = await invoke<LyricsResponse>("lyrics_set_from_text", {
+          videoId,
+          text: kandidat.lrc,
+          sumber: "lrclib",
+          offsetMs: 0,
+        });
+        if (res.parsed.lines.length === 0) {
+          setManualError(T.lrclibGagalSimpan);
+          return;
+        }
+        setData(res);
+        setOffsetMs(0);
+        setManualOpen(false);
+        setManualResults([]);
+        onLyricsLoaded?.(res);
+      } catch (err) {
+        console.warn("Gagal menerapkan lirik pilihan:", err);
+        setManualError(T.lrclibGagalSimpan);
+      }
+    },
+    [videoId, onLyricsLoaded],
+  );
+
   // Handler teks lirik (dari drag-drop / file picker)
   const prosesBerkas = useCallback(
     async (file: File) => {
@@ -310,6 +393,170 @@ export function LyricsView({
     const file = e.dataTransfer.files?.[0];
     if (file) void prosesBerkas(file);
   };
+
+  const panelCariLirik = (
+    <>
+      {/* Panel CARI LIRIK (LRCLIB Search) */}
+      {manualOpen && (
+        <div
+          className="page-enter"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--s-2)",
+            padding: "var(--s-3)",
+            width: "100%",
+            background: "var(--bg)",
+            border: "1px solid var(--line-strong)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span
+              className="mono muted"
+              style={{ fontSize: 9, letterSpacing: "0.08em", fontWeight: 600 }}
+            >
+              {T.lrclibQueryLabel.toUpperCase()}:
+            </span>
+            <input
+              className="k-input mono"
+              value={manualQuery}
+              onChange={(e) => setManualQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void jalankanCariManual();
+                }
+              }}
+              placeholder={T.lrclibQueryHint}
+              aria-label={T.lrclibQueryLabel}
+              style={{ flex: 1, minWidth: 160, height: 28, fontSize: 11 }}
+            />
+            <button
+              type="button"
+              onClick={() => void jalankanCariManual()}
+              disabled={manualLoading || !manualQuery.trim()}
+              className="k-btn k-btn-accent"
+              style={{ minHeight: 28, height: 28, padding: "0 12px", fontSize: 10 }}
+            >
+              {manualLoading ? T.memuat : T.lrclibTombolCari}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setManualOpen(false);
+                setManualResults([]);
+                setManualError(null);
+              }}
+              className="k-btn k-btn-quiet"
+              style={{ minHeight: 28, height: 28, width: 28, padding: 0, fontSize: 11 }}
+              aria-label="Tutup pencarian lirik"
+            >
+              ✕
+            </button>
+          </div>
+
+          {manualError && (
+            <p className="mono" style={{ fontSize: 10, color: "var(--danger)", margin: 0 }}>
+              {manualError}
+            </p>
+          )}
+
+          {manualResults.length > 0 && (
+            <div style={{ border: "1px solid var(--line)" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) 56px 74px",
+                  gap: 8,
+                  padding: "5px 8px",
+                  background: "var(--panel)",
+                  borderBottom: "1px solid var(--line)",
+                }}
+              >
+                {[
+                  T.lrclibHasilJudul,
+                  T.lrclibHasilArtis,
+                  T.lrclibHasilDurasi,
+                  T.lrclibHasilStatus,
+                ].map((judul) => (
+                  <span
+                    key={judul}
+                    className="mono muted"
+                    style={{ fontSize: 9, letterSpacing: "0.08em", fontWeight: 600 }}
+                  >
+                    {judul}
+                  </span>
+                ))}
+              </div>
+              <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                {manualResults.map((kandidat) => (
+                  <button
+                    key={`${kandidat.id ?? "x"}-${kandidat.track_name}-${kandidat.artist_name}`}
+                    type="button"
+                    onClick={() => void terapkanKandidat(kandidat)}
+                    className="k-lirik-row mono"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) 56px 74px",
+                      gap: 8,
+                      width: "100%",
+                      alignItems: "center",
+                      padding: "7px 8px",
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: "1px solid var(--line)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      color: "var(--ink)",
+                    }}
+                    title={`${kandidat.track_name} — ${kandidat.artist_name}`}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {kandidat.track_name}
+                    </span>
+                    <span
+                      className="muted"
+                      style={{
+                        fontSize: 10,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {kandidat.artist_name}
+                    </span>
+                    <span className="muted" style={{ fontSize: 10 }}>
+                      {formatDuration(kandidat.duration != null ? kandidat.duration * 1000 : null)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        padding: "2px 5px",
+                        justifySelf: "start",
+                        letterSpacing: "0.06em",
+                        border: `1px solid ${kandidat.synced ? "var(--ok)" : "var(--line-strong)"}`,
+                        color: kandidat.synced ? "var(--ok)" : "var(--ink-muted)",
+                      }}
+                    >
+                      {kandidat.synced ? "SYNCED" : "PLAIN"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div
@@ -544,6 +791,15 @@ export function LyricsView({
                 </span>
                 <button
                   type="button"
+                  onClick={() => void ubahOffset(-1000)}
+                  className="k-btn"
+                  style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 10 }}
+                  title="Geser 1 detik (untuk MV dengan intro panjang)"
+                >
+                  -1s
+                </button>
+                <button
+                  type="button"
                   onClick={() => void ubahOffset(-100)}
                   className="k-btn"
                   style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 10 }}
@@ -575,18 +831,41 @@ export function LyricsView({
                 >
                   +100ms
                 </button>
+                <button
+                  type="button"
+                  onClick={() => void ubahOffset(1000)}
+                  className="k-btn"
+                  style={{ minHeight: 28, height: 28, padding: "0 8px", fontSize: 10 }}
+                  title="Geser 1 detik (untuk MV dengan intro panjang)"
+                >
+                  +1s
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handlePilihBerkas}
-                className="k-btn k-btn-quiet"
-                style={{ minHeight: 28, height: 28, padding: "0 10px", fontSize: 10 }}
-              >
-                {T.imporLrc}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={handlePilihBerkas}
+                  className="k-btn k-btn-quiet"
+                  style={{ minHeight: 28, height: 28, padding: "0 10px", fontSize: 10 }}
+                >
+                  {T.imporLrc}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void bukaCariManual()}
+                  aria-expanded={manualOpen}
+                  className={`k-btn ${manualOpen ? "k-btn-accent" : ""}`}
+                  style={{ minHeight: 28, height: 28, padding: "0 10px", fontSize: 10 }}
+                  title="Cari lirik manual di LRCLIB"
+                >
+                  {T.lrclibCari}
+                </button>
+              </div>
             </div>
           )}
+
+          {panelCariLirik}
 
           {errorMsg && (
             <p className="mono" style={{ fontSize: 10, color: "var(--danger)" }}>
@@ -756,7 +1035,24 @@ export function LyricsView({
             >
               {T.imporLrc}
             </button>
+            <button
+              type="button"
+              onClick={() => void bukaCariManual()}
+              className="mono"
+              style={{
+                fontSize: 11,
+                padding: "8px 16px",
+                border: "1px solid var(--line-strong)",
+                background: "transparent",
+                color: "var(--ink)",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {T.lrclibCari}
+            </button>
           </div>
+          {panelCariLirik}
           <p className="mono muted" style={{ fontSize: 9, letterSpacing: "0.08em" }}>
             {T.lirikDropHint}
           </p>

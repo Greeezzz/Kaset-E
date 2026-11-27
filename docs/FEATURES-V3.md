@@ -130,13 +130,17 @@ Pemetaan elemen:
 - **Selesai bila:** nyaman dibaca dari jarak dekat maupun jauh di kedua tema; keyboard lengkap.
 
 ### L5 — LRCLIB (opsional, opt-in)
-- [x] Pengaturan `lirik.lrclib` **default mati**, dengan teks jelas: *judul dan artis lagu dikirim ke lrclib.net*. Tanpa telemetri lain.
+- [x] Pengaturan `lirik.lrclib` **default mati**, dengan teks jelas: *judul dan artis lagu dikirim ke lrclib.net*. Tanpa telemetri lain. Jalur otomatis hanya jalan saat setting `"1"`; pencarian manual dipicu klik user sehingga tidak digerbangi setting itu.
 - [x] **Baca dokumentasi resmi LRCLIB** (parameter pencarian, pencocokan berdasarkan durasi, batas penggunaan) sebelum implementasi; jangan mengarang endpoint.
 - [x] Panggilan HTTP dari Rust, dengan throttle, backoff, timeout pendek (pola `RESILIENCE.md`), User-Agent jujur.
+- [x] **Sanitasi metadata + waterfall**: judul video dibersihkan dari tag kurung (`【MV】`, `(Official Music Video)`, `[4K]`, `(Short Ver.)`) dan nama channel dirapikan (`- Topic`, `VEVO`, `Official Channel`); judul diurai jadi `(artis, judul)` untuk pola `Artis - Judul` maupun `アーティスト「曲名」`. Urutan permintaan: `/api/get` persis → `/api/search` per pasangan `track_name`+`artist_name` → `q=` bebas (termasuk judul saja). Batas 10 permintaan dan anggaran 12 detik per resolusi.
 - [x] **Validasi hasil dengan penskoran `import/cocok.rs`** (judul, artis, durasi, penanda versi). Hasil meragukan tidak dipakai otomatis; tawarkan pilihan manual. Lirik versi live/instrumental bukan lirik versi studio.
-- [x] Cache lokal + **cache negatif** ("tidak ada", kedaluwarsa beberapa hari). Ambil **hanya saat tampilan lirik dibuka** untuk lagu itu, bukan tiap lagu diputar.
+  - Skor kandidat: synced (+50) > plain (+15), kecocokan judul/artis, durasi sebagai **penalti lunak** (≤5 dtk +25, ≤15 dtk +10, >60 dtk −30) supaya MV ber-intro tidak dibuang; instrumental −60 dan diabaikan selama ada pilihan lain; kandidat tanpa teks lirik langsung gugur. Ambang `SKOR_MINIMUM = 40`.
+- [x] **Pilihan manual**: panel `CARI LIRIK` di drawer SYNC TOOLS dan di empty state. Kolom terisi judul yang sudah dibersihkan (`lyrics_metadata_lirik`), hasil ditampilkan sebagai tabel judul/artis/durasi/SYNCED-PLAIN, satu klik menyimpan ke `videoId` itu (`lyrics_set_from_text`). Offset punya tombol ±1s di samping ±100ms untuk MV ber-intro panjang.
+- [x] Cache lokal + **cache negatif** ("tidak ada", kedaluwarsa beberapa hari). Ambil **hanya saat tampilan lirik dibuka** untuk lagu itu, bukan tiap lagu diputar. Tabel `lyrics` sudah keyed `video_id`, jadi pilihan manual ikut ter-cache per lagu tanpa migrasi baru.
 - [x] Semua kegagalan jinak: pesan ramah + jalur impor manual.
 - **Selesai bila:** dengan opsi mati tidak ada permintaan jaringan sama sekali; dengan opsi nyala, lagu populer terisi dan lagu tidak dikenal gagal dengan jinak.
+- **Residual yang diterima:** sanitasi bisa salah pada judul yang memakai kurung sebagai bagian nama lagu (mis. versi `feat.` yang ditandai kata noise), dan hasil pencarian manual bergantung kata kunci user. Keduanya punya jalan keluar: edit kolom lalu cari ulang.
 
 ### L6 — Romanisasi lokal (latin untuk Mandarin, Jepang, Korea)
 - [x] **Deteksi skrip per lagu** (rentang Unicode): ada kana → Jepang; ada Hangul → Korea; hanya Han tanpa kana → Mandarin. Baris campur (Inggris + Asia) hanya segmen CJK yang dikonversi.

@@ -793,6 +793,22 @@ textarea::placeholder {
 }
 
 /* < 600 px: susun VERTIKAL (§K4). Kaset di atas, kontrol di bawah. */
+/* Baris hasil pencarian lirik manual: hover = latar panel-2 + garis kuning
+   tepi kiri, sama seperti TrackRow (DESIGN-ENDFIELD §6). */
+.k-lirik-row {
+  border-left: 3px solid transparent;
+}
+
+.k-lirik-row:hover {
+  background: var(--panel-2);
+  border-left-color: var(--accent);
+}
+
+.k-lirik-row:focus-visible {
+  outline: 2px solid var(--line-strong);
+  outline-offset: -2px;
+}
+
 @media (max-width: 600px) {
   .kaset-layout {
     grid-template-columns: minmax(0, 1fr);
