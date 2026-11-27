@@ -83,11 +83,14 @@ export function PlaylistTable({
         scroller.scrollTop;
       const relScroll = Math.max(0, scroller.scrollTop - listTop);
       const viewportH = scroller.clientHeight || 600;
-      const start = Math.max(0, Math.floor(relScroll / ROW_HEIGHT) - OVERSCAN);
-      const end = Math.min(
-        tracks.length,
-        Math.ceil((relScroll + viewportH) / ROW_HEIGHT) + OVERSCAN,
+      const barisTerlihat = Math.ceil(viewportH / ROW_HEIGHT) + OVERSCAN;
+      // Kalau daftar menyusut (filter), posisi scroll lama bisa melewati akhir
+      // daftar. Tanpa penjepitan ini area kosong yang tampil, bukan lagu.
+      const start = Math.min(
+        Math.max(0, Math.floor(relScroll / ROW_HEIGHT) - OVERSCAN),
+        Math.max(0, tracks.length - barisTerlihat),
       );
+      const end = Math.min(tracks.length, start + barisTerlihat + OVERSCAN);
       setRange((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
     };
 
@@ -100,6 +103,22 @@ export function PlaylistTable({
       window.removeEventListener("resize", hitung);
     };
   }, [scrollContainerRef, tracks.length]);
+
+  // Saat isi daftar berganti (mis. hasil filter berubah), kembali ke baris
+  // pertama. Tanpa ini pengguna yang sedang scroll di tengah playlist akan
+  // melihat hasil filter mulai dari tengah, bukan dari yang paling relevan.
+  const tracksSebelumnya = useRef(tracks);
+  useEffect(() => {
+    if (tracksSebelumnya.current === tracks) return;
+    tracksSebelumnya.current = tracks;
+    const scroller = scrollContainerRef.current;
+    if (!scroller || !bodyRef.current) return;
+    const listTop =
+      bodyRef.current.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop;
+    if (scroller.scrollTop > listTop) scroller.scrollTop = listTop;
+  }, [tracks, scrollContainerRef]);
 
   const tampilAlbum = lebar >= 660;
   const gridCols = tampilAlbum

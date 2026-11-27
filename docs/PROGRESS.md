@@ -126,6 +126,32 @@ Terverifikasi di aplikasi 1100×720: sidebar 268px, panel kanan 336px, main
 ikon hitam, seek bar 10 segmen setinggi 4px, dan tidak ada scroll horizontal di
 panel mana pun.
 
+## Pencarian di dalam playlist
+
+Playlist 400+ lagu tidak bisa disisir dengan mata. Kotak cari sekarang ada di
+baris aksi halaman playlist dan Lagu Disukai.
+
+- **Di klien, bukan SQLite.** Data playlist sudah ada di memori sebagai
+  `Track[]`; query per ketikan berarti satu perjalanan IPC untuk setiap huruf.
+  Indeks (`src/lib/cari.ts`) dibangun sekali per perubahan daftar, bukan per
+  ketikan, jadi mengetik tidak menormalisasi ulang ribuan string.
+- **Normalisasi** memakai NFD + buang tanda diakritik + NFC lagi (NFD mengurai
+  suku kata Hangul menjadi Jamo, NFC menyatukannya kembali), lalu peta kecil
+  untuk huruf yang tidak terurai (`ø`, `ł`, `ß`, `æ`, …).
+- **Semua kata harus cocok (AND)** dan boleh lintas kolom, jadi "radio bends"
+  menemukan lagu Radiohead di album The Bends. Kolom digabung dengan NUL supaya
+  kata tidak bisa terbentuk melintasi batas judul/album.
+- **`useDeferredValue`, bukan timer debounce.** Kotak cari tetap responsif saat
+  mengetik; daftar menyusul satu render kemudian.
+- **Playback eksplisit:** saat filter aktif, tombol play dan klik baris
+  membentuk antrean dari hasil filter — persis yang terlihat di tabel. Nomor
+  baris juga mengikuti hasil filter.
+- Pintasan `/` memfokuskan kotak cari (diabaikan saat sedang mengetik di kolom
+  lain), `Esc` mengosongkan dan melepas fokus, ada tombol `×`, dan penghitung
+  "N dari M lagu" diumumkan lewat `role="status"`.
+- Kotak cari sengaja `type="text"` agar tidak merebut `Ctrl+K` yang sudah
+  menjadi pintasan pencarian global.
+
 ## Fase 7 (V3) — Mode Kaset (Tape Mode) dan Lyrics Engine — SELESAI
 
 Mengikuti `FEATURES-V3.md`. Fitur Mode Kaset dan Lirik telah selesai diimplementasikan 100%:
