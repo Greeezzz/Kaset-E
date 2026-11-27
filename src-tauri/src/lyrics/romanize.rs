@@ -152,7 +152,17 @@ pub fn romanize_line(text: &str, script: CjkScript) -> Option<String> {
             out.push_str(&romanize_mandarin_basic(&potong));
             i = j;
         } else {
-            out.push(tanda_baca_ke_ascii(c));
+            let ascii = tanda_baca_ke_ascii(c);
+            out.push(ascii);
+            // Baris romaji lebih terbaca kalau tanda baca diikuti spasi:
+            // ありがとう、またね -> "arigatou, matane". Tidak ada spasi sebelum
+            // tanda penutup ("」" -> '"') supaya hasilnya `matane."`.
+            let berikut = chars.get(i + 1).copied();
+            if matches!(ascii, ',' | '.' | '!' | '?' | ':' | ';')
+                && berikut.is_some_and(|n| !tanda_baca_penutup(n))
+            {
+                out.push(' ');
+            }
             i += 1;
         }
     }
@@ -166,11 +176,7 @@ pub fn romanize_line(text: &str, script: CjkScript) -> Option<String> {
         );
         return None;
     }
-    if rapi.is_empty() {
-        None
-    } else {
-        Some(rapi)
-    }
+    if rapi.is_empty() { None } else { Some(rapi) }
 }
 
 fn run_selama(chars: &[char], mulai: usize, cocok: impl Fn(char) -> bool) -> usize {
@@ -202,6 +208,35 @@ fn tanda_baca_ke_ascii(c: char) -> char {
         '〜' | '～' => '~',
         _ => c,
     }
+}
+
+/// Tanda baca yang menempel ke kata sebelumnya, bukan memulai bagian baru.
+fn tanda_baca_penutup(c: char) -> bool {
+    matches!(
+        c,
+        '」' | '』'
+            | '）'
+            | ')'
+            | ']'
+            | '}'
+            | '"'
+            | '\''
+            | '、'
+            | '。'
+            | '，'
+            | '．'
+            | '！'
+            | '？'
+            | '!'
+            | '?'
+            | ','
+            | '.'
+            | ':'
+            | ';'
+            | '…'
+            | '〜'
+            | '～'
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -423,62 +458,549 @@ const DIGRAF_KATAKANA: &[(&str, &str)] = &[
     ("ズィ", "zi"),
 ];
 
+/// Kata yang tidak ada di kamus `ib-romaji` (atau ada dengan bacaan yang salah)
+/// dan salah kalau dibaca per kanji.
+///
+/// Daftar ini sengaja kecil: hanya kata yang sering muncul di lirik dan terbukti
+/// keliru lewat pengujian. Kata lain tetap mengandalkan kamus. Tanpa entri ini
+/// bacaan on per kanji menghasilkan hal yang menyesatkan seperti
+/// 名前 -> meizen, 世界 -> seikai, 友達 -> yuutatsu, 仕事 -> shiji.
+const KATA_TETAP: &[(&str, &str)] = &[
+    ("今日", "きょう"),
+    ("様子", "ようす"),
+    ("一人", "ひとり"),
+    ("二人", "ふたり"),
+    ("子供", "こども"),
+    ("本当", "ほんとう"),
+    ("大丈夫", "だいじょうぶ"),
+    ("名前", "なまえ"),
+    ("世界", "せかい"),
+    ("何度", "なんど"),
+    ("理由", "りゆう"),
+    ("過去", "かこ"),
+    ("場所", "ばしょ"),
+    ("彼女", "かのじょ"),
+    ("彼氏", "かれし"),
+    ("友達", "ともだち"),
+    ("仕事", "しごと"),
+    ("普通", "ふつう"),
+    // Verba majemuk yang kalau dipecah per kata kamus jadi berspasi salah
+    // (立ち上がれ -> "tachi agare").
+    ("立ち上が", "たちあが"),
+    // Batang verba/adjektiva yang kandidat kamusnya salah (愛し -> hashi).
+    ("愛し", "あいし"),
+    ("演じ", "えんじ"),
+];
+
+/// Bacaan kanji tunggal tanpa okurigana yang tidak bisa diturunkan dari tabel
+/// Unihan: bacaan kun pertama di tabel adalah bacaan lama/arkais, bukan yang
+/// dipakai sehari-hari (僕 -> しもべ, 役 -> つとめ, 愛 -> いとしい).
+const BACAAN_TUNGGAL: &[(char, &str)] = &[
+    ('僕', "ぼく"),
+    ('愛', "あい"),
+    ('役', "やく"),
+    ('皆', "みんな"),
+    ('形', "かたち"),
+];
+
+/// Partikel yang berdiri sendiri. Dibaca dengan pelafalannya, bukan ejaannya.
+const PARTIKEL: &[char] = &[
+    'は', 'が', 'を', 'に', 'へ', 'と', 'で', 'の', 'も', 'や', 'か', 'ね', 'よ', 'わ', 'さ', 'な',
+];
+
+/// Awalan kana yang dimulai dengan partikel で tetapi sebenarnya satu kata.
+const BUKAN_PARTIKEL_DE: &[&str] = &[
+    "です", "でし", "でも", "でき", "でる", "でた", "でん", "であ",
+];
+
+/// Awalan kana yang dimulai dengan と + partikel tetapi sebenarnya satu kata.
+const BUKAN_PARTIKEL_T: &[&str] = &["とにかく", "とにもかくにも", "とにかくに"];
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum JenisPotongan {
+    /// Kata dari kamus atau bacaan kanji.
+    Kata,
+    /// Potongan kana yang bukan partikel.
+    Kana,
+    /// Partikel yang berdiri sendiri.
+    Partikel,
+    /// Tanda baca, spasi, atau teks non-CJK: diteruskan apa adanya.
+    Lain,
+}
+
+struct Potongan {
+    teks: String,
+    jenis: JenisPotongan,
+    /// Tidak ada spasi antara potongan ini dan kana di sebelahnya. Dipakai untuk
+    /// okurigana yang menyambung bacaan kanji (僕 + ら) dan untuk batang verba
+    /// hasil kamus (出し + たい).
+    rapat: bool,
+    /// Potongan kana ini dimulai dengan partikel (とか, から). Dipakai untuk
+    /// memutus sambungan ke kata sebelumnya.
+    partikel_awal: bool,
+    /// Kata yang berakhir di kana baris e (逃げ, 投げ) biasanya batang verba yang
+    /// menyambung ke kata berikutnya: 逃げ + 出す = nigedasu.
+    rapat_kata: bool,
+}
+
 /// Romanisasi segmen Jepang. Karakter di luar kamus dibiarkan, lalu
 /// `romanize_line` yang memutuskan fallback-nya.
 fn romanize_japanese(input: &str) -> String {
-    let mut out = String::with_capacity(input.len() * 2);
+    let mut potongan: Vec<Potongan> = Vec::new();
     let mut sisa = input;
 
     while !sisa.is_empty() {
-        // 1. Kata utuh dari kamus (paling akurat karena bacaan per kata).
-        //    Hanya pencocokan multi-karakter yang mengandung kanji yang dipakai;
-        //    kana dan kanji tunggal ditangani sendiri di bawah (lebih akurat).
-        let kata =
-            romanizer_kamus().romanize_and_try_for_each(sisa, |len, romaji| Some((len, romaji)));
-        if let Some((len, romaji)) = kata {
-            let potong = &sisa[..len];
-            if potong.chars().count() > 1 && potong.chars().any(is_han) {
-                out.push_str(romaji);
-                sisa = &sisa[len..];
-                continue;
-            }
+        // 0. Kata tetap (kata yang tidak ada di kamus `ib-romaji`).
+        if let Some((len, romaji)) = kata_tetap(sisa) {
+            potongan.push(kata(romaji, sisa, len));
+            sisa = &sisa[len..];
+            continue;
+        }
+
+        // 1. Kata utuh dari kamus. Pencocokan boleh melewati batas kanji
+        //    (出し, 逃げ, 小さな), karena kamus lebih tahu bacaan + okurigana-nya.
+        if let Some((len, romaji)) = pilih_kata(sisa) {
+            potongan.push(kata(romaji, sisa, len));
+            sisa = &sisa[len..];
+            continue;
         }
 
         let c = sisa.chars().next().expect("sisa tidak kosong");
 
-        // 2. Kana: ー memanjangkan vokal sebelumnya, digraf serapan ditangani
-        //    sendiri karena tidak ada di tabel `ib-romaji`.
+        // 2. Kana: satu gelombang kana, lalu partikelnya dipisah.
         if is_hiragana(c) || is_katakana(c) {
-            if c == 'ー' {
-                if let Some(vokal) = vokal_terakhir(&out) {
-                    out.push(vokal);
-                }
-                sisa = &sisa[c.len_utf8()..];
-                continue;
-            }
-            if let Some((len, romaji)) = digraf_katakana(sisa) {
-                out.push_str(romaji);
-                sisa = &sisa[len..];
-                continue;
-            }
-            if let Some((len, romaji)) = romanizer_kana().romanize_kana(sisa) {
-                out.push_str(romaji);
-                sisa = &sisa[len..];
-                continue;
-            }
-            out.push(tanda_baca_ke_ascii(c));
-            sisa = &sisa[c.len_utf8()..];
+            let (gelombang, byte) = ambil_kana(sisa);
+            let setelah_kata =
+                matches!(potongan.last().map(|p| p.jenis), Some(JenisPotongan::Kata));
+            pecah_kana(&gelombang, setelah_kata, &mut potongan);
+            sisa = &sisa[byte..];
             continue;
         }
 
-        // 3. Kanji: tabel bacaan on/kun (Unihan).
+        // 3. Kanji: kamus sudah gagal, jadi tabel bacaan on/kun (Unihan).
         if is_han(c) {
             let (romaji, habis) = bacakan_kanji(sisa);
-            out.push_str(&romaji);
+            potongan.push(Potongan {
+                teks: romaji,
+                jenis: JenisPotongan::Kata,
+                rapat: false,
+                partikel_awal: false,
+                rapat_kata: false,
+            });
             sisa = &sisa[habis..];
             continue;
         }
 
+        potongan.push(Potongan {
+            teks: tanda_baca_ke_ascii(c).to_string(),
+            jenis: JenisPotongan::Lain,
+            rapat: false,
+            partikel_awal: false,
+            rapat_kata: false,
+        });
+        sisa = &sisa[c.len_utf8()..];
+    }
+
+    rakit_potongan(&potongan)
+}
+
+fn kata(teks: String, sisa: &str, len: usize) -> Potongan {
+    Potongan {
+        teks,
+        jenis: JenisPotongan::Kata,
+        rapat: romaji_berakhir_kana(sisa, len),
+        partikel_awal: false,
+        rapat_kata: berakhir_kana_e(sisa, len),
+    }
+}
+
+/// Kata kamus yang berakhir di kana baris e hampir selalu batang verba
+/// (逃げ, 投げ, 食べ) yang menyambung ke kata berikutnya.
+fn berakhir_kana_e(sisa: &str, len: usize) -> bool {
+    sisa[..len].chars().next_back().is_some_and(|c| {
+        matches!(
+            c,
+            'え' | 'け'
+                | 'げ'
+                | 'せ'
+                | 'ぜ'
+                | 'て'
+                | 'で'
+                | 'ね'
+                | 'へ'
+                | 'べ'
+                | 'ぺ'
+                | 'め'
+                | 'れ'
+        )
+    })
+}
+
+/// Kata tetap yang cocok di awal `sisa` -> (jumlah byte, romaji).
+fn kata_tetap(sisa: &str) -> Option<(usize, String)> {
+    KATA_TETAP
+        .iter()
+        .filter(|(kata, _)| sisa.starts_with(kata))
+        .max_by_key(|(kata, _)| kata.len())
+        .map(|(kata, bacaan)| (kata.len(), bacaan_ke_romaji(bacaan)))
+}
+
+/// Pilih kandidat kamus terbaik untuk awalan `sisa`.
+///
+/// `ib-romaji` mengembalikan kandidat urut alfabetis, bukan urut frekuensi
+/// (言葉 -> ["ji", "ketoba", "kotoba", "shi"]), jadi kandidat pertama tidak bisa
+/// dipakai langsung. Yang dipakai: rentang terpanjang, lalu skor yang menolak
+/// romaji dengan vokal lebih sedikit daripada jumlah kanji dan memberi bonus
+/// pada kandidat yang diawali bacaan kanji pertama.
+fn pilih_kata(sisa: &str) -> Option<(usize, String)> {
+    let kandidat = romanizer_kamus().romanize_vec(sisa);
+    let span = kandidat.iter().map(|(len, _)| *len).max()?;
+    let potong = sisa.get(..span)?;
+    let jumlah_karakter = potong.chars().count();
+    if jumlah_karakter < 2 || !potong.chars().any(is_han) {
+        return None;
+    }
+
+    let awal = potong.chars().next()?;
+    let (on_awal, kun_awal) = bacaan_kanji(awal);
+
+    // Entri kamus berupa ungkapan bisa menelan partikel (夜が明ける, 今日は).
+    // Kalau dipakai utuh, partikelnya ikut jadi bagian bacaan dan hilang.
+    if kandidat_menelan_partikel(potong) {
+        return None;
+    }
+
+    let mut terbaik: Option<(i32, usize, String)> = None;
+    for (len, romaji) in kandidat {
+        if len != span {
+            continue;
+        }
+        let skor = skor_kata(romaji, jumlah_karakter, &on_awal, &kun_awal);
+        let lebih_baik = match &terbaik {
+            Some((skor_terbaik, _, _)) => skor > *skor_terbaik,
+            None => true,
+        };
+        if lebih_baik {
+            terbaik = Some((skor, len, romaji.to_string()));
+        }
+    }
+
+    terbaik.map(|(_, len, romaji)| (len, romaji))
+}
+
+/// Apakah rentang kamus menelan partikel yang seharusnya berdiri sendiri?
+///
+/// Kamus memuat ungkapan seperti 夜が明ける dan 今日は. Kalau rentang itu dipakai
+/// utuh, partikelnya ikut masuk bacaan dan tidak lagi dibaca sebagai partikel
+/// (夜が明ける -> yogaakeru, 今日は -> konichiha). Partikel の dikecualikan karena
+/// ia memang sering berada di dalam satu rentang kata.
+fn kandidat_menelan_partikel(potong: &str) -> bool {
+    let chars: Vec<char> = potong.chars().collect();
+    if chars
+        .last()
+        .is_some_and(|c| matches!(c, 'は' | 'へ' | 'を'))
+    {
+        return true;
+    }
+    chars
+        .windows(2)
+        .any(|w| w[0] != 'の' && PARTIKEL.contains(&w[0]) && is_han(w[1]))
+}
+
+fn skor_kata(romaji: &str, jumlah_karakter: usize, on: &[&str], kun: &[&str]) -> i32 {
+    let vokal = romaji
+        .chars()
+        .filter(|c| matches!(c, 'a' | 'i' | 'u' | 'e' | 'o'))
+        .count();
+
+    // Satu vokal tidak bisa menutupi dua kanji: 言葉 -> "ji" dan "shi" dibuang.
+    let skor = if vokal < jumlah_karakter { -50 } else { 0 };
+
+    // Kandidat yang diawali bacaan kanji pertama lebih mungkin benar:
+    // 言葉 -> "kotoba" diawali こと (kun 言), "ketoba" tidak.
+    let mut bonus = 0;
+    for bacaan in on.iter().chain(kun.iter()) {
+        let romaji_bacaan = bacaan_ke_romaji(bacaan);
+        if !romaji_bacaan.is_empty() && romaji.starts_with(&romaji_bacaan) {
+            bonus = bonus.max(romaji_bacaan.chars().count() as i32 * 4);
+        }
+    }
+
+    skor + bonus
+}
+
+/// Apakah potongan `&sisa[..len]` berakhir dengan kana? Kalau ya, kana sesudahnya
+/// adalah lanjutan kata yang sama (出し + たい), jadi tidak diberi spasi.
+fn romaji_berakhir_kana(sisa: &str, len: usize) -> bool {
+    sisa[..len]
+        .chars()
+        .next_back()
+        .is_some_and(|c| is_hiragana(c) || is_katakana(c))
+}
+
+/// Gelombang kana terpanjang di awal `sisa` -> (karakter, jumlah byte).
+///
+/// Hiragana dan katakana tidak bercampur dalam satu kata, jadi pergantian
+/// aksara memutus gelombang: エンドロールに adalah dua potongan.
+fn ambil_kana(sisa: &str) -> (Vec<char>, usize) {
+    let mut kana = Vec::new();
+    let mut byte = 0;
+    let mut hiragana: Option<bool> = None;
+    for c in sisa.chars() {
+        if !(is_hiragana(c) || is_katakana(c)) {
+            break;
+        }
+        let ini_hiragana = is_hiragana(c);
+        match hiragana {
+            None => hiragana = Some(ini_hiragana),
+            Some(sebelum) if sebelum != ini_hiragana && c != 'ー' => break,
+            _ => {}
+        }
+        kana.push(c);
+        byte += c.len_utf8();
+    }
+    (kana, byte)
+}
+
+/// Pecah satu gelombang kana menjadi potongan kata dan partikel.
+///
+/// Heuristiknya terbatas pada pola yang paling sering muncul dan paling kecil
+/// risikonya:
+/// - kana tunggal yang termasuk partikel -> partikel;
+/// - は/へ/を di ujung gelombang -> partikel (dibaca wa/e/o);
+/// - で di awal gelombang sesudah kata kanji -> partikel (頭でわかって);
+/// - と + partikel di awal gelombang -> dua partikel (寂しいとか);
+/// - の di ujung gelombang sesudah kata kanji -> partikel (だらけの).
+fn pecah_kana(kana: &[char], setelah_kata: bool, keluar: &mut Vec<Potongan>) {
+    let mut mulai = 0;
+
+    if setelah_kata && kana.len() >= 3 && kana[0] == 'で' && !diawali_kata_de(kana) {
+        keluar.push(partikel('で'));
+        mulai = 1;
+    }
+
+    if setelah_kata
+        && kana.len() - mulai >= 2
+        && kana[mulai] == 'と'
+        && PARTIKEL.contains(&kana[mulai + 1])
+        && !diawali_kata_t(&kana[mulai..])
+    {
+        keluar.push(partikel('と'));
+        keluar.push(partikel(kana[mulai + 1]));
+        mulai += 2;
+    }
+
+    let sisa = &kana[mulai..];
+    match sisa {
+        [] => {}
+        [c] if PARTIKEL.contains(c) => keluar.push(partikel(*c)),
+        [.., akhir] if matches!(akhir, 'は' | 'へ' | 'を') => {
+            push_kana(&sisa[..sisa.len() - 1], keluar);
+            keluar.push(partikel(*akhir));
+        }
+        [.., 'の'] if setelah_kata && mulai == 0 => {
+            push_kana(&sisa[..sisa.len() - 1], keluar);
+            keluar.push(partikel('の'));
+        }
+        _ => {
+            if !pecah_partikel_ujung(sisa, keluar) {
+                push_kana(sisa, keluar);
+            }
+        }
+    }
+}
+
+/// Partikel di ujung gelombang kana yang panjang: 明けるまで -> akeru made,
+/// さよならだけが -> ... dake ga.
+///
+/// Daftar ini sengaja terbatas pada partikel yang jarang menjadi akhiran kata
+/// biasa. で, と, に, の tidak ikut karena banyak kata berakhiran bunyi itu
+/// (おもいで, こと, たに, もの) dan akan terpotong salah.
+const PARTIKEL_UJUNG: &[&str] = &[
+    "なんて",
+    "くらい",
+    "まで",
+    "から",
+    "けど",
+    "ので",
+    "のに",
+    "だけ",
+    "しか",
+    "より",
+    "ほど",
+    "って",
+    "など",
+    "が",
+    "も",
+    "や",
+    "か",
+    "ね",
+    "よ",
+    "わ",
+    "な",
+];
+
+/// Potong partikel ujung kalau gelombangnya cukup panjang (>= 4 kana) dan
+/// masih menyisakan minimal dua kana di depan. Gelombang pendek (かな, そば)
+/// dibiarkan utuh.
+fn pecah_partikel_ujung(sisa: &[char], keluar: &mut Vec<Potongan>) -> bool {
+    if sisa.len() < 4 {
+        return false;
+    }
+    let teks: String = sisa.iter().collect();
+    for pola in PARTIKEL_UJUNG {
+        let Some(depan) = teks.strip_suffix(pola) else {
+            continue;
+        };
+        if depan.chars().count() < 2 {
+            continue;
+        }
+        let depan: Vec<char> = depan.chars().collect();
+        push_kana(&depan, keluar);
+        let partikel_kana: Vec<char> = pola.chars().collect();
+        keluar.push(Potongan {
+            teks: romanisasi_kana(&partikel_kana),
+            jenis: JenisPotongan::Partikel,
+            rapat: false,
+            partikel_awal: true,
+            rapat_kata: false,
+        });
+        return true;
+    }
+    false
+}
+
+fn diawali_kata_de(kana: &[char]) -> bool {
+    BUKAN_PARTIKEL_DE.iter().any(|kata| {
+        let pola: Vec<char> = kata.chars().collect();
+        pola.len() <= kana.len() && kana[..pola.len()] == pola[..]
+    })
+}
+
+fn diawali_kata_t(kana: &[char]) -> bool {
+    BUKAN_PARTIKEL_T.iter().any(|kata| {
+        let pola: Vec<char> = kata.chars().collect();
+        pola.len() <= kana.len() && kana[..pola.len()] == pola[..]
+    })
+}
+
+fn push_kana(kana: &[char], keluar: &mut Vec<Potongan>) {
+    let Some(awal) = kana.first() else {
+        return;
+    };
+    // Satu kana sesudah kanji hampir selalu bagian kata yang sama (僕ら), begitu
+    // juga kana yang tidak mungkin memulai kata (づ, っ, kana kecil).
+    let rapat = kana.len() == 1 || diawali_kana_langka(*awal);
+    keluar.push(Potongan {
+        teks: romanisasi_kana(kana),
+        jenis: JenisPotongan::Kana,
+        rapat,
+        partikel_awal: PARTIKEL.contains(awal) || diawali_partikel_kata(kana),
+        rapat_kata: false,
+    });
+}
+
+/// Apakah gelombang kana dimulai dengan partikel atau kata partikelik
+/// (から, まで, だけ). Dipakai untuk memutus sambungan ke kata kamus sebelumnya:
+/// 明ける + まで harus "akeru made", bukan "akerumade".
+fn diawali_partikel_kata(kana: &[char]) -> bool {
+    PARTIKEL_UJUNG.iter().any(|pola| {
+        let pola: Vec<char> = pola.chars().collect();
+        pola.len() >= 2 && pola.len() <= kana.len() && kana[..pola.len()] == pola[..]
+    })
+}
+
+/// Kana yang tidak lazim memulai kata baru sesudah kanji: 気づく, 転がっ.
+fn diawali_kana_langka(c: char) -> bool {
+    matches!(
+        c,
+        'づ' | 'ぢ' | 'っ' | 'ゃ' | 'ゅ' | 'ょ' | 'ぁ' | 'ぃ' | 'ぅ' | 'ぇ' | 'ぉ' | 'ゎ'
+    )
+}
+
+fn partikel(c: char) -> Potongan {
+    let teks = match c {
+        'は' => "wa".to_string(),
+        'へ' => "e".to_string(),
+        'を' => "o".to_string(),
+        _ => romanisasi_kana(&[c]),
+    };
+    Potongan {
+        teks,
+        jenis: JenisPotongan::Partikel,
+        rapat: false,
+        partikel_awal: true,
+        rapat_kata: false,
+    }
+}
+
+/// Gabungkan potongan jadi satu baris romaji berspasi.
+fn rakit_potongan(potongan: &[Potongan]) -> String {
+    let mut out = String::new();
+    let mut sebelum: Option<&Potongan> = None;
+
+    for p in potongan {
+        if p.teks.is_empty() {
+            continue;
+        }
+        let spasi = match sebelum {
+            None => false,
+            Some(s) if s.jenis == JenisPotongan::Lain => spasi_setelah_lain(s, p),
+            Some(_) if p.jenis == JenisPotongan::Lain => false,
+            Some(s) if s.jenis == JenisPotongan::Kata && p.jenis == JenisPotongan::Kana => {
+                !(p.rapat || (s.rapat && !p.partikel_awal))
+            }
+            Some(s) if s.jenis == JenisPotongan::Kata && p.jenis == JenisPotongan::Kata => {
+                !s.rapat_kata
+            }
+            _ => true,
+        };
+        if spasi {
+            out.push(' ');
+        }
+        out.push_str(&p.teks);
+        sebelum = Some(p);
+    }
+
+    out
+}
+
+/// Tanda baca ASCII diikuti spasi supaya baris romaji terbaca
+/// (ありがとう、またね -> "arigatou, matane"). Spasi tidak ditambahkan sebelum
+/// tanda baca penutup seperti `"` atau `)`.
+fn spasi_setelah_lain(sebelum: &Potongan, sesudah: &Potongan) -> bool {
+    let akhir = sebelum.teks.chars().next_back();
+    let awal = sesudah.teks.chars().next();
+    matches!(akhir, Some(',' | '.' | '!' | '?' | ':' | ';'))
+        && awal.is_some_and(|c| c.is_alphanumeric())
+}
+
+/// Romanisasi sederhana satu gelombang kana: ー memanjangkan vokal sebelumnya,
+/// digraf serapan ditangani sendiri karena tidak ada di tabel `ib-romaji`.
+fn romanisasi_kana(kana: &[char]) -> String {
+    let teks: String = kana.iter().collect();
+    let mut out = String::with_capacity(teks.len() * 2);
+    let mut sisa = teks.as_str();
+
+    while !sisa.is_empty() {
+        let c = sisa.chars().next().expect("sisa tidak kosong");
+        if c == 'ー' {
+            if let Some(vokal) = vokal_terakhir(&out) {
+                out.push(vokal);
+            }
+            sisa = &sisa[c.len_utf8()..];
+            continue;
+        }
+        if let Some((len, romaji)) = digraf_katakana(sisa) {
+            out.push_str(romaji);
+            sisa = &sisa[len..];
+            continue;
+        }
+        if let Some((len, romaji)) = romanizer_kana().romanize_kana(sisa) {
+            out.push_str(romaji);
+            sisa = &sisa[len..];
+            continue;
+        }
         out.push(tanda_baca_ke_ascii(c));
         sisa = &sisa[c.len_utf8()..];
     }
@@ -505,27 +1027,26 @@ fn digraf_katakana(sisa: &str) -> Option<(usize, &'static str)> {
 /// Bacakan deretan kanji. Mengembalikan (romaji, jumlah byte yang dipakai).
 ///
 /// Aturan pemilihan bacaan (lihat catatan batasan modul):
-/// - kanji majemuk (>= 2 kanji berurutan) -> on'yomi tiap kanji.
-/// - kanji tunggal + okurigana -> kun'yomi yang berakhiran okurigana itu.
-/// - kanji tunggal tanpa okurigana -> kun'yomi pertama yang bukan bentuk kamus
-///   verba (tidak berakhiran -u), karena bacaan seperti こう/くう hampir selalu
-///   muncul bersama okurigana.
+/// - kanji majemuk (>= 2 kanji berurutan) -> on'yomi tiap kanji, dengan
+///   apostrof sebelum vokal sesudah ん (ゼン + イン -> zen'in).
+/// - kanji tunggal + okurigana -> bacaan yang cocok dengan okurigana itu
+///   (lihat `bacaan_dengan_okurigana`).
+/// - kanji tunggal tanpa okurigana -> `BACAAN_TUNGGAL`, lalu kun'yomi pertama
+///   yang bukan bentuk kamus verba.
 fn bacakan_kanji(sisa: &str) -> (String, usize) {
-    let kanji: Vec<char> = sisa.chars().take_while(|&c| is_han(c)).collect();
-    let byte_kanji: usize = kanji.iter().map(|c| c.len_utf8()).sum();
+    let (kanji, byte_kanji) = ambil_kanji(sisa);
     let sisa_okurigana = &sisa[byte_kanji..];
     let okurigana: String = sisa_okurigana
         .chars()
         .take_while(|&c| is_hiragana(c))
         .collect();
 
-    let mut out = String::new();
-
     if kanji.len() >= 2 {
+        let mut out = String::new();
         for c in &kanji {
             let (on, kun) = bacaan_kanji(*c);
             match on.first().or_else(|| kun.first()) {
-                Some(b) => out.push_str(&bacaan_ke_romaji(b)),
+                Some(b) => sambung_romaji(&mut out, &bacaan_ke_romaji(b)),
                 // Tidak ada data: biarkan kanji apa adanya supaya
                 // `romanize_line` memicu fallback, bukan menghilangkannya.
                 None => out.push(*c),
@@ -537,26 +1058,15 @@ fn bacakan_kanji(sisa: &str) -> (String, usize) {
     let c = kanji[0];
     let (on, kun) = bacaan_kanji(c);
 
-    // Kanji tunggal + okurigana yang cocok dengan akhiran bacaan kun.
     if !okurigana.is_empty() {
-        let cocok = kun.iter().find(|b| {
-            b.ends_with(okurigana.as_str()) && b.chars().count() > okurigana.chars().count()
-        });
-        if let Some(b) = cocok {
-            out.push_str(&bacaan_ke_romaji(b));
-            return (out, byte_kanji + okurigana.len());
-        }
-
-        // Tidak ada yang cocok: bacaan kamus (bentuk -u) dipotong satu kana
-        // supaya sisa okurigana yang menyusul tidak dobel. 追 + いかけて
-        // ("おう" -> "お") menghasilkan oikakete, bukan ouikakete.
-        if let Some(b) = pilih_kun_tunggal(&kun) {
-            let potong = potong_vokal_u(b);
-            out.push_str(&bacaan_ke_romaji(potong));
-            return (out, byte_kanji);
+        if let Some((bacaan, dipakai)) = bacaan_dengan_okurigana(&kun, &okurigana) {
+            return (bacaan_ke_romaji(&bacaan), byte_kanji + dipakai);
         }
     }
 
+    if let Some(b) = bacaan_tunggal(c) {
+        return (bacaan_ke_romaji(b), byte_kanji);
+    }
     if let Some(b) = pilih_kun_tunggal(&kun) {
         return (bacaan_ke_romaji(b), byte_kanji);
     }
@@ -565,8 +1075,155 @@ fn bacakan_kanji(sisa: &str) -> (String, usize) {
     }
 
     // Tidak ada data: biarkan kanji apa adanya, `romanize_line` akan fallback.
-    out.push(c);
-    (out, byte_kanji)
+    (c.to_string(), byte_kanji)
+}
+
+/// Ambil deretan kanji di awal `sisa`, berhenti sebelum kata kamus yang dimulai
+/// di tengah deretan dan melewati batas kanji (逃げ di 最後逃げ), supaya
+/// 最後 + 逃げ tidak ditelan jadi 最後逃. Kata kamus yang seluruhnya kanji
+/// (観者 di 傍観者) tidak memutus deretan: bacaan per kanji lebih baik.
+fn ambil_kanji(sisa: &str) -> (Vec<char>, usize) {
+    let mut kanji = Vec::new();
+    let mut byte = 0;
+    for c in sisa.chars() {
+        if !is_han(c) {
+            break;
+        }
+        if let Some(&pertama) = kanji.first() {
+            // Kanji yang punya bacaan tetap sendiri (皆, 僕) lebih baik dilepas
+            // dulu: 皆必死 = 皆 + 必死, bukan kai + hitsu + shi.
+            if kanji.len() == 1 && bacaan_tunggal(pertama).is_some() {
+                break;
+            }
+            if let Some((len, _)) = pilih_kata(&sisa[byte..]) {
+                if sisa[byte..byte + len].chars().any(|c| !is_han(c)) {
+                    break;
+                }
+            }
+        }
+        kanji.push(c);
+        byte += c.len_utf8();
+    }
+    (kanji, byte)
+}
+
+fn bacaan_tunggal(c: char) -> Option<&'static str> {
+    BACAAN_TUNGGAL
+        .iter()
+        .find(|(kanji, _)| *kanji == c)
+        .map(|(_, bacaan)| *bacaan)
+}
+
+/// Pilih bacaan kanji tunggal yang cocok dengan okurigana sesudahnya.
+/// Mengembalikan (bacaan kana, jumlah byte okurigana yang sudah tercakup).
+fn bacaan_dengan_okurigana(kun: &[&str], okurigana: &str) -> Option<(String, usize)> {
+    let ok: Vec<char> = okurigana.chars().collect();
+    let awal = *ok.first()?;
+
+    // 1. Bacaan yang berakhiran seluruh okurigana: 寂しい -> さびしい.
+    if let Some(b) = kun
+        .iter()
+        .find(|b| b.ends_with(okurigana) && b.chars().count() > ok.len())
+    {
+        return Some(((*b).to_string(), okurigana.len()));
+    }
+
+    // 2. Bacaan bentuk kamus yang berakhir tepat di kana pertama okurigana:
+    //    読む + と -> よむ (bukan よむと); sisa "と" dibaca terpisah.
+    if let Some(b) = kun
+        .iter()
+        .find(|b| batang_verba(b).is_some() && b.ends_with(awal))
+    {
+        return Some(((*b).to_string(), awal.len_utf8()));
+    }
+
+    // 3. Batang bentuk kamus + okurigana: 嘆く + いた -> なげいた,
+    //    転がる + がってく -> ころがってく (tumpang tindih tidak digandakan).
+    //    Okurigana panjang dipotong sesudah て/で sambung supaya kata berikutnya
+    //    tidak ikut tertelan: 向かって + ゆく, bukan 向かってゆく.
+    let batas = okurigana_efektif(&ok);
+    let pakai: String = ok[..batas].iter().collect();
+    let mut terbaik: Option<(usize, String)> = None;
+    for b in kun {
+        let Some(batang) = batang_verba(b) else {
+            continue;
+        };
+        let tumpang = tumpang_tindih(batang, &pakai);
+        if tumpang == 0 && PARTIKEL.contains(&awal) {
+            // 手を / 気が: partikel bukan bagian dari bacaan kanji.
+            continue;
+        }
+        let gabung = format!("{batang}{}", &pakai[byte_setelah(&ok, tumpang)..]);
+        let lebih_baik = match &terbaik {
+            Some((tumpang_terbaik, _)) => tumpang > *tumpang_terbaik,
+            None => true,
+        };
+        if lebih_baik {
+            terbaik = Some((tumpang, gabung));
+        }
+    }
+
+    terbaik.map(|(_, gabung)| (gabung, byte_setelah(&ok, batas)))
+}
+
+/// Berapa kana okurigana yang boleh dipakai aturan batang verba. Okurigana
+/// pendek dipakai seluruhnya; yang panjang dipotong sesudah て/で sambung.
+fn okurigana_efektif(ok: &[char]) -> usize {
+    if ok.len() <= 4 {
+        return ok.len();
+    }
+    for (i, c) in ok.iter().enumerate().skip(1) {
+        if matches!(c, 'て' | 'で') {
+            return i + 1;
+        }
+    }
+    ok.len()
+}
+
+/// Batang bacaan bentuk kamus verba: なげく -> なげ, ころがる -> ころが.
+fn batang_verba(bacaan: &str) -> Option<&str> {
+    let mut chars = bacaan.char_indices();
+    let (idx, akhir) = chars.next_back()?;
+    if idx > 0
+        && matches!(
+            akhir,
+            'う' | 'く' | 'ぐ' | 'す' | 'つ' | 'ぬ' | 'ぶ' | 'む' | 'る'
+        )
+    {
+        Some(&bacaan[..idx])
+    } else {
+        None
+    }
+}
+
+/// Panjang tumpang tindih antara ujung `batang` dan awal `okurigana`.
+fn tumpang_tindih(batang: &str, okurigana: &str) -> usize {
+    let b: Vec<char> = batang.chars().collect();
+    let o: Vec<char> = okurigana.chars().collect();
+    let maks = b.len().min(o.len());
+    for n in (1..=maks).rev() {
+        if b[b.len() - n..] == o[..n] {
+            return n;
+        }
+    }
+    0
+}
+
+fn byte_setelah(chars: &[char], n: usize) -> usize {
+    chars.iter().take(n).map(|c| c.len_utf8()).sum()
+}
+
+/// Sambung romaji tanpa menabrak batas suku kata: ん sebelum vokal diberi
+/// apostrof (zen + in -> zen'in).
+fn sambung_romaji(out: &mut String, romaji: &str) {
+    let vokal = romaji
+        .chars()
+        .next()
+        .is_some_and(|c| matches!(c, 'a' | 'i' | 'u' | 'e' | 'o' | 'y'));
+    if out.ends_with('n') && vokal {
+        out.push('\'');
+    }
+    out.push_str(romaji);
 }
 
 fn bacaan_kanji(c: char) -> (Vec<&'static str>, Vec<&'static str>) {
@@ -597,19 +1254,6 @@ fn akhiran_bentuk_kamus(bacaan: &str) -> bool {
         bacaan.chars().last(),
         Some('う' | 'く' | 'ぐ' | 'す' | 'つ' | 'ぬ' | 'ぶ' | 'む' | 'る')
     )
-}
-
-/// Buang satu kana terakhir kalau bacaan berakhir di baris -u (bentuk kamus
-/// verba). Sisa vokalnya disediakan okurigana yang menyusul.
-fn potong_vokal_u(bacaan: &str) -> &str {
-    let mut chars = bacaan.char_indices();
-    let Some((idx, terakhir)) = chars.next_back() else {
-        return bacaan;
-    };
-    match terakhir {
-        'う' | 'く' | 'ぐ' | 'す' | 'つ' | 'ぬ' | 'ぶ' | 'む' | 'る' => &bacaan[..idx],
-        _ => bacaan,
-    }
 }
 
 /// Romanisasi satu bacaan kana (katakana on'yomi atau hiragana kun'yomi).
@@ -1056,9 +1700,148 @@ mod tests {
             romanize_line("恋", CjkScript::Japanese).as_deref(),
             Some("koi")
         );
+        // 愛 tanpa okurigana dibaca あい (nomina), bukan いとしい (adjektiva).
         assert_eq!(
             romanize_line("愛", CjkScript::Japanese).as_deref(),
-            Some("itoshii")
+            Some("ai")
+        );
+    }
+
+    #[test]
+    fn test_kandidat_kamus_bukan_urut_alfabet() {
+        // `ib-romaji` mengembalikan kandidat urut alfabetis: 言葉 ->
+        // ["ji", "ketoba", "kotoba", "shi"]. Kandidat pertama bukan bacaan kata.
+        assert_eq!(
+            romanize_line("言葉", CjkScript::Japanese).as_deref(),
+            Some("kotoba")
+        );
+        assert_eq!(
+            romanize_line("必死", CjkScript::Japanese).as_deref(),
+            Some("hisshi")
+        );
+        // Kata yang tidak ada di kamus memakai daftar bacaan tetap.
+        assert_eq!(
+            romanize_line("様子", CjkScript::Japanese).as_deref(),
+            Some("yousu")
+        );
+    }
+
+    #[test]
+    fn test_bacaan_kanji_tunggal() {
+        // Bacaan kun pertama di Unihan adalah bacaan arkais; yang dipakai
+        // sehari-hari ada di daftar bacaan tetap.
+        assert_eq!(
+            romanize_line("僕", CjkScript::Japanese).as_deref(),
+            Some("boku")
+        );
+        assert_eq!(
+            romanize_line("役", CjkScript::Japanese).as_deref(),
+            Some("yaku")
+        );
+        assert_eq!(
+            romanize_line("皆", CjkScript::Japanese).as_deref(),
+            Some("minna")
+        );
+    }
+
+    #[test]
+    fn test_okurigana_batang_verba() {
+        // 嘆く + いた -> nageita, bukan nagekawashiiita (bacaan adjektiva).
+        assert_eq!(
+            romanize_line("嘆いた", CjkScript::Japanese).as_deref(),
+            Some("nageita")
+        );
+        // 転がる + がってく -> korogatteku (tumpang tindih "が" tidak dobel).
+        assert_eq!(
+            romanize_line("転がってく", CjkScript::Japanese).as_deref(),
+            Some("korogatteku")
+        );
+        // 向かう + かって -> mukatte, bukan saki + ni + katte.
+        assert_eq!(
+            romanize_line("向かって", CjkScript::Japanese).as_deref(),
+            Some("mukatte")
+        );
+    }
+
+    #[test]
+    fn test_partikel_dan_spasi() {
+        // Partikel dibaca, bukan dieja: は -> wa, を -> o.
+        assert_eq!(
+            romanize_line("頭でわかっては嘆いた", CjkScript::Japanese).as_deref(),
+            Some("atama de wakatte wa nageita")
+        );
+        assert_eq!(
+            romanize_line("転がってく様子を嗤った", CjkScript::Japanese).as_deref(),
+            Some("korogatteku yousu o waratta")
+        );
+        // Okurigana menyambung bacaan kanji, kata berikutnya diberi spasi.
+        assert_eq!(
+            romanize_line("人間の形は投げだしたんだ", CjkScript::Japanese).as_deref(),
+            Some("ningen no katachi wa nagedashitanda")
+        );
+        assert_eq!(
+            romanize_line("気づいたら最後逃げ出したい", CjkScript::Japanese).as_deref(),
+            Some("kizuitara saigo nigedashitai")
+        );
+    }
+
+    #[test]
+    fn test_kata_tetap_umum() {
+        // Kata yang kalau dibaca on per kanji jadi menyesatkan.
+        for (teks, harap) in [
+            ("一人", "hitori"),
+            ("二人", "futari"),
+            ("子供", "kodomo"),
+            ("名前", "namae"),
+            ("世界", "sekai"),
+            ("友達", "tomodachi"),
+            ("仕事", "shigoto"),
+            ("大丈夫", "daijoubu"),
+            ("場所", "basho"),
+            ("彼女", "kanojo"),
+        ] {
+            assert_eq!(
+                romanize_line(teks, CjkScript::Japanese).as_deref(),
+                Some(harap),
+                "bacaan {teks} salah"
+            );
+        }
+        // Verba majemuk: 立ち + 上がれ tidak boleh dipecah jadi dua kata.
+        assert_eq!(
+            romanize_line("何度でも立ち上がれ", CjkScript::Japanese).as_deref(),
+            Some("nando demo tachiagare")
+        );
+    }
+
+    #[test]
+    fn test_kamus_tidak_menelan_partikel() {
+        // 今日は di kamus adalah sapaan; di lirik hampir selalu 今日 + は.
+        assert_eq!(
+            romanize_line("今日は雨だった", CjkScript::Japanese).as_deref(),
+            Some("kyou wa ame datta")
+        );
+        // 夜が明ける adalah ungkapan kamus; partikel が harus tetap jadi partikel.
+        assert_eq!(
+            romanize_line("夜が明けるまで", CjkScript::Japanese).as_deref(),
+            Some("yo ga akeru made")
+        );
+        // 愛し bukan kata kamus; batang 愛する dibaca aishi.
+        assert_eq!(
+            romanize_line("愛してる", CjkScript::Japanese).as_deref(),
+            Some("aishiteru")
+        );
+    }
+
+    #[test]
+    fn test_spasi_setelah_tanda_baca() {
+        assert_eq!(
+            romanize_line("ありがとう、またね", CjkScript::Japanese).as_deref(),
+            Some("arigatou, matane")
+        );
+        // Tanda penutup menempel ke kata sebelumnya, bukan sesudah spasi.
+        assert_eq!(
+            romanize_line("「さよなら」、またね。", CjkScript::Japanese).as_deref(),
+            Some("\"sayonara\", matane.")
         );
     }
 
