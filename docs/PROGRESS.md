@@ -222,6 +222,37 @@ Ukuran yang dibayar: `ib-romaji` menambah ~4,8 MiB di biner (kamus ditanam, jadi
 tidak ada unduhan saat build/run). `rust-version` naik 1.77 → 1.85 karena crate
 itu memakai edition 2024.
 
+### Perbaikan akurasi romanisasi Jepang
+
+Keluaran pertama bisa dibilang "tidak menyesatkan" tapi masih salah di banyak
+kata umum. Tiga penyebab yang ditemukan lewat probe per kata:
+
+1. `ib-romaji::romanize_vec` mengembalikan kandidat **urut alfabetis**, bukan urut
+   frekuensi — `言葉` → `["ji", "ketoba", "kotoba", "shi"]`, jadi kandidat pertama
+   bukan bacaan kata. Sekarang kandidat diskor: ditolak kalau jumlah vokalnya
+   kurang dari jumlah kanji, diberi bonus kalau diawali bacaan kanji pertama.
+2. Kamus memuat **ungkapan** yang menelan partikel (`今日は` = sapaan,
+   `夜が明ける`). Kalau dipakai utuh, partikelnya hilang. Kandidat semacam itu
+   ditolak supaya partikel tetap jadi partikel.
+3. Kata majemuk yang tidak ada di kamus dibaca on per kanji, dan hasilnya sering
+   keliru (`名前` → meizen, `世界` → seikai, `友達` → yuutatsu). Daftar tetap kecil
+   (`KATA_TETAP`) menutup kata yang paling sering muncul di lirik; sisanya tetap
+   mengandalkan kamus.
+
+Selain itu partikel sekarang dibaca pelafalannya (は → wa, へ → e, を → o), bukan
+ejaannya, dan spasi ditambahkan heuristik: okurigana menyambung bacaan kanji,
+partikel berdiri sendiri, partikel ujung gelombang kana dipisah (明けるまで →
+"akeru made"), dan tanda baca ASCII diikuti spasi (ありがとう、またね →
+"arigatou, matane").
+
+Batas yang masih ada dan sengaja dibiarkan (dicatat juga di FEATURES-V3 §4 L6):
+kanji majemuk di luar daftar tetap dibaca on per karakter; beberapa kata hanya
+punya bacaan kamus yang salah untuk lirik (全員 → "zeiin", 寂しい → "samishii");
+baris yang seluruhnya kana masih bisa lengket; を tetap "o" (bukan "wo"). Target
+100% identik dengan transkripsi manusia tidak realistis tanpa analisis morfologi
+penuh (UniDic/Lindera), dan itu berarti kamus yang harus diunduh saat runtime —
+pilihan yang sampai sekarang sengaja tidak diambil.
+
 ---
 
 ## Sisa Fase 1 (3 item — semua Desktop polish)
