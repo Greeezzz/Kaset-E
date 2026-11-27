@@ -58,7 +58,9 @@ impl ParsedLyrics {
 
         // Binary search untuk menemukan baris terakhir dengan `time_ms <= effective_ms`
         // `partition_point` mencari elemen pertama di mana predikat bernilai false.
-        let idx = self.lines.partition_point(|line| line.time_ms <= effective_ms);
+        let idx = self
+            .lines
+            .partition_point(|line| line.time_ms <= effective_ms);
         if idx > 0 {
             Some(idx - 1)
         } else {
@@ -116,7 +118,11 @@ pub fn parse_lrc(input: &str) -> ParsedLyrics {
 
     // Deteksi skrip CJK dan isi romanisasi otomatis jika ada aksara CJK (§4 L6)
     let sample_text = if !timed_lines.is_empty() {
-        timed_lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ")
+        timed_lines
+            .iter()
+            .map(|l| l.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
     } else {
         raw_lines.join(" ")
     };
@@ -145,7 +151,11 @@ pub fn parse_lrc(input: &str) -> ParsedLyrics {
                 } else {
                     None
                 };
-                LyricLine { time_ms: 0, text, romanized }
+                LyricLine {
+                    time_ms: 0,
+                    text,
+                    romanized,
+                }
             })
             .collect();
         ParsedLyrics {
@@ -164,7 +174,11 @@ fn extract_timestamps_and_text(line: &str) -> (Vec<i64>, String) {
 
     // Banyak lirik menaruh tag timestamp di awal secara bertumpuk: [00:10.00][00:20.00]Halo
     while let Some(start_bracket) = remainder.find('[') {
-        if start_bracket != 0 && remainder[..start_bracket].chars().any(|c| !c.is_whitespace()) {
+        if start_bracket != 0
+            && remainder[..start_bracket]
+                .chars()
+                .any(|c| !c.is_whitespace())
+        {
             // Jika ada teks non-spasi sebelum tanda '[', maka ini bukan tag header baris murni,
             // tapi kita tetap bisa cek apakah itu timestamp inline atau lirik biasa.
             // Sesuai standar LRC umum baris, kita hanya ambil timestamp di awal.
@@ -208,8 +222,8 @@ fn parse_timestamp_tag(tag: &str) -> Option<i64> {
 
         let millis = match frac_len {
             1 => frac_val * 100,
-            2 => frac_val * 10,       // format standar [mm:ss.xx] (centiseconds)
-            3 => frac_val,            // format milidetik [mm:ss.xxx]
+            2 => frac_val * 10, // format standar [mm:ss.xx] (centiseconds)
+            3 => frac_val,      // format milidetik [mm:ss.xxx]
             _ => {
                 // Jika lebih dari 3 digit, ambil 3 digit pertama
                 let first_three = &frac_str[..3];
@@ -222,7 +236,7 @@ fn parse_timestamp_tag(tag: &str) -> Option<i64> {
         (sec, 0)
     };
 
-    if seconds < 0 || seconds >= 60 || ms < 0 || ms >= 1000 {
+    if !(0..60).contains(&seconds) || !(0..1000).contains(&ms) {
         return None;
     }
 

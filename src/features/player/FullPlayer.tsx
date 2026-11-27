@@ -18,7 +18,9 @@ import { T } from "../../lib/strings";
  * tidak boleh membebani jalur yang tidak memakainya.
  */
 const KasetMode = lazy(() => import("./KasetMode").then((m) => ({ default: m.KasetMode })));
-const LyricsView = lazy(() => import("../lyrics/LyricsView").then((m) => ({ default: m.LyricsView })));
+const LyricsView = lazy(() =>
+  import("../lyrics/LyricsView").then((m) => ({ default: m.LyricsView })),
+);
 const FullscreenLyrics = lazy(() =>
   import("../lyrics/FullscreenLyrics").then((m) => ({ default: m.FullscreenLyrics })),
 );
