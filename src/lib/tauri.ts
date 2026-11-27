@@ -28,6 +28,7 @@ type EventMap = {
   "tray://toggle-play": null;
   "tray://next": null;
   "tray://previous": null;
+  "oauth://token": string;
 };
 
 const hasTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;

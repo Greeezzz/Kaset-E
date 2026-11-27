@@ -20,6 +20,7 @@ use crate::models::Track;
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
     pub id: i64,
+    pub uuid: Option<String>,
     pub name: String,
     pub track_count: i64,
     pub created_at: i64,
@@ -41,14 +42,17 @@ pub struct Playlist {
 
 pub fn create(db: &crate::db::Db, name: &str) -> AppResult<Playlist> {
     let now = now_ms();
+    let pl_uuid = uuid::Uuid::new_v4().to_string();
+    let uuid_copy = pl_uuid.clone();
     db.with(|c| {
         c.execute(
-            "INSERT INTO playlists (name, created_at, updated_at) VALUES (?1, ?2, ?2)",
-            params![name, now],
+            "INSERT INTO playlists (name, created_at, updated_at, uuid) VALUES (?1, ?2, ?2, ?3)",
+            params![name, now, pl_uuid],
         )?;
         let id = c.last_insert_rowid();
         Ok(Playlist {
             id,
+            uuid: Some(uuid_copy),
             name: name.to_string(),
             track_count: 0,
             created_at: now,
@@ -156,7 +160,7 @@ pub fn get(db: &crate::db::Db, id: i64) -> AppResult<Playlist> {
             let mut stmt = c.prepare(
                 "SELECT p.id, p.name, p.created_at, p.updated_at,
                         (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id),
-                        p.description, p.cover_mode, p.cover_path
+                        p.description, p.cover_mode, p.cover_path, p.uuid
                  FROM playlists p WHERE p.id = ?1",
             )?;
             let mut rows = stmt.query([id])?;
@@ -171,6 +175,7 @@ pub fn get(db: &crate::db::Db, id: i64) -> AppResult<Playlist> {
                     description: r.get(5)?,
                     cover_mode: r.get(6)?,
                     cover_path: r.get(7)?,
+                    uuid: r.get(8)?,
                 },
                 None => return Err(AppError::NotFound(format!("playlist {id} tidak ada"))),
             }
@@ -185,7 +190,7 @@ pub fn list(db: &crate::db::Db) -> AppResult<Vec<Playlist>> {
         let mut stmt = c.prepare(
             "SELECT p.id, p.name, p.created_at, p.updated_at,
                     (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id),
-                    p.description, p.cover_mode, p.cover_path
+                    p.description, p.cover_mode, p.cover_path, p.uuid
              FROM playlists p ORDER BY p.updated_at DESC, p.id DESC",
         )?;
         let rows = stmt.query_map([], |r| {
@@ -199,6 +204,7 @@ pub fn list(db: &crate::db::Db) -> AppResult<Vec<Playlist>> {
                 description: r.get(5)?,
                 cover_mode: r.get(6)?,
                 cover_path: r.get(7)?,
+                uuid: r.get(8)?,
             })
         })?;
         let mut out = Vec::new();
@@ -388,9 +394,10 @@ pub fn impor_lagu(
                 id
             }
             None => {
+                let pl_uuid = uuid::Uuid::new_v4().to_string();
                 tx.execute(
-                    "INSERT INTO playlists (name, created_at, updated_at) VALUES (?1, ?2, ?2)",
-                    params![nama, now],
+                    "INSERT INTO playlists (name, created_at, updated_at, uuid) VALUES (?1, ?2, ?2, ?3)",
+                    params![nama, now, pl_uuid],
                 )?;
                 tx.last_insert_rowid()
             }

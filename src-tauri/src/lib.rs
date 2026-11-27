@@ -11,6 +11,8 @@ pub mod queue;
 pub mod resolver;
 pub mod state;
 #[cfg(desktop)]
+pub mod auth_server;
+#[cfg(desktop)]
 pub mod media_keys;
 #[cfg(desktop)]
 pub mod tray;
@@ -54,6 +56,15 @@ pub fn run() {
             }
             #[cfg(desktop)]
             media_keys::setup(&handle);
+
+            // Jalankan auth loopback server port 3000 standby sejak awal di desktop
+            #[cfg(desktop)]
+            {
+                let h = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = crate::auth_server::start_oauth_listener(h).await;
+                });
+            }
 
             // Upgrade katalog dan resolver di background: jendela tidak menunggu
             // jaringan. Kalau gagal, aplikasi tetap jalan dengan mock.
@@ -103,6 +114,7 @@ pub fn run() {
             commands::cover_evict,
             commands::setting_get,
             commands::setting_set,
+            commands::start_oauth_server,
             commands::queue_get,
             commands::queue_add,
             commands::queue_play_now,

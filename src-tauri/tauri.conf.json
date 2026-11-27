@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https://*.ytimg.com https://yt3.googleusercontent.com; media-src 'self' blob: https://*.googlevideo.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://*.googlevideo.com",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https://*.ytimg.com https://yt3.googleusercontent.com; media-src 'self' blob: https://*.googlevideo.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://*.googlevideo.com https://*.supabase.co wss://*.supabase.co",
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPDATA/covers/**", "$APPDATA/playlist_covers/**"]

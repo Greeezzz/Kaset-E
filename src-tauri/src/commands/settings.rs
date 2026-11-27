@@ -25,3 +25,14 @@ pub async fn setting_set(
     }
     set_setting(&state.db, &key, &value)
 }
+
+#[tauri::command]
+pub async fn start_oauth_server(app: tauri::AppHandle) -> AppResult<()> {
+    #[cfg(desktop)]
+    {
+        crate::auth_server::start_oauth_listener(app)
+            .await
+            .map_err(AppError::invalid)?;
+    }
+    Ok(())
+}
