@@ -271,6 +271,18 @@ export const T = {
     `${a} lagu ditambahkan${l ? `, ${l} dilewati (sudah ada)` : ""}.`,
   imporPlaylistBaru: "Impor playlist dari berkas",
   imporPilih: "Pilih",
+
+  // Impor playlist dari tautan YouTube (Fase 5)
+  imporTautanJudul: "DARI TAUTAN",
+  imporTautanHint:
+    "Tempel tautan playlist YouTube atau YouTube Music. Hanya metadata yang dibaca (judul, kanal, durasi) — tidak ada yang diunduh.",
+  imporTautanLabel: "Tautan playlist YouTube",
+  imporTautanPlaceholder: "https://music.youtube.com/playlist?list=…",
+  imporTautanTombol: "IMPOR TAUTAN",
+  imporTautanSibuk: "MEMBACA PLAYLIST.",
+  imporTautanGagal: "Gagal mengimpor tautan.",
+  imporTautanHasil: (a: number, d: number, l: number) =>
+    `${a} lagu ditambahkan${d ? `, ${d} dobel` : ""}${l ? `, ${l} dilewati` : ""}.`,
   selesai: "SELESAI",
 
   // Lirik (FEATURES-V3 §4)

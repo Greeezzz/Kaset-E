@@ -10,6 +10,8 @@
 //! `commands::import`, supaya parsing bisa diuji tanpa jaringan.
 
 pub mod cocok;
+pub mod tautan;
+pub mod ytplaylist;
 
 use std::collections::HashSet;
 

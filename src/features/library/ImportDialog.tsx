@@ -48,6 +48,14 @@ interface HasilSimpan {
   dilewati: number;
 }
 
+interface HasilTautan {
+  playlistId: number;
+  judul: string;
+  ditambahkan: number;
+  dobel: number;
+  dilewati: number;
+}
+
 interface Progress {
   selesai: number;
   total: number;
@@ -69,6 +77,9 @@ export function ImportDialog({ onClose, onSelesai }: Props) {
   const [namaPlaylist, setNamaPlaylist] = useState("Hasil impor");
   const [hasil, setHasil] = useState<HasilSimpan | null>(null);
   const [filter, setFilter] = useState<"semua" | "review" | "tidakada">("semua");
+  const [tautan, setTautan] = useState("");
+  const [tautanSibuk, setTautanSibuk] = useState(false);
+  const [tautanHasil, setTautanHasil] = useState<HasilTautan | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // Progress datang lewat event dari Rust.
@@ -99,6 +110,33 @@ export function ImportDialog({ onClose, onSelesai }: Props) {
     } catch (e) {
       setError(pesan(e, T.imporGagal));
       setTahap("pilih");
+    }
+  }
+
+  /**
+   * Impor playlist YouTube dari tautan.
+   *
+   * Beda dari impor berkas: tidak ada tahap pencocokan karena lagunya sudah
+   * berasal dari YouTube. Satu panggilan ke Rust, satu transaksi database.
+   */
+  async function imporTautan() {
+    const nilai = tautan.trim();
+    if (!nilai || tautanSibuk) return;
+    setError(null);
+    setTautanHasil(null);
+    setTautanSibuk(true);
+    try {
+      const r = await invoke<HasilTautan>("import_tautan", {
+        permintaan: { tautan: nilai },
+      });
+      setTautanHasil(r);
+      // Sidebar dan halaman playlist ikut segar; dialog tetap terbuka supaya
+      // pengguna bisa membaca berapa lagu yang dobel/dilewati.
+      onSelesai(r.playlistId);
+    } catch (e) {
+      setError(pesan(e, T.imporTautanGagal));
+    } finally {
+      setTautanSibuk(false);
     }
   }
 
@@ -275,6 +313,75 @@ export function ImportDialog({ onClose, onSelesai }: Props) {
                   if (f) void pilihBerkas(f);
                 }}
               />
+
+              {/* Jalur kedua: tautan playlist YouTube. Tidak butuh pencocokan,
+                  jadi hasilnya langsung masuk playlist baru. */}
+              {runningInTauri && (
+                <>
+                  <hr
+                    style={{
+                      width: "100%",
+                      border: 0,
+                      borderTop: "1px solid var(--line)",
+                      margin: "var(--s-2) 0 0",
+                    }}
+                  />
+                  <span className="label">{T.imporTautanJudul}</span>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--ink-muted)" }}>
+                    {T.imporTautanHint}
+                  </p>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void imporTautan();
+                    }}
+                    style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}
+                  >
+                    <input
+                      type="url"
+                      className="k-input"
+                      value={tautan}
+                      onChange={(e) => setTautan(e.target.value)}
+                      placeholder={T.imporTautanPlaceholder}
+                      aria-label={T.imporTautanLabel}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={tautanSibuk}
+                      style={{ flex: "1 1 260px", minWidth: 0 }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!tautan.trim() || tautanSibuk}
+                      style={{
+                        minHeight: 44,
+                        padding: "0 var(--s-4)",
+                        border: "1px solid var(--line-strong)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 12,
+                        letterSpacing: "0.1em",
+                        fontWeight: 600,
+                        opacity: !tautan.trim() || tautanSibuk ? 0.55 : 1,
+                      }}
+                    >
+                      {tautanSibuk ? T.imporTautanSibuk : T.imporTautanTombol}
+                    </button>
+                  </form>
+                  {tautanHasil && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="mono"
+                      style={{ margin: 0, fontSize: 12, color: "var(--ink)" }}
+                    >
+                      {T.imporTautanHasil(
+                        tautanHasil.ditambahkan,
+                        tautanHasil.dobel,
+                        tautanHasil.dilewati,
+                      )}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           )}
 

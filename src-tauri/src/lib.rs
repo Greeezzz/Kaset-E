@@ -124,6 +124,7 @@ pub fn run() {
             commands::import_cocokkan,
             commands::import_batal,
             commands::import_simpan,
+  commands::import_tautan,
             commands::record_play,
             commands::listen_record,
             commands::listen_summary,
