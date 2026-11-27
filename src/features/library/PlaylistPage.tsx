@@ -200,13 +200,14 @@ export function PlaylistPage({
 
   function klikPutarUtama() {
     if (tampil.length === 0) return;
-    // Saat filter aktif, yang diputar adalah hasil filter — sama dengan yang
-    // terlihat di tabel. Memutar seluruh playlist sementara layar hanya
-    // menampilkan 3 lagu akan membuat antrean terasa tidak nyambung.
     if (isSourcePlaying && !adaKueri) {
       onTogglePlay();
     } else {
-      onPlayTracks(tampil, 0);
+      // Saat memutar dari playlist, antrean tetap harus memuat seluruh playlist (sortedTracks),
+      // dengan posisi mulai (startIndex) berada pada lagu pertama dari hasil filter yang dipilih.
+      const targetTrack = tampil[0];
+      const targetIndex = sortedTracks.findIndex((t) => t.videoId === targetTrack?.videoId);
+      onPlayTracks(sortedTracks, targetIndex >= 0 ? targetIndex : 0);
     }
   }
 
@@ -680,9 +681,14 @@ export function PlaylistPage({
           activeVideoId={activeVideoId}
           isPlaying={isPlaying}
           favoriteIds={favoriteIds}
-          // Indeks yang dikirim adalah posisi di daftar yang TERLIHAT, jadi
-          // antrean yang terbentuk persis sama dengan isi tabel saat itu.
-          onPlayFromIndex={(idx) => onPlayTracks(tampil, idx)}
+          // Saat mengklik baris (baik saat filter pencarian aktif maupun tidak),
+          // antrean tetap memuat seluruh lagu di playlist (sortedTracks),
+          // dengan startIndex melompat ke lagu yang dipilih dari hasil pencarian.
+          onPlayFromIndex={(idx) => {
+            const targetTrack = tampil[idx];
+            const targetIndex = sortedTracks.findIndex((t) => t.videoId === targetTrack?.videoId);
+            onPlayTracks(sortedTracks, targetIndex >= 0 ? targetIndex : idx);
+          }}
           onTogglePlay={onTogglePlay}
           onQueue={onQueue}
           onFavorite={onFavorite}

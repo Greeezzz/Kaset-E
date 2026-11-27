@@ -8,6 +8,7 @@ import type { PlayerState, Track } from "../types";
 interface PlayerStore {
   state: PlayerState;
   setTrack: (t: Track | null) => void;
+  setTrackWithPosition: (t: Track | null, positionMs: number) => void;
   setPlaying: (p: boolean) => void;
   setStatus: (status: PlayerState["status"]) => void;
   /** Posisi dari engine. Dipakai juga untuk pratinjau setelah seek. */
@@ -35,6 +36,16 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
         status: track ? "paused" : "idle",
         durationMs: track?.durationMs ?? 0,
         positionMs: 0,
+      },
+    })),
+  setTrackWithPosition: (track, positionMs) =>
+    set((s) => ({
+      state: {
+        ...s.state,
+        track,
+        status: track ? "paused" : "idle",
+        durationMs: track?.durationMs ?? 0,
+        positionMs: Math.max(0, positionMs),
       },
     })),
   setPlaying: (playing) =>

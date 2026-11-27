@@ -18,7 +18,7 @@ Terakhir diperbarui: commit `6872dfe`, branch `main`, repo `github.com/Greeezzz/
 | Fase 5 — Import Playlist | **5/5 (selesai)** |
 | Fase 6 — Login + Sync | 0/3 |
 | Fase 7 (V3) — Mode Kaset & Lirik Engine | **11/11 (K1-K4, L1-L6, I1 selesai, L7 dilewati)** |
-| **Total** | **66/82 item (80%)** |
+| **Total** | **69/82 item (84%)** |
 
 Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **232 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
 
@@ -290,15 +290,15 @@ diketik user.
 
 ---
 
-## Sisa Fase 1 (3 item — semua Desktop polish)
+## Fase 1 Desktop Polish (3/3 Item) — SELESAI
 
-Ini dikerjakan bersama redesign UI, jadi sengaja ditunda.
+Seluruh 3 item polish desktop telah selesai diimplementasikan dan terpasang:
 
-1. **Tray icon + menu dasar** — `trayIcon` sudah ada di `tauri.conf.json` dan fitur `tray-icon` aktif, tapi belum ada menu/handler di Rust.
-2. **Media key** — plugin `global-shortcut` belum terpasang.
-3. **Export/import JSON library** — belum ada command maupun UI.
+1. **Tray icon + menu dasar** (`tray.rs`) — terpasang pada icon tray `"main"` dengan menu: `Buka Kaset`, `Putar / Jeda`, `Berikutnya`, `Sebelumnya`, `Keluar`. Klik kiri ikon tray memunculkan dan memfokuskan jendela.
+2. **Media key global** (`media_keys.rs`) — terpasang lewat plugin `tauri-plugin-global-shortcut` (`MediaPlayPause`, `MediaTrackNext`, `MediaTrackPrevious`, `#[cfg(desktop)]`).
+3. **Export/import JSON library** (`export.rs` & `Settings.tsx`) — command `export_library` dan `import_library` non-destruktif + UI tombol di halaman Pengaturan.
 
-Setelah 3 item ini, Fase 1 selesai dan `v0.1.0` bisa ditandai.
+Dengan selesainya 3 item ini, Fase 1 Desktop MVP berstatus **35/35 (100% selesai)**.
 
 ## Catatan teknis yang perlu diingat
 

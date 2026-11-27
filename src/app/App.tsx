@@ -78,7 +78,7 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
 
-  const { state, setTrack, setPlaying, setStatus } = usePlayerStore();
+  const { state, setTrack, setTrackWithPosition, setPlaying, setStatus } = usePlayerStore();
   const queue = useQueue();
   const refreshQueue = queue.refresh;
   const lib = useLibrary();
@@ -196,6 +196,22 @@ export function App() {
   // Jaga ref antrean tetap segar untuk handler audio di atas.
   queueViewRef.current = queue.view;
 
+  // Simpan posisi pemutaran berkala ke settings (debounced 1 detik)
+  const simpanPosisiRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!state.track?.videoId || state.positionMs <= 0) return;
+    if (simpanPosisiRef.current) window.clearTimeout(simpanPosisiRef.current);
+    simpanPosisiRef.current = window.setTimeout(() => {
+      void invoke("setting_set", {
+        key: `playback_pos_${state.track!.videoId}`,
+        value: String(Math.round(state.positionMs)),
+      }).catch(() => {});
+    }, 1000);
+    return () => {
+      if (simpanPosisiRef.current) window.clearTimeout(simpanPosisiRef.current);
+    };
+  }, [state.track?.videoId, state.positionMs]);
+
   // Pulihkan preferensi panel kanan.
   useEffect(() => {
     let hidup = true;
@@ -219,14 +235,32 @@ export function App() {
   }
 
   // Sinkronisasi awal: kalau antrean dipulihkan dari SQLite saat start,
-  // tampilkan lagu aktif di PlayerBar (status paused) supaya PlayerBar
-  // dan panel kanan selalu membaca kebenaran yang sama (DESIGN-LAYOUT §6).
+  // tampilkan lagu aktif di PlayerBar (status paused) beserta posisi terakhirnya
+  // supaya PlayerBar dan panel kanan selalu membaca kebenaran yang sama (DESIGN-LAYOUT §6).
   const queueCurrent = queue.view.current;
   useEffect(() => {
     if (!state.track && queueCurrent) {
-      setTrack(queueCurrent);
+      let hidup = true;
+      void invoke<string | null>("setting_get", {
+        key: `playback_pos_${queueCurrent.videoId}`,
+      })
+        .then((v) => {
+          if (!hidup) return;
+          const pos = v ? Number(v) : 0;
+          if (Number.isFinite(pos) && pos > 0) {
+            setTrackWithPosition(queueCurrent, pos);
+          } else {
+            setTrack(queueCurrent);
+          }
+        })
+        .catch(() => {
+          if (hidup) setTrack(queueCurrent);
+        });
+      return () => {
+        hidup = false;
+      };
     }
-  }, [state.track, queueCurrent, setTrack]);
+  }, [state.track, queueCurrent, setTrack, setTrackWithPosition]);
 
   // Pulihkan volume terakhir. Gagal baca bukan masalah: pakai default 0.8.
   useEffect(() => {
@@ -307,13 +341,17 @@ export function App() {
    *  next/prev punya konteks — inilah yang membuat "putar dari pencarian"
    *  terasa seperti player sungguhan, bukan satu lagu lepas. */
   /** Jalankan audio untuk satu lagu. Tidak menyentuh antrean sama sekali. */
-  async function startAudio(t: Track) {
+  async function startAudio(t: Track, startAtMs = 0) {
     playStartAtRef.current = { videoId: t.videoId, at: performance.now() };
     // Lagu berganti: prefetch berikutnya boleh dijadwalkan lagi.
     prefetchRef.current = null;
     // Sisa waktu lagu sebelumnya dikirim dulu supaya tidak hilang saat skip.
     pencatatMendengar.gantiLagu(t.videoId);
-    setTrack(t);
+    if (startAtMs > 0) {
+      setTrackWithPosition(t, startAtMs);
+    } else {
+      setTrack(t);
+    }
     setStatus("loading");
     // Riwayat dicatat di sini karena inilah titik lagu benar-benar diminta
     // diputar — bukan saat diklik dan resolve-nya gagal.
@@ -323,7 +361,7 @@ export function App() {
       // memakan beberapa detik — memutarnya ulang untuk lagu yang sama persis
       // adalah pemborosan yang terasa oleh user.
       const stream = await streamCache.get(t.videoId);
-      await audioEngine.load(stream.url);
+      await audioEngine.load(stream.url, startAtMs);
       loadedVideoIdRef.current = t.videoId;
     } catch (err) {
       console.error("putar gagal:", err);
@@ -536,7 +574,7 @@ export function App() {
     } else if (state.track) {
       // Lagu hasil pemulihan saat start belum dimuat ke <audio>; resolve dulu.
       if (loadedVideoIdRef.current !== state.track.videoId) {
-        void startAudio(state.track);
+        void startAudio(state.track, state.positionMs);
         return;
       }
       void audioEngine.play();
