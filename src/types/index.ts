@@ -74,3 +74,24 @@ export interface LyricsResponse {
   diambil_pada: number;
   parsed: ParsedLyrics;
 }
+
+/** Metadata lagu setelah dibersihkan dari tag video YouTube. */
+export interface LrclibMetadata {
+  judul_bersih: string;
+  artis_bersih: string;
+  parsed_artist: string | null;
+  parsed_title: string | null;
+  judul_saja: string;
+}
+
+/** Satu hasil pencarian manual di LRCLIB. */
+export interface LrclibCandidate {
+  id: number | null;
+  track_name: string;
+  artist_name: string;
+  album_name: string | null;
+  duration: number | null;
+  instrumental: boolean;
+  synced: boolean;
+  lrc: string;
+}

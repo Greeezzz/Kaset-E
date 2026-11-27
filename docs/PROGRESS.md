@@ -195,7 +195,7 @@ Mengikuti `FEATURES-V3.md`. Fitur Mode Kaset dan Lirik telah selesai diimplement
 | L2 | Impor Berkas Manual | Dialog native file `.lrc`, drag-and-drop file lirik | Selesai |
 | L3 | Tampilan Lirik Sinkron | Sorotan baris kuning Endfield, auto-scroll, seek-by-click, offset ±100ms | Selesai |
 | L4 | Tampilan Penuh (Fullscreen) | Layar penuh lirik, scaling font (kecil/sedang/besar), dimmed mode, Esc | Selesai |
-| L5 | Integrasi LRCLIB Opt-in | Auto-fetch lirik dari `lrclib.net`, filter kolaborator & durasi | Selesai |
+| L5 | Integrasi LRCLIB Opt-in | Auto-fetch lirik dari `lrclib.net`: sanitasi metadata, waterfall 3 tahap, skor kandidat, panel CARI LIRIK manual | Selesai |
 | L6 | Romanisasi CJK Lokal | Transliterasi offline Rust: Korea Hangul (Revised Romanization), Jepang Kanji+Kana (JMdict + Unihan, Hepburn), Mandarin Pinyin | Selesai |
 | L7 | Terjemahan Mesin BYOK | Opsional; dilewati/ditunda sesuai konfirmasi pemilik proyek | Dilewati |
 
@@ -252,6 +252,41 @@ baris yang seluruhnya kana masih bisa lengket; を tetap "o" (bukan "wo"). Targe
 100% identik dengan transkripsi manusia tidak realistis tanpa analisis morfologi
 penuh (UniDic/Lindera), dan itu berarti kamus yang harus diunduh saat runtime —
 pilihan yang sampai sekarang sengaja tidak diambil.
+
+### Perbaikan resolver LRCLIB (Tugas 2)
+
+Versi pertama L5 mengirim judul video dan nama channel apa adanya ke
+`/api/get`. Untuk track yang bukan unggahan `- Topic` itu hampir selalu 404:
+judulnya `【MV】Artis - Judul (Official Music Video)` dan channelnya re-uploader,
+padahal nama artis asli justru ada di dalam judul. Sekarang:
+
+- **Sanitasi metadata** (`lyrics/lrclib.rs`): kurung berisi kata noise dibuang
+  (`official`, `mv`, `lyrics`, `tv size`, `4k`, …), akhiran channel dirapikan
+  (`- Topic`, `VEVO`, `Official Channel`), dan judul diurai jadi
+  `(artis, judul)` — baik pola `Artis - Judul` maupun `アーティスト「曲名」`.
+- **Waterfall tiga tahap**: `/api/get` (pencocokan persis, durasi bulat) →
+  `/api/search` dengan `track_name` + `artist_name` untuk tiap pasangan kandidat
+  → `q=` bebas termasuk judul saja. Berhenti di tahap pertama yang menghasilkan
+  kandidat layak, dengan batas 10 permintaan dan anggaran 12 detik.
+- **Skor kandidat**, bukan elemen pertama: synced > plain, kecocokan
+  judul/artis, dan durasi sebagai penalti lunak (MV dengan intro 25 detik tetap
+  layak, selisih > 60 detik ditolak). Instrumental diabaikan selama ada pilihan
+  lain, dan kandidat tanpa teks lirik langsung dibuang.
+- **Panel CARI LIRIK** untuk jalur manual: tombol di drawer SYNC TOOLS dan di
+  empty state mengisi kolom dengan judul yang sudah dibersihkan, menampilkan
+  tabel hasil (judul, artis, durasi, SYNCED/PLAIN), dan satu klik menerapkan
+  lirik pilihan ke `videoId` itu. Offset kini punya tombol ±1s di samping ±100ms
+  karena MV sering punya intro panjang.
+- **Tanpa migrasi**: hasil tetap disimpan di tabel `lyrics` yang sudah keyed
+  `video_id`, jadi cache per lagu (§5) otomatis berlaku untuk pilihan manual.
+
+Jalur otomatis tetap digerbangi setting `lirik.lrclib`; pencarian manual tidak,
+karena dipicu klik user dan user sendiri yang mengirim kata kuncinya.
+
+Residual: heuristik sanitasi bisa salah pada judul yang memang memakai tanda
+kurung sebagai bagian nama lagu (`Song (feat. X)` dipertahankan, tapi varian
+lain bisa terpotong), dan pencarian manual bergantung pada kata kunci yang
+diketik user.
 
 ---
 

@@ -6,7 +6,15 @@
  * mendeteksi ketiadaan Tauri dan jatuh ke mock in-memory yang bisa juga
  * disuruh gagal — prasyarat untuk menguji backoff/circuit breaker di Fase 1.
  */
-import type { LyricsResponse, PlayerState, QueueItem, SearchResults, Track } from "../types";
+import type {
+  LrclibCandidate,
+  LrclibMetadata,
+  LyricsResponse,
+  PlayerState,
+  QueueItem,
+  SearchResults,
+  Track,
+} from "../types";
 
 type UnlistenFn = () => void;
 
@@ -623,6 +631,44 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
         },
       };
       mockLib.lyrics.set(vid, res);
+      return res as T;
+    }
+    case "lyrics_metadata_lirik": {
+      const title = (args?.title as string) ?? "";
+      const artist = (args?.artist as string) ?? "";
+      const res: LrclibMetadata = {
+        judul_bersih: title.replace(/\s*[([【〔][^\])】〕]*[)\]】〕]/g, "").trim(),
+        artis_bersih: artist,
+        parsed_artist: null,
+        parsed_title: null,
+        judul_saja: title.trim(),
+      };
+      return res as T;
+    }
+    case "lyrics_search_lrclib": {
+      const query = (args?.query as string) ?? "";
+      const res: LrclibCandidate[] = [
+        {
+          id: 1,
+          track_name: query || "Contoh Lagu",
+          artist_name: "Contoh Artis",
+          album_name: null,
+          duration: 214,
+          instrumental: false,
+          synced: true,
+          lrc: "[00:01.00]Lirik contoh dari pencarian manual\n[00:05.00]Baris kedua",
+        },
+        {
+          id: 2,
+          track_name: query || "Contoh Lagu",
+          artist_name: "Artis Lain",
+          album_name: null,
+          duration: 240,
+          instrumental: false,
+          synced: false,
+          lrc: "Lirik polos tanpa timestamp",
+        },
+      ];
       return res as T;
     }
     case "lyrics_fetch_lrclib": {

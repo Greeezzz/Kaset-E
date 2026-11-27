@@ -5,8 +5,10 @@ use tauri::State;
 
 use crate::db::lyrics;
 use crate::error::AppResult;
-use crate::lyrics::lrc::{parse_lrc, ParsedLyrics};
-use crate::lyrics::lrclib::fetch_lrclib;
+use crate::lyrics::lrc::{ParsedLyrics, parse_lrc};
+use crate::lyrics::lrclib::{
+    KandidatLirik, MetadataLagu, cari_lrclib, fetch_lrclib, metadata_lagu,
+};
 use crate::state::AppState;
 
 /// Hasil pengembalian saat UI meminta lirik:
@@ -22,7 +24,10 @@ pub struct LyricsResponse {
 }
 
 #[tauri::command]
-pub async fn lyrics_get(state: State<'_, AppState>, video_id: String) -> AppResult<Option<LyricsResponse>> {
+pub async fn lyrics_get(
+    state: State<'_, AppState>,
+    video_id: String,
+) -> AppResult<Option<LyricsResponse>> {
     let raw = lyrics::get_lyrics(&state.db, &video_id)?;
     if let Some(item) = raw {
         let parsed = parse_lrc(&item.lrc);
@@ -50,8 +55,9 @@ pub async fn lyrics_set_from_text(
     let sumber_str = sumber.unwrap_or_else(|| "impor".to_string());
     lyrics::set_lyrics_text(&state.db, &video_id, &text, &sumber_str, offset_ms)?;
 
-    let raw = lyrics::get_lyrics(&state.db, &video_id)?
-        .ok_or_else(|| crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into()))?;
+    let raw = lyrics::get_lyrics(&state.db, &video_id)?.ok_or_else(|| {
+        crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into())
+    })?;
 
     let parsed = parse_lrc(&raw.lrc);
     Ok(LyricsResponse {
@@ -118,8 +124,9 @@ pub async fn lyrics_fetch_lrclib(
             // Simpan otomatis ke DB
             lyrics::set_lyrics_text(&state.db, &video_id, &text, "lrclib", None)?;
 
-            let raw = lyrics::get_lyrics(&state.db, &video_id)?
-                .ok_or_else(|| crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into()))?;
+            let raw = lyrics::get_lyrics(&state.db, &video_id)?.ok_or_else(|| {
+                crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into())
+            })?;
 
             Ok(Some(LyricsResponse {
                 video_id: raw.video_id,
@@ -136,6 +143,27 @@ pub async fn lyrics_fetch_lrclib(
             Ok(None)
         }
     }
+}
+
+/// Metadata yang sudah dibersihkan (judul, artis, hasil parser `Artis - Judul`).
+/// Dipakai UI untuk mengisi kolom pencarian manual dengan judul yang layak.
+#[tauri::command]
+pub fn lyrics_metadata_lirik(title: String, artist: String) -> MetadataLagu {
+    metadata_lagu(&title, &artist)
+}
+
+/// Pencarian manual di LRCLIB untuk panel `CARI LIRIK`.
+///
+/// Berbeda dari `lyrics_fetch_lrclib`, jalur ini dipicu klik user sehingga tidak
+/// bergantung pada setting opt-in; user sendiri yang meminta pencarian.
+#[tauri::command]
+pub async fn lyrics_search_lrclib(
+    query: String,
+    duration_secs: Option<f64>,
+) -> AppResult<Vec<KandidatLirik>> {
+    cari_lrclib(&query, duration_secs)
+        .await
+        .map_err(crate::error::AppError::Network)
 }
 
 /// Impor berkas lirik dari path lokal (dialog native).
@@ -169,8 +197,9 @@ pub async fn lyrics_import_file(
 
     lyrics::set_lyrics_text(&state.db, &video_id, &text, "impor", None)?;
 
-    let raw = lyrics::get_lyrics(&state.db, &video_id)?
-        .ok_or_else(|| crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into()))?;
+    let raw = lyrics::get_lyrics(&state.db, &video_id)?.ok_or_else(|| {
+        crate::error::AppError::NotFound("Lirik tidak ditemukan setelah disimpan".into())
+    })?;
 
     Ok(LyricsResponse {
         video_id: raw.video_id,
