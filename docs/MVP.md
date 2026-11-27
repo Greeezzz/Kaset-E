@@ -93,6 +93,7 @@ Catatan Fase 1 Queue — bug "antrean prioritas hantu":
 **Library minimal**
 - [x] CRUD playlist lokal (buat, ganti nama, hapus)
 - [x] Tambah/hapus lagu dari playlist
+- [x] Cari lagu di dalam playlist & Lagu Disukai — judul/artis/album, tidak peka huruf besar-kecil maupun diakritik, semua kata harus cocok (AND), pintasan `/` dan tombol hapus filter
 - [x] Favorit (toggle)
 - [x] History (catat + tampilkan daftar)
 

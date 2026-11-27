@@ -185,6 +185,15 @@ export const T = {
   urutArtis: "ARTIS",
   urutDurasi: "DURASI",
 
+  // Pencarian di dalam playlist
+  cariDiPlaylist: "Cari di playlist",
+  cariDiPlaylistPlaceholder: "Cari judul, artis, album…",
+  cariDiPlaylistPintasan: "Tekan / untuk mencari",
+  hapusFilter: "Hapus filter pencarian",
+  hasilCari: (cocok: number, total: number) => `${cocok} dari ${total} lagu`,
+  tidakAdaHasilCari: (kueri: string) => `Tidak ada lagu yang cocok dengan "${kueri}".`,
+  hapusFilterCaps: "HAPUS FILTER",
+
   // Dialog playlist
   tambahKePlaylistCaps: "TAMBAH KE PLAYLIST",
   belumAdaPlaylistPicker: "Belum ada playlist. Buat satu di kolom bawah.",

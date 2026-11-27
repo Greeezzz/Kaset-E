@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { Playlist } from "../../hooks/useLibrary";
 import type { Track } from "../../types";
@@ -9,6 +9,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { streamCache } from "../../lib/streamCache";
 import { PlaylistTable } from "./PlaylistTable";
 import { formatTotalDuration } from "../../lib/format";
+import { buatIndeks, pecahKueri, saring } from "../../lib/cari";
 import { T } from "../../lib/strings";
 
 type SortKey = "asli" | "judul" | "artis" | "durasi";
@@ -84,7 +85,9 @@ export function PlaylistPage({
   const [menuBuka, setMenuBuka] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
+  const [kueri, setKueri] = useState("");
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const cariRef = useRef<HTMLInputElement | null>(null);
 
   // Reset mode edit/menu saat berpindah playlist — TAPI bukan pilihan urutan.
   // Urutan dimuat ulang dari preferensi tersimpan playlist tujuan.
@@ -93,8 +96,33 @@ export function PlaylistPage({
     setMenuBuka(false);
     setRenaming(false);
     setRenameVal("");
+    setKueri("");
     setSort(bacaSort(playlistId));
   }, [playlistId]);
+
+  // Pintasan `/` memfokuskan kotak cari, kecuali saat pengguna sedang mengetik
+  // di kolom lain. Dipilih `/` karena `Ctrl+F` sudah dipakai pencarian bawaan
+  // webview dan tidak bisa diambil alih tanpa mengganggu.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      cariRef.current?.focus();
+      cariRef.current?.select();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   // Prefetch lagu PERTAMA saat halaman playlist dibuka.
   //
@@ -132,10 +160,27 @@ export function PlaylistPage({
     return copy;
   }, [tracks, sort]);
 
+  // Filter pencarian. `useDeferredValue` menahan render tabel yang berat
+  // selama pengguna masih mengetik: kotak cari tetap responsif, daftar menyusul
+  // satu frame kemudian. Efeknya sama dengan debounce tanpa timer tambahan.
+  const kueriTertunda = useDeferredValue(kueri);
+  const kataCari = useMemo(() => pecahKueri(kueriTertunda), [kueriTertunda]);
+  const indeksCari = useMemo(
+    () => buatIndeks(sortedTracks, (t) => [t.title, t.artist, t.album]),
+    [sortedTracks],
+  );
+  const tampil = useMemo(
+    () => (kataCari.length === 0 ? sortedTracks : saring(indeksCari, kataCari)),
+    [kataCari, indeksCari, sortedTracks],
+  );
+
   const totalDurasi = useMemo(() => formatTotalDuration(tracks), [tracks]);
   const judul = playlist ? playlist.name : T.laguDisukai;
   const labelJenis = playlist ? T.playlist : T.koleksiDipin;
   const kosong = tracks.length === 0;
+  const adaKueri = kataCari.length > 0;
+  const filterKosong = adaKueri && tampil.length === 0;
+  const bisaPutar = tampil.length > 0;
 
   async function simpanRename(e: React.FormEvent) {
     e.preventDefault();
@@ -154,11 +199,14 @@ export function PlaylistPage({
   }
 
   function klikPutarUtama() {
-    if (kosong) return;
-    if (isSourcePlaying) {
+    if (tampil.length === 0) return;
+    // Saat filter aktif, yang diputar adalah hasil filter — sama dengan yang
+    // terlihat di tabel. Memutar seluruh playlist sementara layar hanya
+    // menampilkan 3 lagu akan membuat antrean terasa tidak nyambung.
+    if (isSourcePlaying && !adaKueri) {
       onTogglePlay();
     } else {
-      onPlayTracks(sortedTracks, 0);
+      onPlayTracks(tampil, 0);
     }
   }
 
@@ -338,7 +386,7 @@ export function PlaylistPage({
           )}
 
           <p className="mono muted" style={{ margin: "var(--s-3) 0 0", fontSize: 12 }}>
-            {tracks.length} {T.lagu}
+            {adaKueri ? T.hasilCari(tampil.length, tracks.length) : `${tracks.length} ${T.lagu}`}
             {totalDurasi ? ` · ${totalDurasi}` : ""}
           </p>
         </div>
@@ -358,22 +406,22 @@ export function PlaylistPage({
         <button
           type="button"
           onClick={klikPutarUtama}
-          disabled={kosong}
-          aria-label={isSourcePlaying && isPlaying ? T.jeda : T.putar}
+          disabled={!bisaPutar}
+          aria-label={isSourcePlaying && isPlaying && !adaKueri ? T.jeda : T.putar}
           style={{
             width: 52,
             height: 52,
             display: "grid",
             placeItems: "center",
-            background: kosong ? "transparent" : "var(--accent)",
-            color: kosong ? "var(--ink-muted)" : "var(--accent-ink)",
-            border: kosong ? "1px solid var(--line)" : "none",
-            clipPath: kosong
-              ? undefined
-              : "polygon(var(--cut-sm) 0, 100% 0, 100% calc(100% - var(--cut-sm)), calc(100% - var(--cut-sm)) 100%, 0 100%, 0 var(--cut-sm))",
+            background: bisaPutar ? "var(--accent)" : "transparent",
+            color: bisaPutar ? "var(--accent-ink)" : "var(--ink-muted)",
+            border: bisaPutar ? "none" : "1px solid var(--line)",
+            clipPath: bisaPutar
+              ? "polygon(var(--cut-sm) 0, 100% 0, 100% calc(100% - var(--cut-sm)), calc(100% - var(--cut-sm)) 100%, 0 100%, 0 var(--cut-sm))"
+              : undefined,
             fontSize: 18,
             fontWeight: 700,
-            cursor: kosong ? "not-allowed" : "pointer",
+            cursor: bisaPutar ? "pointer" : "not-allowed",
           }}
         >
           {isSourcePlaying && isPlaying ? <IkonPause size={22} /> : <IkonPlay size={22} />}
@@ -464,6 +512,83 @@ export function PlaylistPage({
 
         <span style={{ flex: 1 }} />
 
+        {/* Kotak cari di dalam playlist. Ditempatkan di baris aksi, bukan
+            baris baru, supaya tabel tidak bergeser jauh saat halaman dibuka. */}
+        <div
+          role="search"
+          style={{
+            position: "relative",
+            flex: "1 1 220px",
+            minWidth: 180,
+            maxWidth: 320,
+          }}
+        >
+          <input
+            ref={cariRef}
+            // `type="text"`, bukan `search`: Ctrl+K global mencari
+            // `input[type="search"]` pertama, dan kotak ini tidak boleh
+            // merebut pintasan itu saat halaman playlist terbuka.
+            type="text"
+            className="k-input"
+            value={kueri}
+            onChange={(e) => setKueri(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                setKueri("");
+                e.currentTarget.blur();
+              }
+            }}
+            placeholder={T.cariDiPlaylistPlaceholder}
+            aria-label={T.cariDiPlaylist}
+            title={T.cariDiPlaylistPintasan}
+            autoComplete="off"
+            spellCheck={false}
+            style={{ paddingRight: kueri ? 40 : undefined }}
+          />
+          {kueri && (
+            <button
+              type="button"
+              onClick={() => {
+                setKueri("");
+                cariRef.current?.focus();
+              }}
+              aria-label={T.hapusFilter}
+              title={T.hapusFilter}
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: 40,
+                height: "100%",
+                display: "grid",
+                placeItems: "center",
+                color: "var(--ink-muted)",
+                fontSize: 16,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* Pengumuman hasil untuk pembaca layar; tidak terlihat di layar
+            karena jumlahnya sudah tampil di bawah judul. */}
+        <span
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+            clip: "rect(0 0 0 0)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {adaKueri ? T.hasilCari(tampil.length, tracks.length) : ""}
+        </span>
+
         {/* Filter/sort kecil di kanan (DESIGN-LAYOUT §3.2). */}
         <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--s-2)" }}>
           <span className="label">{T.urutkan}</span>
@@ -521,14 +646,43 @@ export function PlaylistPage({
             </button>
           }
         />
+      ) : filterKosong ? (
+        <EmptyState
+          title={T.tidakAdaHasil}
+          hint={T.tidakAdaHasilCari(kueriTertunda.trim())}
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setKueri("");
+                cariRef.current?.focus();
+              }}
+              style={{
+                marginTop: "var(--s-2)",
+                minHeight: 44,
+                padding: "0 var(--s-4)",
+                border: "1px solid var(--line-strong)",
+                color: "var(--ink)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+              }}
+            >
+              {T.hapusFilterCaps}
+            </button>
+          }
+        />
       ) : (
         <PlaylistTable
-          tracks={sortedTracks}
+          tracks={tampil}
           scrollContainerRef={scrollContainerRef}
           activeVideoId={activeVideoId}
           isPlaying={isPlaying}
           favoriteIds={favoriteIds}
-          onPlayFromIndex={(idx) => onPlayTracks(sortedTracks, idx)}
+          // Indeks yang dikirim adalah posisi di daftar yang TERLIHAT, jadi
+          // antrean yang terbentuk persis sama dengan isi tabel saat itu.
+          onPlayFromIndex={(idx) => onPlayTracks(tampil, idx)}
           onTogglePlay={onTogglePlay}
           onQueue={onQueue}
           onFavorite={onFavorite}
