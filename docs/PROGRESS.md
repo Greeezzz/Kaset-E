@@ -20,7 +20,7 @@ Terakhir diperbarui: commit `6872dfe`, branch `main`, repo `github.com/Greeezzz/
 | Fase 7 (V3) — Mode Kaset & Lirik Engine | **11/11 (K1-K4, L1-L6, I1 selesai, L7 dilewati)** |
 | **Total** | **66/82 item (80%)** |
 
-Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **215 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
+Ukuran kode: **10.716 baris Rust + 10.092 baris TypeScript/TSX**. **232 unit test hijau**, `clippy --all-targets -- -D warnings` bersih, `tsc` + `eslint` + `prettier` bersih. 57 commit.
 
 Ukuran terpasang: `kaset.exe` 9,8 MB. Database di `%APPDATA%\app.kaset.desktop\kaset.db`, 11 tabel + `schema_migrations` (skema versi `0007`). Cache cover terpisah di `%APPDATA%\app.kaset.desktop\covers`.
 
@@ -142,8 +142,31 @@ Mengikuti `FEATURES-V3.md`. Fitur Mode Kaset dan Lirik telah selesai diimplement
 | L3 | Tampilan Lirik Sinkron | Sorotan baris kuning Endfield, auto-scroll, seek-by-click, offset ±100ms | Selesai |
 | L4 | Tampilan Penuh (Fullscreen) | Layar penuh lirik, scaling font (kecil/sedang/besar), dimmed mode, Esc | Selesai |
 | L5 | Integrasi LRCLIB Opt-in | Auto-fetch lirik dari `lrclib.net`, filter kolaborator & durasi | Selesai |
-| L6 | Romanisasi CJK Lokal | Transliterasi offline Rust (Korea Hangul, Jepang Kana Hepburn, Mandarin Pinyin) | Selesai |
+| L6 | Romanisasi CJK Lokal | Transliterasi offline Rust: Korea Hangul (Revised Romanization), Jepang Kanji+Kana (JMdict + Unihan, Hepburn), Mandarin Pinyin | Selesai |
 | L7 | Terjemahan Mesin BYOK | Opsional; dilewati/ditunda sesuai konfirmasi pemilik proyek | Dilewati |
+
+### Perbaikan romanisasi (Tugas 1)
+
+Versi pertama L6 hanya mengubah kana; kanji dan katakana setengah lebar lolos apa
+adanya, jadi "romaji" masih mengandung CJK. Perbaikan ini menutup itu:
+
+- **Rentang aksara** kini mencakup Hiragana, Katakana (termasuk U+FF66..U+FF9F),
+  Han (Unicode, Extension A, Compatibility, ekstensi astral), dan Hangul
+  (suku kata, Jamo, Jamo kompatibilitas). `is_cjk` dipakai sebagai gerbang akhir.
+- **Jepang** bertingkat: kata utuh dari JMdict (`ib-romaji`), lalu kana dengan
+  tabel Hepburn sendiri, lalu kanji lewat tabel bacaan on/kun Unihan
+  (`kanji_bacaan.rs`, 6.345 kanji JIS X 0208). Kanji tunggal + okurigana memilih
+  kun'yomi yang cocok; kanji tunggal tanpa okurigana menghindari bentuk kamus
+  verba (`光` → hikari, bukan hikaru).
+- **Mandarin** memakai crate `pinyin` (nada dipertahankan, sama seperti keluaran
+  lama) dan **Korea** tetap algoritmik dengan rangkai Jamo + liaison dasar.
+- **Fallback**: baris yang masih menyisakan CJK mengembalikan `None`, bukan
+  romaji separuh. Tidak ada perubahan skema database — hasil dihitung saat LRC
+  diurai.
+
+Ukuran yang dibayar: `ib-romaji` menambah ~4,8 MiB di biner (kamus ditanam, jadi
+tidak ada unduhan saat build/run). `rust-version` naik 1.77 → 1.85 karena crate
+itu memakai edition 2024.
 
 ---
 

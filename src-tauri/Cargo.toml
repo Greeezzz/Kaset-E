@@ -4,7 +4,10 @@ version = "0.0.0"
 description = "Kaset — pemutar musik pribadi tanpa iklan"
 authors = ["Kaset"]
 edition = "2021"
-rust-version = "1.77"
+# 1.85 adalah batas bawah karena `ib-romaji` (romanisasi Jepang) memakai
+# edition 2024. Toolchain proyek saat ini 1.100, jadi ini hanya deklarasi ulang
+# supaya `rust-version` tidak berbohong.
+rust-version = "1.85"
 license = "MIT"
 
 [lib]
@@ -55,6 +58,19 @@ uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 parking_lot = "0.13"
+
+# Romanisasi lirik (FEATURES-V3 §4 L6). Dua kamus ini sengaja dipilih setelah
+# membandingkan alternatifnya:
+# - `ib-romaji`: kanji + kana -> Hepburn. Kamus JMdict ditanam di crate (tidak
+#   ada unduhan saat build seperti `lindera-ipadic`, yang mengambil tar.gz dari
+#   Lindera.dev lewat build.rs) dan lisensinya MIT (kakasi GPL-3, tidak cocok).
+#   Biayanya ~4,8 MiB di biner. Romanizer-nya dibangun sekali per proses.
+# - `pinyin`: hanzi -> pinyin. `default-features = false` karena fitur
+#   `heteronym` menarik kamus kedua yang besar dan tidak dipakai di sini.
+# Korea tidak butuh crate: Revised Romanization cukup tabel tetap (lihat
+# `lyrics/romanize.rs`).
+ib-romaji = "0.2"
+pinyin = { version = "0.11", default-features = false, features = ["plain", "with_tone"] }
 
 [dev-dependencies]
 tempfile = "3"
