@@ -23,4 +23,9 @@ describe("TombolKasetLyric", () => {
     expect(render()).toContain('class="k-btn k-btn-quiet"');
     expect(render({ variant: "utama" })).toContain('class="k-btn k-btn-accent"');
   });
+
+  it("setinggi tombol lirik lain (28 px), bukan 44 px", () => {
+    expect(render()).toContain("height:28px");
+    expect(render()).toContain("font-size:10px");
+  });
 });
