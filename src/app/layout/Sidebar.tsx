@@ -34,6 +34,8 @@ interface Props {
   onCreatePlaylist: (name: string) => Promise<void>;
   /** Buka dialog impor playlist dari berkas. */
   onImportPlaylist: () => void;
+  /** Buka dialog Mix Playlist. */
+  onOpenMix?: () => void;
   /** Buka dialog Nama & Detail untuk playlist ini. */
   onEditPlaylist: (id: number) => void;
   onRenamePlaylist: (id: number, name: string) => Promise<void>;
@@ -67,6 +69,7 @@ export function Sidebar({
   onSelectFavorites,
   onCreatePlaylist,
   onImportPlaylist,
+  onOpenMix,
   onRenamePlaylist,
   onEditPlaylist,
   onDeletePlaylist,
@@ -243,6 +246,31 @@ export function Sidebar({
         >
           {rel ? <IkonTambah size={18} /> : `↓ ${T.imporPlaylistBaru}`}
         </button>
+
+        {onOpenMix && (
+          <button
+            type="button"
+            className="k-btn k-btn-quiet"
+            onClick={onOpenMix}
+            aria-label="Mix Playlist"
+            title={rel ? "Mix Playlist" : undefined}
+            style={{
+              padding: rel ? 0 : "10px var(--s-3)",
+              display: rel ? "grid" : "inline-flex",
+              placeItems: rel ? "center" : undefined,
+              textAlign: rel ? "center" : "left",
+              justifyContent: rel ? "center" : "flex-start",
+              textTransform: "none",
+              color: "var(--accent)",
+            }}
+          >
+            {rel ? (
+              <span style={{ fontSize: 16 }}>⚡</span>
+            ) : (
+              <span>⚡ Mix Playlist</span>
+            )}
+          </button>
+        )}
 
         {buatBuka && !rel && (
           <form

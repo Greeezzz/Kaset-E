@@ -30,6 +30,7 @@ import { useLibrary } from "../hooks/useLibrary";
 import { PlaylistPicker } from "../features/library/PlaylistPicker";
 import { PlaylistDetailDialog } from "../features/library/PlaylistDetailDialog";
 import { ImportDialog } from "../features/library/ImportDialog";
+import { MixPlaylistDialog } from "../features/library/MixPlaylistDialog";
 
 const KasetMode = lazy(() =>
   import("../features/player/KasetMode").then((m) => ({ default: m.KasetMode })),
@@ -90,6 +91,8 @@ export function App() {
   const [detailBaru, setDetailBaru] = useState(false);
   // Dialog impor playlist dari berkas (Fase 5).
   const [importBuka, setImportBuka] = useState(false);
+  // Dialog Mix Playlist
+  const [mixBuka, setMixBuka] = useState(false);
   // Handler "lagu habis" disimpan di ref supaya effect audio tidak perlu
   // dipasang ulang setiap render (dan tidak menangkap state basi).
   const onEndedRef = useRef<() => void>(() => {});
@@ -665,6 +668,7 @@ export function App() {
             onSelectFavorites={handleSelectFavorites}
             onCreatePlaylist={handleCreatePlaylist}
             onImportPlaylist={() => setImportBuka(true)}
+            onOpenMix={() => setMixBuka(true)}
             onRenamePlaylist={handleRenamePlaylist}
             onEditPlaylist={(id) => {
               setDetailBaru(false);
@@ -762,6 +766,7 @@ export function App() {
                   onRenamePlaylist={handleRenamePlaylist}
                   onDeletePlaylist={handleDeletePlaylist}
                   onGoSearch={() => setRoute("search")}
+                  onOpenMix={() => setMixBuka(true)}
                 />
               )}
               {route === "stats" && <Stats />}
@@ -952,6 +957,29 @@ export function App() {
             setSelectedPlaylistId(id);
             setLibTab("Playlist");
             setRoute("library");
+          }}
+        />
+      )}
+
+      {mixBuka && (
+        <MixPlaylistDialog
+          playlists={lib.playlists}
+          favorites={lib.favorites}
+          onClose={() => setMixBuka(false)}
+          fetchPlaylistTracks={(id) => lib.playlistTracks(id)}
+          onPlayMix={(tracks) => {
+            if (tracks.length > 0) {
+              void playTrackList(tracks, 0, null);
+              setToast(`Memutar mix (${tracks.length} lagu)`);
+              setTimeout(() => setToast(null), 3000);
+            }
+          }}
+          onCreatePlaylistWithTracks={async (name, tracks) => {
+            const newPl = await lib.createPlaylist(name);
+            for (const t of tracks) {
+              await lib.addToPlaylist(newPl.id, t);
+            }
+            await lib.refreshPlaylists();
           }}
         />
       )}

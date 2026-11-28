@@ -35,6 +35,7 @@ interface Props {
   onRenamePlaylist: (id: number, name: string) => Promise<void>;
   onDeletePlaylist: (id: number) => Promise<void>;
   onGoSearch: () => void;
+  onOpenMix?: () => void;
 }
 
 /**
@@ -65,6 +66,7 @@ export function Library({
   onRenamePlaylist,
   onDeletePlaylist,
   onGoSearch,
+  onOpenMix,
 }: Props) {
   const [detail, setDetail] = useState<Track[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -134,6 +136,7 @@ export function Library({
               setTab("Playlist");
             }}
             onSelectHistory={() => setTab("History")}
+            onOpenMix={onOpenMix}
           />
         )}
 
@@ -233,6 +236,7 @@ export function Library({
               setTab("Playlist");
             }}
             onSelectHistory={() => setTab("History")}
+            onOpenMix={onOpenMix}
           />
         </div>
       )}
@@ -277,6 +281,7 @@ function MobileBar({
   onSelectFavorites,
   onSelectPlaylist,
   onSelectHistory,
+  onOpenMix,
 }: {
   tab: LibraryTab;
   selectedPlaylistId: number | null;
@@ -284,6 +289,7 @@ function MobileBar({
   onSelectFavorites: () => void;
   onSelectPlaylist: (id: number) => void;
   onSelectHistory: () => void;
+  onOpenMix?: () => void;
 }) {
   return (
     <div
@@ -295,6 +301,27 @@ function MobileBar({
         marginBottom: "var(--s-2)",
       }}
     >
+      {onOpenMix && (
+        <button
+          type="button"
+          onClick={onOpenMix}
+          style={{
+            flex: "0 0 auto",
+            minHeight: 44,
+            padding: "0 var(--s-3)",
+            border: "1px solid var(--accent)",
+            background: "transparent",
+            color: "var(--accent)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            whiteSpace: "nowrap",
+            fontWeight: 700,
+          }}
+        >
+          ⚡ MIX
+        </button>
+      )}
       <Pill aktif={tab === "Favorit"} onClick={onSelectFavorites}>
         {T.laguDisukai}
       </Pill>
