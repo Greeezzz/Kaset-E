@@ -6,6 +6,8 @@ const makeTrack = (id: string, title: string): Track => ({
   videoId: id,
   title,
   artist: "Artist",
+  album: "Album",
+  coverKey: "cover",
   durationMs: 180000,
 });
 
