@@ -4,6 +4,7 @@ import { audioEngine } from "../../lib/audio";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
 import { IkonFullscreen } from "../../components/icons";
+import { TombolKasetLyric } from "../../components/TombolKasetLyric";
 import { invoke, runningInTauri } from "../../lib/tauri";
 
 /**
@@ -842,7 +843,8 @@ export function LyricsView({
                 </button>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <TombolKasetLyric onGagal={setErrorMsg} />
                 <button
                   type="button"
                   onClick={handlePilihBerkas}
@@ -1018,7 +1020,18 @@ export function LyricsView({
           <p className="muted" style={{ fontSize: 12 }}>
             {T.lirikTidakAda}
           </p>
-          <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--s-2)",
+              alignItems: "center",
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            {/* Hanya saat ada lagu yang diputar: artinya "lirik lagu ini belum
+                ada", bukan "belum ada lagu". */}
+            {track ? <TombolKasetLyric variant="utama" onGagal={setErrorMsg} /> : null}
             <button
               type="button"
               onClick={handlePilihBerkas}

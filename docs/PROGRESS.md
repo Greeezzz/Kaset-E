@@ -283,6 +283,13 @@ padahal nama artis asli justru ada di dalam judul. Sekarang:
 Jalur otomatis tetap digerbangi setting `lirik.lrclib`; pencarian manual tidak,
 karena dipicu klik user dan user sendiri yang mengirim kata kuncinya.
 
+### Tombol menuju KasetLyric
+
+Tombol `UNDUH LRC ROMAJI` di drawer SYNC TOOLS — dan di keadaan kosong saat ada
+lagu yang diputar — membuka <https://arimakaori.github.io/kasetlyric/> di browser
+sistem lewat `plugin:opener|open_url`; di browser murni jatuh ke `window.open`
+dengan `noopener,noreferrer`. Tidak ada judul, artis, atau isi lirik yang dikirim.
+
 Residual: heuristik sanitasi bisa salah pada judul yang memang memakai tanda
 kurung sebagai bagian nama lagu (`Song (feat. X)` dipertahankan, tapi varian
 lain bisa terpotong), dan pencarian manual bergantung pada kata kunci yang
