@@ -15,6 +15,7 @@ import type {
   SearchResults,
   Track,
 } from "../types";
+import { bukaTautanKasetLyric } from "./kasetlyric";
 
 type UnlistenFn = () => void;
 
@@ -59,6 +60,21 @@ export async function listen<K extends keyof EventMap>(
 /** True saat berjalan di dalam Tauri. UI bisa memakai ini untuk menyembunyikan
  *  kontrol yang tidak masuk akal di preview browser. */
 export const runningInTauri = hasTauri;
+
+/**
+ * Membuka KasetLyric di browser sistem, bukan di dalam webview.
+ *
+ * Memakai plugin opener yang sudah terpasang (`tauri-plugin-opener`), jalur yang
+ * sama dengan login Google di Pengaturan — tidak ada dependensi baru. Di browser
+ * murni jatuh ke `window.open` supaya `npm run dev` tetap bisa mencoba tombolnya.
+ */
+export async function bukaKasetLyric(): Promise<void> {
+  return bukaTautanKasetLyric({
+    diTauri: hasTauri,
+    bukaDiTauri: (url) => invoke<void>("plugin:opener|open_url", { url }),
+    bukaDiBrowser: (url, target, fitur) => window.open(url, target, fitur),
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Mock layer (Fase 0)

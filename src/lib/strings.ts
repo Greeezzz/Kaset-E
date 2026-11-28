@@ -313,6 +313,11 @@ export const T = {
   ukuranFontLirik: "UKURAN TEKS",
   modeRedup: "MODE REDUP",
 
+  // KasetLyric — situs terpisah untuk mengunduh .lrc berromaji.
+  kasetlyricTombol: "UNDUH LRC ROMAJI",
+  kasetlyricTip: "Buka KasetLyric untuk mengunduh lirik romaji (.lrc)",
+  kasetlyricGagal: "Gagal membuka KasetLyric. Coba lagi atau buka tautannya manual.",
+
   // LRCLIB (L5)
   pengaturanLirik: "Lirik",
   lrclibAktif: "Ambil lirik otomatis (LRCLIB)",
