@@ -210,3 +210,33 @@ pub async fn lyrics_import_file(
         parsed,
     })
 }
+
+/// Menerjemahkan baris lirik menggunakan Google Translate gtx dengan cache SQLite lokal.
+#[tauri::command]
+pub async fn translate_lyrics(
+    state: State<'_, AppState>,
+    track_id: String,
+    target_lang: String,
+    lines: Vec<String>,
+) -> AppResult<crate::lyrics::translate::TranslationResult> {
+    use crate::lyrics::translate::{
+        calculate_lyrics_hash, get_cached_translation, save_cached_translation,
+        translate_lyrics_lines,
+    };
+
+    let target = target_lang.trim().to_lowercase();
+    let lyrics_hash = calculate_lyrics_hash(&lines);
+
+    // 1. Cek cache SQLite
+    if let Ok(Some(cached)) = get_cached_translation(&state.db, &track_id, &target, &lyrics_hash) {
+        return Ok(cached);
+    }
+
+    // 2. Jika tidak ada di cache, lakukan translate via Google Translate gtx
+    let res = translate_lyrics_lines(lines, &target).await?;
+
+    // 3. Simpan ke cache jika sukses
+    let _ = save_cached_translation(&state.db, &track_id, &target, &lyrics_hash, &res);
+
+    Ok(res)
+}

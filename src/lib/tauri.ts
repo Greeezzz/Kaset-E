@@ -709,6 +709,17 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
       mockLib.lyrics.set(vid, res);
       return res as T;
     }
+    case "translate_lyrics": {
+      const lines = (args?.lines as string[]) ?? [];
+      const targetLang = (args?.targetLang as string) ?? "id";
+      const result = {
+        source_lang: "en",
+        target_lang: targetLang,
+        same_language: targetLang === "en",
+        lines: lines.map((l) => (l.trim() ? `[Terjemahan] ${l}` : null)),
+      };
+      return result as T;
+    }
     default:
       return null as T;
   }

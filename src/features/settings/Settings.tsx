@@ -34,6 +34,7 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
   const [statsMsg, setStatsMsg] = useState<string | null>(null);
   const [modeNp, setModeNp] = useState<"standar" | "kaset">("standar");
   const [lrclibAktif, setLrclibAktif] = useState(false);
+  const [targetLang, setTargetLang] = useState<"id" | "en">("id");
 
   // Cloud Sync Supabase (Fase 6)
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -207,6 +208,15 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
     void invoke<string | null>("setting_get", { key: "lirik.lrclib" })
       .then((v) => setLrclibAktif(v === "1"))
       .catch(() => setLrclibAktif(false));
+    void invoke<string | null>("setting_get", { key: "lirik.target_lang" })
+      .then((v) => {
+        if (v === "en" || v === "id") setTargetLang(v);
+        else {
+          const local = localStorage.getItem("kaset.lirik.target_lang");
+          if (local === "en" || local === "id") setTargetLang(local);
+        }
+      })
+      .catch(() => {});
 
     // Periksa status auth Supabase
     void supabase.auth.getSession().then(({ data: { session } }) => {
@@ -794,6 +804,43 @@ export function Settings({ onLibraryChanged }: { onLibraryChanged?: () => void }
               </span>
             </div>
           </label>
+
+          <div style={{ marginTop: "var(--s-3)" }}>
+            <span className="muted mono" style={{ fontSize: 11, display: "block", marginBottom: 6 }}>
+              BAHASA TERJEMAHAN (GOOGLE TRANSLATE)
+            </span>
+            <div style={{ display: "flex", gap: "var(--s-2)" }}>
+              {(["id", "en"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => {
+                    setTargetLang(lang);
+                    localStorage.setItem("kaset.lirik.target_lang", lang);
+                    if (runningInTauri) {
+                      void invoke("setting_set", { key: "lirik.target_lang", value: lang });
+                    }
+                  }}
+                  style={{
+                    minHeight: 36,
+                    padding: "0 var(--s-3)",
+                    border: targetLang === lang ? "1px solid var(--accent)" : "1px solid var(--line)",
+                    background: targetLang === lang ? "var(--accent)" : "transparent",
+                    color: targetLang === lang ? "var(--accent-ink)" : "var(--ink)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    letterSpacing: "0.08em",
+                    fontWeight: targetLang === lang ? 700 : 400,
+                  }}
+                >
+                  {lang === "id" ? "INDONESIA (ID)" : "ENGLISH (EN)"}
+                </button>
+              ))}
+            </div>
+            <span className="muted" style={{ display: "block", fontSize: 12, marginTop: 4 }}>
+              Bahasa tujuan saat tombol TERJEMAH di lirik diaktifkan.
+            </span>
+          </div>
         </dd>
 
         <dt className="muted">{T.pengaturanData}</dt>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LrclibCandidate, LrclibMetadata, LyricsResponse, Track } from "../../types";
+import type { LrclibCandidate, LrclibMetadata, LyricsResponse, Track, TranslationResult } from "../../types";
 import { audioEngine } from "../../lib/audio";
 import { formatDuration } from "../../lib/format";
 import { T } from "../../lib/strings";
@@ -48,6 +48,11 @@ export function LyricsView({
   const [userScrolled, setUserScrolled] = useState(false);
   const [offsetMs, setOffsetMs] = useState(0);
   const [showRomaji, setShowRomaji] = useState(true);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [targetLang, setTargetLang] = useState<"id" | "en">("id");
+  const [translating, setTranslating] = useState(false);
+  const [translation, setTranslation] = useState<TranslationResult | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [syncToolsOpen, setSyncToolsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -77,6 +82,63 @@ export function LyricsView({
   offsetMsRef.current = offsetMs;
 
   const videoId = track?.videoId;
+
+  // Baca preferensi bahasa dan toggle terjemahan dari localStorage / settings
+  useEffect(() => {
+    const localLang = localStorage.getItem("kaset.lirik.target_lang");
+    if (localLang === "en" || localLang === "id") {
+      setTargetLang(localLang);
+    } else if (runningInTauri) {
+      void invoke<string | null>("setting_get", { key: "lirik.target_lang" }).then((val) => {
+        if (val === "en" || val === "id") setTargetLang(val);
+      });
+    }
+
+    const localShow = localStorage.getItem("kaset.lirik.show_translate");
+    if (localShow === "1") setShowTranslate(true);
+  }, []);
+
+  const terjemahkanLirik = useCallback(
+    async (currentData: LyricsResponse, lang: string) => {
+      if (!currentData.parsed.lines.length || !videoId) return;
+      setTranslating(true);
+      try {
+        const rawLines = currentData.parsed.lines.map((l) => l.text);
+        const res = await invoke<TranslationResult>("translate_lyrics", {
+          trackId: videoId,
+          targetLang: lang,
+          lines: rawLines,
+        });
+        setTranslation(res);
+        if (res.same_language) {
+          setToastMsg(lang === "id" ? "Lirik sudah berbahasa Indonesia" : "Lyrics already in English");
+          setTimeout(() => setToastMsg(null), 3500);
+        }
+      } catch (e) {
+        console.error("Gagal terjemahkan lirik:", e);
+        setToastMsg("GAGAL MENERJEMAHKAN — KONEKSI TERBATAS / COBA LAGI NANTI");
+        setTimeout(() => setToastMsg(null), 4000);
+      } finally {
+        setTranslating(false);
+      }
+    },
+    [videoId],
+  );
+
+  useEffect(() => {
+    setTranslation(null);
+    if (showTranslate && data && data.parsed.lines.length > 0) {
+      void terjemahkanLirik(data, targetLang);
+    }
+  }, [showTranslate, targetLang, data, terjemahkanLirik]);
+
+  const toggleTranslate = () => {
+    setShowTranslate((prev) => {
+      const next = !prev;
+      localStorage.setItem("kaset.lirik.show_translate", next ? "1" : "0");
+      return next;
+    });
+  };
 
   // Muat lirik dari DB saat lagu berubah, fallback ke LRCLIB jika opt-in aktif (§4 L5)
   const muatLirik = useCallback(
@@ -593,6 +655,31 @@ export function LyricsView({
         }}
       />
 
+      {toastMsg && (
+        <div
+          role="status"
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--panel)",
+            border: "1px solid var(--line-strong)",
+            borderLeft: "4px solid var(--danger)",
+            color: "var(--ink)",
+            padding: "8px 16px",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.06em",
+            zIndex: 30,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {toastMsg}
+        </div>
+      )}
+
       {loading ? (
         <p className="mono muted" style={{ fontSize: 11 }}>
           {T.memuat}
@@ -656,7 +743,7 @@ export function LyricsView({
               )}
             </div>
 
-            {/* Utility Toolbar: [ROMAJI] [SYNC TOOLS] [LAYAR PENUH] [⋯] */}
+            {/* Utility Toolbar: [ROMAJI] [TERJEMAH] [SYNC TOOLS] [LAYAR PENUH] [⋯] */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
               <button
                 type="button"
@@ -667,6 +754,23 @@ export function LyricsView({
                 title="Tampilkan atau sembunyikan baris Romanisasi / Romaji"
               >
                 ROMAJI
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleTranslate}
+                aria-pressed={showTranslate}
+                className={`k-btn ${showTranslate ? "k-btn-accent" : ""}`}
+                style={{
+                  minHeight: 32,
+                  height: 32,
+                  padding: "0 8px",
+                  fontSize: 10,
+                  opacity: translating ? 0.7 : 1,
+                }}
+                title={`Terjemahkan lirik ke bahasa ${targetLang === "id" ? "Indonesia" : "Inggris"}`}
+              >
+                {translating ? "TRANSLATING..." : "TERJEMAH"}
               </button>
 
               <button
@@ -975,9 +1079,27 @@ export function LyricsView({
                             fontSize: 11,
                             lineHeight: 1.3,
                             letterSpacing: "0.02em",
+                            opacity: 0.7,
                           }}
                         >
                           {line.romanized}
+                        </span>
+                      )}
+
+                    {showTranslate &&
+                      translation?.lines[idx] &&
+                      !translation.same_language &&
+                      translation.lines[idx]!.trim().toLowerCase() !== line.text.trim().toLowerCase() && (
+                        <span
+                          style={{
+                            fontSize: aktif ? "0.95rem" : "0.85rem",
+                            lineHeight: 1.35,
+                            marginTop: 2,
+                            color: aktif ? "var(--ink)" : "var(--ink-muted)",
+                            opacity: aktif ? 0.9 : 0.6,
+                          }}
+                        >
+                          {translation.lines[idx]}
                         </span>
                       )}
                   </div>

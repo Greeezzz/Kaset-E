@@ -78,6 +78,7 @@ pub fn set_lyrics_offset(db: &Db, video_id: &str, offset_ms: i64) -> AppResult<b
 /// Menghapus lirik untuk video_id tertentu.
 pub fn delete_lyrics(db: &Db, video_id: &str) -> AppResult<bool> {
     db.with(|conn| {
+        let _ = conn.execute("DELETE FROM lyrics_translations WHERE track_id = ?1", [video_id]);
         let affected = conn.execute("DELETE FROM lyrics WHERE video_id = ?1", [video_id])?;
         Ok(affected > 0)
     })

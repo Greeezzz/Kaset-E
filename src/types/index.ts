@@ -95,3 +95,10 @@ export interface LrclibCandidate {
   synced: boolean;
   lrc: string;
 }
+
+export interface TranslationResult {
+  source_lang: string;
+  target_lang: string;
+  same_language: boolean;
+  lines: (string | null)[];
+}

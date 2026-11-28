@@ -46,6 +46,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "0009",
         sql: include_str!("../../migrations/0009_sync_metadata.sql"),
     },
+    Migration {
+        version: "0010",
+        sql: include_str!("../../migrations/0010_lyrics_translations.sql"),
+    },
 ];
 
 pub fn run(db: &Db) -> AppResult<()> {
